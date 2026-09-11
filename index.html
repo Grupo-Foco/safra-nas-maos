@@ -209,6 +209,57 @@ svg{display:block}
 .stub h2{color:var(--brown);font-size:21px;font-weight:800;margin-bottom:8px}
 .stub p{color:var(--muted);font-size:14.5px;max-width:430px;margin:0 auto 20px;line-height:1.55}
 
+/* ── Indicadores ─────────────────────────── */
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:14px 16px}
+.kpi-rot{display:block;color:var(--muted);font-size:12px;font-weight:600;margin-bottom:3px}
+.kpi-val{display:block;color:var(--brown);font-size:23px;font-weight:800;letter-spacing:-.02em;line-height:1.1}
+.kpi-val i{font-style:normal;font-size:13px;font-weight:600;color:var(--muted)}
+
+/* ── Barra de ações ──────────────────────── */
+.acts{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+.btn-act{background:var(--card);border:1px solid var(--line);color:var(--brown);
+  border-radius:9px;padding:10px 16px;font-size:14px;font-weight:700}
+.btn-act:hover{border-color:var(--leaf);color:var(--leaf-dk)}
+.btn-act.primary{background:var(--leaf-dk);border-color:var(--leaf-dk);color:#fff}
+.btn-act.primary:hover{background:#3E6B27}
+.busca{flex:1;min-width:180px;padding:10px 14px;border:1px solid var(--line);
+  border-radius:9px;background:#fff;font-size:14px;color:var(--text)}
+.busca:focus{border-color:var(--leaf);outline:none}
+
+/* ── Lista de talhões ────────────────────── */
+.tal-list{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.tal{display:grid;grid-template-columns:4px 1fr auto auto;align-items:center;gap:14px;
+  padding:13px 16px;border-bottom:1px solid var(--line)}
+.tal:last-child{border-bottom:none}
+.tal:hover{background:#FAFBF7}
+.tal-bar{width:4px;height:34px;background:#EDEFE7;border-radius:3px;overflow:hidden;
+  display:flex;align-items:flex-end}
+.tal-bar i{display:block;width:100%;background:var(--leaf);border-radius:3px;height:100%}
+.tal-nome{color:var(--brown);font-size:15.5px;font-weight:700;min-width:0}
+.pill{display:inline-block;margin-left:8px;background:var(--amber-soft);color:var(--amber);
+  font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:5px;vertical-align:middle}
+.tal-ha{color:var(--brown);font-size:16px;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
+.tal-ha span{color:var(--muted);font-size:12px;font-weight:600}
+.tal-acts{display:flex;gap:6px}
+.tal-acts button{background:none;border:1px solid var(--line);border-radius:7px;
+  padding:6px 11px;font-size:12.5px;font-weight:600;color:var(--muted)}
+.tal-acts button:hover{border-color:var(--leaf);color:var(--leaf-dk)}
+.tal-acts .rm:hover{border-color:var(--red);color:var(--red)}
+
+@media(max-width:640px){
+  .kpis{grid-template-columns:1fr 1fr;gap:10px}
+  .kpis .kpi:last-child{grid-column:1/-1}
+  .kpi-val{font-size:20px}
+  .acts{gap:8px}
+  .btn-act{flex:1;padding:11px 12px;font-size:13.5px}
+  .busca{width:100%;flex-basis:100%}
+  .tal{grid-template-columns:4px 1fr auto;gap:10px;padding:12px 13px;row-gap:8px}
+  .tal-nome{font-size:14.5px}
+  .tal-acts{grid-column:2/-1;justify-content:flex-start}
+  .tal-acts button{padding:5px 10px}
+}
+
 @media(max-width:640px){
   body{font-size:14.5px}
   .wrap{padding:16px 12px 32px}
@@ -231,7 +282,7 @@ svg{display:block}
 
 <script>
 "use strict";
-const APP_VERSION = "0.4.0";
+const APP_VERSION = "0.5.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -368,12 +419,72 @@ function removerFazenda(id){
   Sync.push("fazendas","delete",{id});
 }
 
+
+/* ═══════════════════════════════════════════════════
+   SEED — Fazenda Santa Angelina
+   [nome, hectares, aberturaHa?]  · abertura>0 = área nova
+   ═══════════════════════════════════════════════════ */
+const SEED_SANTA_ANGELINA = {
+  nome:"Fazenda Santa Angelina", produtor:"Ivan Alves da Silva",
+  municipio:"Brejinho de Nazaré", uf:"TO",
+  talhoes: [["Pivo 01",92.0],["Pivo 02",92.7],["Pivo 03",100.5],["Saia Pivos",38.9],["Sede",158.55],["Talhão 01",308.3],["Talhão 02",258.2,3.98],["Talhão 03",48.8],["Talhão 04",264.7,2.48],["Talhão 05",107.3,1.77],["Talhão 06",101.94,3.49],["Talhão 07",121.0],["Talhão 08",275.6],["Talhão 09",403.46],["Talhão 10",248.66,5.16],["Talhão 11",225.6],["Talhão 12",142.14],["Talhão 13",317.98],["Talhão 14",272.83],["Talhão 15",131.23,9.95],["Talhão 16",355.74],["Talhão 17",199.0],["Luiz 01",321.6,7.2],["Luiz 02",269.2],["Luiz 03",298.74],["Luiz 04",303.53],["Luiz 05",604.22],["Luiz 06",169.4],["Luiz 07",83.46],["Luiz 08",291.91],["Luiz 09",75.9],["Paulo 01",89.74],["Paulo 02",388.96,57.29],["Paulo 03",125.28],["Corredor Luiz",24.1],["Corredor Sta A.",13.5]]
+};
+
+/* ═══════════════════════════════════════════════════
+   TALHÕES — uma gaveta por fazenda
+   ═══════════════════════════════════════════════════ */
+function chaveTal(fid){ return "faz_"+fid+"_talhoes"; }
+function talhoesDe(fid){ return Store.get(chaveTal(fid), []); }
+function salvarTalhoes(fid, lista){
+  Store.set(chaveTal(fid), lista);
+  recontarFazenda(fid);
+}
+function recontarFazenda(fid){
+  const l = fazendas(), f = l.find(x=>x.id===fid);
+  if(!f) return;
+  const t = talhoesDe(fid);
+  f.talhoes  = t.length;
+  f.hectares = t.reduce((s,x)=>s+(x.hectares||0),0);
+  salvarFazendas(l);
+}
+function novoTalhao(fid, d){
+  const l = talhoesDe(fid);
+  const t = {
+    id: "tal_"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),
+    fazenda_id: fid,
+    nome: (d.nome||"").trim(),
+    hectares: Number(d.hectares)||0,
+    abertura: Number(d.abertura)||0
+  };
+  l.push(t); salvarTalhoes(fid,l);
+  Sync.push("talhoes","upsert",t);
+  return t;
+}
+function editarTalhao(fid, id, d){
+  const l = talhoesDe(fid), t = l.find(x=>x.id===id);
+  if(!t) return;
+  Object.assign(t,{ nome:(d.nome||"").trim(),
+    hectares:Number(d.hectares)||0, abertura:Number(d.abertura)||0 });
+  salvarTalhoes(fid,l); Sync.push("talhoes","upsert",t);
+}
+function apagarTalhao(fid, id){
+  salvarTalhoes(fid, talhoesDe(fid).filter(x=>x.id!==id));
+  Sync.push("talhoes","delete",{id});
+}
+function aplicarSeedSA(fid){
+  const l = SEED_SANTA_ANGELINA.talhoes.map((r,i)=>({
+    id:"tal_sa_"+i, fazenda_id:fid, nome:r[0], hectares:r[1], abertura:r[2]||0
+  }));
+  salvarTalhoes(fid,l);
+  l.forEach(t=>Sync.push("talhoes","upsert",t));
+}
+
 /* ═══════════════════════════════════════════════════
    MÓDULOS
    ═══════════════════════════════════════════════════ */
 const MODULOS = [
   { grupo:"Fazenda e lavoura", itens:[
-    { id:"talhoes",   ic:"talhoes",   nome:"Dados da fazenda", desc:"Talhões, áreas e mapa da propriedade", pronto:false, resumo:f=>f.talhoes+" talhões · "+f.hectares.toFixed(1)+" ha" },
+    { id:"talhoes",   ic:"talhoes",   nome:"Dados da fazenda", desc:"Talhões, áreas e mapa da propriedade", pronto:true, resumo:f=>f.talhoes ? f.talhoes+" talhões · "+f.hectares.toLocaleString("pt-BR",{maximumFractionDigits:1})+" ha" : "Cadastre os talhões da fazenda" },
     { id:"lavoura",   ic:"lavoura",   nome:"Dados da lavoura", desc:"Cultura, plantio e emergência", pronto:false },
     { id:"operacoes", ic:"operacoes", nome:"Operações no talhão", desc:"Pulverização, semeadura e adubação", pronto:false },
     { id:"estoque",   ic:"estoque",   nome:"Estoque", desc:"Desconta automaticamente o que foi aplicado", pronto:false },
@@ -421,7 +532,7 @@ function render(){
   let h = topbar();
   if(App.tela==="fazendas")      h += telaFazendas();
   else if(App.tela==="fazenda")  h += telaFazenda();
-  else if(App.tela==="modulo")   h += telaModulo();
+  else if(App.tela==="modulo")   h += (App.moduloId==="talhoes" ? telaTalhoes() : telaModulo());
   else if(App.tela==="panorama") h += telaPanorama();
   document.getElementById("root").innerHTML = h;
   Sync.render();
@@ -514,6 +625,155 @@ function telaFazenda(){
     h+='</div>';
   });
   return h+'</div>';
+}
+
+/* ═══════════════════════════════════════════════════
+   TELA — Dados da fazenda (talhões)
+   ═══════════════════════════════════════════════════ */
+let _buscaTal = "";
+
+function telaTalhoes(){
+  const f = acharFazenda(App.fazendaId);
+  if(!f){ App.tela="fazendas"; return telaFazendas(); }
+
+  const todos = talhoesDe(f.id);
+  const b = _buscaTal.trim().toLowerCase();
+  const lista = b ? todos.filter(t=>t.nome.toLowerCase().includes(b)) : todos;
+  lista.sort((a,z)=>a.nome.localeCompare(z.nome,"pt-BR",{numeric:true}));
+
+  const totHa = todos.reduce((s,t)=>s+t.hectares,0);
+  const totAb = todos.reduce((s,t)=>s+(t.abertura||0),0);
+  const nAb   = todos.filter(t=>(t.abertura||0)>0).length;
+
+  let h = '<div class="wrap wrap-wide">';
+  h += '<div class="farm-head">'+
+         '<button class="btn-back" onclick="irPara(\'fazenda\')">← '+esc(f.nome)+'</button>'+
+         '<div class="farm-head-mid"><h1>Dados da fazenda</h1>'+
+         '<p>Talhões, áreas e tipo de área · safra '+esc(f.safra)+'</p></div></div>';
+
+  // Indicadores
+  h += '<div class="kpis">'+
+    kpi("Talhões", todos.length, "") +
+    kpi("Área total", totHa.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}), "ha") +
+    kpi("Área nova", totAb>0 ? totAb.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}) : "—", totAb>0?"ha · "+nAb+" talhões":"") +
+  '</div>';
+
+  // Ações
+  h += '<div class="acts">'+
+    '<button class="btn-act primary" onclick="modalTalhao()">+ Novo talhão</button>'+
+    (todos.length ? '<button class="btn-act" onclick="exportarTalhoes()">Baixar planilha</button>' : '')+
+    (todos.length ? '<input class="busca" placeholder="Buscar talhão…" value="'+esc(_buscaTal)+'" '+
+       'oninput="clearTimeout(window._bt);window._bt=setTimeout(()=>{_buscaTal=this.value;render();},250)">' : '')+
+  '</div>';
+
+  if(!todos.length){
+    h += '<div class="empty"><strong>Nenhum talhão cadastrado</strong>'+
+         'Cadastre os talhões com nome e área. Eles são a base para colheita, operações, chuva e NDVI.'+
+         (f.nome.toLowerCase().includes("santa angelina")
+           ? '<div style="margin-top:16px"><button class="btn-act primary" onclick="carregarSA()">'+
+             'Carregar os 36 talhões da Santa Angelina</button></div>' : '')+
+         '</div>';
+  }else if(!lista.length){
+    h += '<div class="empty"><strong>Nada encontrado</strong>Nenhum talhão com “'+esc(_buscaTal)+'”.</div>';
+  }else{
+    h += '<div class="tal-list">';
+    lista.forEach(t=>{
+      const pct = totHa>0 ? (t.hectares/totHa*100) : 0;
+      h += '<div class="tal">'+
+        '<div class="tal-bar"><i style="width:'+Math.max(2,Math.min(100,pct*3)).toFixed(1)+'%"></i></div>'+
+        '<div class="tal-nome">'+esc(t.nome)+
+          ((t.abertura||0)>0 ? '<span class="pill">área nova '+t.abertura.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})+' ha</span>' : '')+
+        '</div>'+
+        '<div class="tal-ha">'+t.hectares.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})+' <span>ha</span></div>'+
+        '<div class="tal-acts">'+
+          '<button onclick="modalTalhao(\''+t.id+'\')" title="Editar">Editar</button>'+
+          '<button class="rm" onclick="removerTalhao(\''+t.id+'\')" title="Remover">✕</button>'+
+        '</div></div>';
+    });
+    h += '</div>';
+    if(b) h += '<p class="ver">'+lista.length+' de '+todos.length+' talhões</p>';
+  }
+  return h+'</div>';
+}
+
+function kpi(rot, val, un){
+  return '<div class="kpi"><span class="kpi-rot">'+esc(rot)+'</span>'+
+         '<span class="kpi-val">'+esc(String(val))+(un?' <i>'+esc(un)+'</i>':'')+'</span></div>';
+}
+
+function carregarSA(){
+  const f = acharFazenda(App.fazendaId); if(!f) return;
+  if(!confirm("Carregar os 36 talhões da Santa Angelina (7.324,67 ha)?")) return;
+  aplicarSeedSA(f.id);
+  toast("36 talhões carregados");
+  render();
+}
+
+function modalTalhao(id){
+  const f = acharFazenda(App.fazendaId); if(!f) return;
+  const t = id ? talhoesDe(f.id).find(x=>x.id===id) : null;
+  document.getElementById("modal-root").innerHTML =
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal">'+
+    '<h2>'+(t?"Editar talhão":"Novo talhão")+'</h2>'+
+    '<p class="sub">A área é usada para calcular produtividade, custo por hectare e dose de aplicação.</p>'+
+    '<div class="frm">'+
+      '<div><label for="t-nome">Nome do talhão</label>'+
+        '<input id="t-nome" value="'+esc(t?t.nome:"")+'" placeholder="Talhão 01, Pivô 03, Luiz 05…"></div>'+
+      '<div style="display:flex;gap:10px">'+
+        '<div style="flex:1"><label for="t-ha">Área (ha)</label>'+
+          '<input id="t-ha" type="number" step="0.01" inputmode="decimal" value="'+(t?t.hectares:"")+'" placeholder="0,00"></div>'+
+        '<div style="flex:1"><label for="t-ab">Área nova (ha)</label>'+
+          '<input id="t-ab" type="number" step="0.01" inputmode="decimal" value="'+(t&&t.abertura?t.abertura:"")+'" placeholder="0,00"></div>'+
+      '</div>'+
+      '<p style="font-size:12.5px;color:var(--muted);margin-top:-4px">'+
+        'Área nova é a parte aberta nesta safra. Deixe vazio se o talhão já estava em produção.</p>'+
+    '</div>'+
+    '<div class="modal-acts">'+
+      '<button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
+      '<button class="btn-save" onclick="salvarTalhao('+(t?"'"+t.id+"'":"null")+')">Salvar</button>'+
+    '</div></div></div>';
+  setTimeout(()=>{const e=document.getElementById("t-nome"); if(e) e.focus();},60);
+}
+
+function salvarTalhao(id){
+  const f = acharFazenda(App.fazendaId); if(!f) return;
+  const nome = document.getElementById("t-nome").value.trim();
+  const ha   = parseFloat(String(document.getElementById("t-ha").value).replace(",","."))||0;
+  const ab   = parseFloat(String(document.getElementById("t-ab").value).replace(",","."))||0;
+  if(!nome){ toast("Informe o nome do talhão"); return; }
+  if(ha<=0){ toast("Informe a área em hectares"); return; }
+  if(ab>ha){ toast("A área nova não pode ser maior que a área do talhão"); return; }
+
+  const jaExiste = talhoesDe(f.id).some(t =>
+    t.id!==id && t.nome.toLowerCase()===nome.toLowerCase());
+  if(jaExiste){ toast("Já existe um talhão com esse nome"); return; }
+
+  if(id) editarTalhao(f.id,id,{nome,hectares:ha,abertura:ab});
+  else   novoTalhao(f.id,{nome,hectares:ha,abertura:ab});
+  fecharModal(); toast(id?"Talhão atualizado":"Talhão cadastrado"); render();
+}
+
+function removerTalhao(id){
+  const f = acharFazenda(App.fazendaId); if(!f) return;
+  const t = talhoesDe(f.id).find(x=>x.id===id); if(!t) return;
+  if(!confirm('Remover o talhão "'+t.nome+'"?')) return;
+  apagarTalhao(f.id,id); toast("Talhão removido"); render();
+}
+
+function exportarTalhoes(){
+  const f = acharFazenda(App.fazendaId); if(!f) return;
+  const l = talhoesDe(f.id).slice()
+    .sort((a,z)=>a.nome.localeCompare(z.nome,"pt-BR",{numeric:true}));
+  const linhas = [["Talhao","Area_ha","Area_nova_ha"]]
+    .concat(l.map(t=>[t.nome, String(t.hectares).replace(".",","), String(t.abertura||0).replace(".",",")]));
+  const csv = "\ufeff"+linhas.map(r=>r.map(v=>{
+    const s=String(v); return /[;"\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s;
+  }).join(";")).join("\r\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8;"}));
+  a.download = "talhoes-"+f.nome.toLowerCase().replace(/[^a-z0-9]+/g,"-")+".csv";
+  a.click(); URL.revokeObjectURL(a.href);
+  toast("Planilha baixada");
 }
 
 function telaModulo(){
@@ -614,6 +874,21 @@ function salvarPerfil(){
 }
 
 /* ── Boot ───────────────────────────────── */
+/* ═══════════════════════════════════════════════════
+   PRIMEIRA ABERTURA — Santa Angelina já vem pronta.
+   Roda só uma vez. Se o usuário apagar, não volta.
+   ═══════════════════════════════════════════════════ */
+function semearPrimeiraVez(){
+  if(Store.get("seed_feito", false)) return;
+  Store.set("seed_feito", true);
+  if(fazendas().length) return;
+  const d = SEED_SANTA_ANGELINA;
+  const f = criarFazenda({ nome:d.nome, produtor:d.produtor,
+                           municipio:d.municipio, uf:d.uf });
+  aplicarSeedSA(f.id);
+}
+
+semearPrimeiraVez();
 render();
 Sync.flush();
 setInterval(()=>{ if(navigator.onLine && Sync.pending()) Sync.flush(); }, 30000);
