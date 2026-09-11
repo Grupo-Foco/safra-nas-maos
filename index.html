@@ -767,7 +767,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.4.1";
+const APP_VERSION = "2.5.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -827,7 +827,7 @@ const Store = {
   set(k,v){
     _mem[k]=v;
     try{ if(_ls) _ls.setItem("sm_"+k, JSON.stringify(v)); }catch(e){}
-    if(typeof Sync!=="undefined" && Sync.marcar && ehBloco(k)) Sync.marcar(k);
+    if(typeof Sync!=="undefined" && Sync.marcar && !Sync._aplicando && ehBloco(k)) Sync.marcar(k);
   },
   del(k){ delete _mem[k]; try{ if(_ls) _ls.removeItem("sm_"+k); }catch(e){} },
   persistent(){ return _ls !== null; }
@@ -942,8 +942,12 @@ const Sync = {
   push(){ /* mantido por compatibilidade: o que conta é marcar() */ },
 
   async subir(){
-    const sujos = this.sujos();
+    let sujos = this.sujos();
     if(!sujos.length) return 0;
+    // A fazenda precisa existir na nuvem antes dos blocos dela:
+    // é o vínculo de membro que libera a gravação do resto.
+    sujos = sujos.slice().sort((a,b)=>
+      (a==="fazendas"?0:1) - (b==="fazendas"?0:1));
     const restam = [];
     for(const chave of sujos){
       try{
@@ -972,6 +976,8 @@ const Sync = {
   },
 
   async baixar(){
+    this._aplicando = true;
+    try{
     const fz = await api("safra_fazendas?select=*");
     const locais = fazendas();
     const mapa = {}; locais.forEach(f=>mapa[f.id]=f);
@@ -995,6 +1001,7 @@ const Sync = {
     (fz||[]).forEach(r=>recontarFazenda(r.id));
     Store.set("sync_ultimo", new Date().toISOString());
     return (fz||[]).length;
+    } finally { this._aplicando = false; }
   },
 
   async rodar(){
@@ -2089,7 +2096,7 @@ async function enviarLogin(){
       : /Email not confirmed/i.test(m) ? "Confirme o e-mail que você recebeu e tente de novo."
       : /rate limit|too many/i.test(m) ? "Muitas tentativas. Espere um minuto."
       : /relation .* does not exist/i.test(m) ? "O banco ainda não foi preparado. Rode o schema no Supabase."
-      : /Failed to fetch|NetworkError/i.test(m) ? "Não consegui falar com o servidor. Confira a internet."
+      : /Failed to fetch|NetworkError|Load failed/i.test(m) ? "Não consegui falar com o servidor. Confira a internet."
       : m;
     btn.disabled=false;
     btn.textContent=(_modoLogin==="entrar"?"Entrar":"Criar conta");
