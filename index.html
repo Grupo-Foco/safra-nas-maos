@@ -272,6 +272,123 @@ svg{display:block}
 .stub h2{color:var(--green);font-size:21px;font-weight:800;margin-bottom:9px}
 .stub p{color:var(--muted);font-size:14px;max-width:430px;margin:0 auto 21px;line-height:1.55}
 
+/* ── Colheita: abas ──────────────────────── */
+.abas{display:flex;gap:6px;border-bottom:2px solid var(--line);margin-bottom:20px;overflow-x:auto}
+.ab{background:none;border:none;border-bottom:3px solid transparent;margin-bottom:-2px;
+  padding:11px 15px;font-family:var(--mono);font-size:12.5px;font-weight:700;
+  color:var(--muted);white-space:nowrap;display:flex;align-items:center;gap:7px}
+.ab:hover{color:var(--green)}
+.ab.on{color:var(--green);border-bottom-color:var(--gold)}
+.ab b{background:var(--line-soft);color:var(--muted);font-size:10px;padding:2px 6px;border-radius:5px;font-weight:700}
+.ab.on b{background:var(--gold-soft);color:var(--amber)}
+.kpis-4{grid-template-columns:repeat(4,1fr)}
+.kpis-4 .kpi:nth-child(4){border-left-color:var(--gold)}
+.sel-f{padding:10px 13px;border:1px solid var(--line);border-radius:9px;background:#fff;
+  font-family:var(--mono);font-size:12.5px;color:var(--green)}
+.sel-f:focus{border-color:var(--gold);outline:none}
+
+/* ── Tabela ──────────────────────────────── */
+.tbl{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow-x:auto}
+.tbl table{width:100%;border-collapse:collapse;font-size:13.5px}
+.tbl th{background:var(--line-soft);color:var(--green);font-family:var(--mono);font-size:10.5px;
+  font-weight:700;letter-spacing:.07em;text-transform:uppercase;text-align:left;
+  padding:10px 13px;white-space:nowrap;border-bottom:1px solid var(--line)}
+.tbl td{padding:11px 13px;border-bottom:1px solid var(--line-soft);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tbody tr:hover{background:#fff}
+.tbl .num{text-align:right}
+.tbl .mono{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:12.5px}
+.tbl .forte{font-weight:800;color:var(--green)}
+.tbl .alerta{color:var(--red);font-weight:700}
+.tbl tr.pendente td{opacity:.5}
+.tagdest{background:var(--leaf-soft);color:var(--green);font-family:var(--mono);font-size:10.5px;
+  font-weight:700;padding:3px 8px;border-radius:5px;white-space:nowrap}
+.tal-col{max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  color:var(--muted);font-size:12.5px}
+.acoes{display:flex;gap:6px;justify-content:flex-end}
+.acoes button{background:none;border:1px solid var(--line);border-radius:7px;padding:5px 10px;
+  font-family:var(--mono);font-size:11px;font-weight:600;color:var(--muted)}
+.acoes button:hover{border-color:var(--gold);color:var(--green)}
+.acoes .rm:hover{border-color:var(--red);color:var(--red)}
+.sc-ha{font-weight:800}
+.sc-ha.bom{color:var(--leaf-dk)}
+.sc-ha.baixo{color:var(--red)}
+input.silo{width:62px;padding:5px 7px;border:1px solid var(--line);border-radius:6px;
+  background:#fff;font-family:var(--mono);font-size:12.5px;text-align:center;color:var(--green)}
+input.silo:focus{border-color:var(--gold);outline:none}
+
+/* ── Resumo ──────────────────────────────── */
+.resumo{background:var(--card);border:1px solid var(--line);border-top:4px solid var(--gold);
+  border-radius:12px;padding:19px;margin-top:18px}
+.resumo-t{color:var(--green);font-family:var(--mono);font-size:11px;font-weight:700;
+  letter-spacing:.11em;text-transform:uppercase;margin-bottom:14px}
+.resumo-g{display:grid;grid-template-columns:repeat(3,1fr);gap:11px}
+.rl{display:flex;flex-direction:column;gap:3px;padding:11px 13px;background:var(--bg);border-radius:9px}
+.rl span{color:var(--muted);font-size:11.5px}
+.rl b{color:var(--green);font-family:var(--mono);font-size:16px;font-weight:800;
+  font-variant-numeric:tabular-nums}
+.rl.forte{background:var(--gold-soft)}
+.rl.forte b{color:var(--amber);font-size:19px}
+.resumo-obs{color:var(--muted);font-size:12px;margin-top:13px;line-height:1.5}
+
+/* ── Modal de carga ──────────────────────── */
+.modal-lg{max-width:600px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:11px}
+.calc{display:flex;flex-wrap:wrap;gap:9px;background:var(--bg);border-radius:9px;padding:13px}
+.calc span{display:flex;flex-direction:column;gap:2px;min-width:88px}
+.calc i{font-style:normal;color:var(--muted);font-size:10.5px;font-family:var(--mono);
+  letter-spacing:.05em;text-transform:uppercase}
+.calc b{color:var(--green);font-family:var(--mono);font-size:14.5px;font-weight:800;
+  font-variant-numeric:tabular-nums}
+.calc b.neg{color:var(--red)}
+.calc b.ok{color:var(--leaf-dk)}
+.calc .nota{flex-basis:100%;color:var(--muted);font-size:11.5px;min-width:0}
+.item{display:grid;grid-template-columns:1fr 130px 34px;gap:8px;margin-bottom:8px;align-items:center}
+.item select,.item input{padding:10px 11px;border:1px solid var(--line);border-radius:8px;
+  background:#fff;font-size:14px;color:var(--text);width:100%}
+.item select:focus,.item input:focus{border-color:var(--gold);outline:none}
+.item button{background:none;border:1px solid var(--line);border-radius:8px;padding:9px;
+  color:var(--muted);font-size:13px}
+.item button:hover{border-color:var(--red);color:var(--red)}
+.btn-mini{background:none;border:1px dashed var(--line);border-radius:8px;padding:8px 13px;
+  font-family:var(--mono);font-size:11.5px;font-weight:600;color:var(--muted)}
+.btn-mini:hover{border-color:var(--gold);color:var(--green)}
+.dica{color:var(--muted);font-size:11.5px;margin-top:6px}
+
+/* ── Cadastros ───────────────────────────── */
+.dupla{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.bloco{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:17px}
+.bloco-h{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+.bloco-h h3{color:var(--green);font-size:15px;font-weight:800}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:7px;background:var(--leaf-soft);color:var(--green);
+  font-family:var(--mono);font-size:11.5px;font-weight:700;padding:6px 10px;border-radius:7px}
+.chip button{background:none;border:none;color:var(--muted);font-size:12px;padding:0 2px}
+.chip button:hover{color:var(--red)}
+.lista-cam{display:flex;flex-direction:column}
+.cam{display:grid;grid-template-columns:auto 1fr auto;gap:11px;align-items:center;
+  padding:9px 0;border-bottom:1px solid var(--line-soft);font-size:13.5px}
+.cam:last-child{border-bottom:none}
+.cam .mono{font-family:var(--mono);font-weight:700;color:var(--green);font-size:12.5px}
+.cam span:nth-child(2){color:var(--muted)}
+.cam button{background:none;border:none;color:#CFCABD;font-size:13px;padding:3px 6px}
+.cam button:hover{color:var(--red)}
+.vazio{color:var(--muted);font-size:13px;padding:8px 0}
+
+@media(max-width:640px){
+  .kpis-4{grid-template-columns:1fr 1fr}
+  .resumo-g{grid-template-columns:1fr}
+  .dupla{grid-template-columns:1fr}
+  .g2,.g3{grid-template-columns:1fr}
+  .hide-sm{display:none}
+  .tbl table{font-size:12.5px}
+  .tbl th,.tbl td{padding:9px 10px}
+  .modal-lg{max-width:100%}
+  .item{grid-template-columns:1fr 100px 32px}
+  .calc span{min-width:calc(50% - 5px)}
+}
+
 @media(max-width:640px){
   body{font-size:14.5px}
   .wrap{padding:16px 12px 34px}
@@ -302,7 +419,7 @@ svg{display:block}
 
 <script>
 "use strict";
-const APP_VERSION = "0.6.0";
+const APP_VERSION = "0.7.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -499,6 +616,119 @@ function aplicarSeedSA(fid){
   l.forEach(t=>Sync.push("talhoes","upsert",t));
 }
 
+
+/* ═══════════════════════════════════════════════════
+   COLHEITA — cargas, armazéns, caminhões e silo
+   Tudo separado por fazenda.
+   ═══════════════════════════════════════════════════ */
+const SEED_CAMINHOES = [["RIN5D42","Emerson"],["NKT0H38","Acleuto"],["PRR5H27","Marcos"],["PRR5H07","Luan"],["SDD5J67","Cleiton"],["SDD6B47","Nelio"],["RBV4F96","João Batista"],["SDD5J27","Flavio"],["SDD5J07","Samuel"],["FRI0D72","Leandro"],["IGQ1488","Suelber"],["MWL8F67","Adailton"],["PRJ3G87","Lucas"],["PRU6G87","Dione"],["SDD6A77","Adenilson"],["SDD5H07","Samuel"],["KRC5A39","Niltinho"],["PRU6G14","Dione"]];
+const SEED_ARMAZENS  = ["ALZ","BGB","CARGILL","CARGILL-PINHEIRÓPOLIS","FOCO ARMAZÉM","SILO BOLSA"];
+const SACA_KG = 60;
+const UMID_BASE = 14;   // grau de referência para o desconto
+
+function kCargas(f){ return "faz_"+f+"_cargas"; }
+function kArmaz(f){ return "faz_"+f+"_armazens"; }
+function kCam(f){ return "faz_"+f+"_caminhoes"; }
+function kSiloCap(f){ return "faz_"+f+"_silocap"; }
+
+function cargasDe(f){ return Store.get(kCargas(f), []); }
+function armazensDe(f){ return Store.get(kArmaz(f), []); }
+function caminhoesDe(f){ return Store.get(kCam(f), []); }
+function siloCap(f){ return Store.get(kSiloCap(f), 3000); }
+
+/* Cadeia de cálculo — a mesma da planilha */
+function calcCarga(c){
+  const bruto = Number(c.peso_bruto)||0;
+  const tara  = Number(c.tara)||0;
+  const u     = Number(c.umidade)||0;
+  const liq   = Math.max(0, bruto - tara);
+  const desc  = u > UMID_BASE ? Math.round(liq * ((u-UMID_BASE)/(100-u))) : 0;
+  const seco  = liq - desc;
+  const pf    = Number(c.peso_fazenda)||0;
+  return { liquido:liq, desconto:desc, seco:seco,
+           sacas:seco/SACA_KG, diferenca: pf ? pf-liq : 0 };
+}
+
+function proximoCodigo(f){
+  const n = cargasDe(f).length + 1;
+  return "C-" + String(n).padStart(5,"0");
+}
+
+function salvarCarga(f, dados, id){
+  const l = cargasDe(f);
+  const calc = calcCarga(dados);
+  if(id){
+    const i = l.findIndex(x=>x.id===id);
+    if(i<0) return null;
+    l[i] = Object.assign({}, l[i], dados, calc);
+    Store.set(kCargas(f), l);
+    Sync.push("cargas","upsert",l[i]);
+    return l[i];
+  }
+  const nova = Object.assign({
+    id:"cg_"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),
+    fazenda_id:f, codigo:proximoCodigo(f), criado_em:new Date().toISOString()
+  }, dados, calc);
+  l.push(nova);
+  Store.set(kCargas(f), l);
+  Sync.push("cargas","upsert",nova);
+  return nova;
+}
+function apagarCarga(f, id){
+  Store.set(kCargas(f), cargasDe(f).filter(x=>x.id!==id));
+  Sync.push("cargas","delete",{id});
+}
+
+/* Produtividade: rateia as sacas de cada carga entre os talhões dela */
+function produtividade(f){
+  const tals = talhoesDe(f);
+  const cap  = siloCap(f);
+  const mapa = {};
+  tals.forEach(t => mapa[t.id] = {
+    id:t.id, nome:t.nome, hectares:t.hectares,
+    sacas:0, cargas:0, silos:Number(t.silo)||0
+  });
+
+  cargasDe(f).forEach(c=>{
+    const itens = (c.talhoes||[]).filter(i=>mapa[i.talhao_id]);
+    if(!itens.length) return;
+    const somaKg = itens.reduce((s,i)=>s+(Number(i.kg)||0),0);
+    itens.forEach(i=>{
+      const frac = somaKg>0 ? (Number(i.kg)||0)/somaKg : 1/itens.length;
+      mapa[i.talhao_id].sacas  += c.sacas * frac;
+      mapa[i.talhao_id].cargas += 1;
+    });
+  });
+
+  const linhas = Object.values(mapa).map(t=>{
+    const scSilo = t.silos * cap;
+    const total  = t.sacas + scSilo;
+    return Object.assign(t,{ sc_silo:scSilo, total_sc:total,
+      sc_ha: t.hectares>0 ? total/t.hectares : 0,
+      colhido: t.cargas>0 || t.silos>0 });
+  });
+  linhas.sort((a,b)=>b.sc_ha-a.sc_ha || a.nome.localeCompare(b.nome,"pt-BR",{numeric:true}));
+
+  const colhidos = linhas.filter(l=>l.colhido);
+  const haColh = colhidos.reduce((s,l)=>s+l.hectares,0);
+  const scTot  = linhas.reduce((s,l)=>s+l.total_sc,0);
+  const haTot  = linhas.reduce((s,l)=>s+l.hectares,0);
+  return { linhas, colhidos,
+    sacasArmazem: linhas.reduce((s,l)=>s+l.sacas,0),
+    sacasSilo: linhas.reduce((s,l)=>s+l.sc_silo,0),
+    totalSacas: scTot, haColhida: haColh, haTotal: haTot,
+    prodColhida: haColh>0 ? scTot/haColh : 0,
+    prodFazenda: haTot>0 ? scTot/haTot : 0 };
+}
+
+function definirSilo(f, talhaoId, qtd){
+  const l = talhoesDe(f), t = l.find(x=>x.id===talhaoId);
+  if(!t) return;
+  t.silo = Number(qtd)||0;
+  Store.set(chaveTal(f), l);
+  Sync.push("talhoes","upsert",t);
+}
+
 /* ═══════════════════════════════════════════════════
    MÓDULOS
    ═══════════════════════════════════════════════════ */
@@ -510,7 +740,7 @@ const MODULOS = [
     { id:"estoque",   ic:"estoque",   nome:"Estoque", desc:"Desconta automaticamente o que foi aplicado", pronto:false },
     { id:"ndvi",      ic:"ndvi",      nome:"Mapa NDVI", desc:"Acompanhamento por satélite", pronto:false },
     { id:"chuva",     ic:"chuva",     nome:"Pluviometria", desc:"Lançar e comparar chuvas", pronto:false },
-    { id:"colheita",  ic:"colheita",  nome:"Colheita", desc:"Cargas, caminhões e produtividade por talhão", pronto:false }
+    { id:"colheita",  ic:"colheita",  nome:"Colheita", desc:"Cargas, caminhões e produtividade por talhão", pronto:true, resumo:f=>{const n=cargasDe(f.id).length; return n? n+" cargas lançadas" : "Lance a primeira carga";} }
   ]},
   { grupo:"Dinheiro e máquinas", itens:[
     { id:"cotacoes",   ic:"cotacoes",   nome:"Cotações", desc:"Dólar, mercado e preços da região", pronto:false },
@@ -552,7 +782,7 @@ function render(){
   let h = topbar();
   if(App.tela==="fazendas")      h += telaFazendas();
   else if(App.tela==="fazenda")  h += telaFazenda();
-  else if(App.tela==="modulo")   h += (App.moduloId==="talhoes" ? telaTalhoes() : telaModulo());
+  else if(App.tela==="modulo")   h += (App.moduloId==="talhoes" ? telaTalhoes() : App.moduloId==="colheita" ? telaColheita() : telaModulo());
   else if(App.tela==="panorama") h += telaPanorama();
   document.getElementById("root").innerHTML = h;
   Sync.render();
@@ -796,6 +1026,196 @@ function exportarTalhoes(){
   toast("Planilha baixada");
 }
 
+/* ═══════════════════════════════════════════════════
+   TELA — Colheita
+   ═══════════════════════════════════════════════════ */
+let _abaColh = "cargas";
+let _fCarga  = { destino:"", talhao:"", busca:"" };
+
+const nf = (v,d=2)=>Number(v||0).toLocaleString("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d});
+const n0 = v=>Number(v||0).toLocaleString("pt-BR",{maximumFractionDigits:0});
+const dataBR = s=>{ if(!s) return "—"; const p=String(s).split("-"); return p.length===3 ? p[2]+"/"+p[1]+"/"+p[0] : s; };
+
+function telaColheita(){
+  const f = acharFazenda(App.fazendaId);
+  if(!f){ App.tela="fazendas"; return telaFazendas(); }
+  const cargas = cargasDe(f.id);
+  const p = produtividade(f.id);
+
+  let h = '<div class="wrap wrap-wide">';
+  h += '<div class="farm-head">'+
+       '<button class="btn-back" onclick="irPara(\'fazenda\')">← '+esc(f.nome)+'</button>'+
+       '<div class="farm-head-mid"><h1>Colheita</h1>'+
+       '<p>Cargas, produtividade e silo bolsa · safra '+esc(f.safra)+'</p></div></div>';
+
+  h += '<div class="kpis kpis-4">'+
+    kpi("Cargas", n0(cargas.length), "") +
+    kpi("Sacas colhidas", nf(p.totalSacas,0), "sc") +
+    kpi("Área colhida", nf(p.haColhida,1), "ha") +
+    kpi("Produtividade", nf(p.prodColhida,2), "sc/ha") +
+  '</div>';
+
+  h += '<div class="abas">'+
+    aba("cargas","Cargas", cargas.length)+
+    aba("prod","Produtividade", p.colhidos.length)+
+    aba("cad","Armazéns e caminhões", armazensDe(f.id).length+caminhoesDe(f.id).length)+
+  '</div>';
+
+  if(_abaColh==="cargas")    h += abaCargas(f, cargas);
+  else if(_abaColh==="prod") h += abaProdutividade(f, p);
+  else                       h += abaCadastros(f);
+
+  return h+'</div>';
+}
+
+function aba(id, rot, n){
+  return '<button class="ab'+(_abaColh===id?' on':'')+'" onclick="_abaColh=\''+id+'\';render()">'+
+         esc(rot)+(n?'<b>'+n+'</b>':'')+'</button>';
+}
+
+/* ── Aba: cargas ─────────────────────────── */
+function abaCargas(f, cargas){
+  const tals = talhoesDe(f.id);
+  if(!armazensDe(f.id).length)
+    return '<div class="empty"><strong>Cadastre um destino primeiro</strong>'+
+      'A carga precisa saber para qual armazém ou silo foi entregue.'+
+      '<div style="margin-top:16px"><button class="btn-act primary" '+
+      'onclick="_abaColh=\'cad\';render();setTimeout(modalArmazem,80)">Cadastrar destino</button></div></div>';
+  if(!tals.length)
+    return '<div class="empty"><strong>Cadastre os talhões primeiro</strong>'+
+      'A carga precisa saber de qual talhão veio o grão.'+
+      '<div style="margin-top:16px"><button class="btn-act primary" '+
+      'onclick="irPara(\'modulo\',{moduloId:\'talhoes\'})">Ir para Dados da fazenda</button></div></div>';
+
+  let l = cargas.slice();
+  if(_fCarga.destino) l = l.filter(c=>c.destino===_fCarga.destino);
+  if(_fCarga.talhao)  l = l.filter(c=>(c.talhoes||[]).some(i=>i.talhao_id===_fCarga.talhao));
+  if(_fCarga.busca){
+    const b=_fCarga.busca.toLowerCase();
+    l = l.filter(c=>(c.romaneio||"").toLowerCase().includes(b) ||
+                    (c.motorista||"").toLowerCase().includes(b) ||
+                    (c.placa||"").toLowerCase().includes(b) ||
+                    (c.codigo||"").toLowerCase().includes(b));
+  }
+  l.sort((a,b)=>(b.data||"").localeCompare(a.data||"") || (b.codigo||"").localeCompare(a.codigo||""));
+
+  let h = '<div class="acts">'+
+    '<button class="btn-act primary" onclick="modalCarga()">+ Lançar carga</button>'+
+    (cargas.length?'<button class="btn-act" onclick="exportarCargas()">Baixar planilha</button>':'')+
+    (cargas.length?'<select class="sel-f" onchange="_fCarga.destino=this.value;render()">'+
+      '<option value="">Todos os destinos</option>'+
+      armazensDe(f.id).map(a=>'<option '+(_fCarga.destino===a?'selected':'')+'>'+esc(a)+'</option>').join("")+
+      '</select>':'')+
+    (cargas.length?'<input class="busca" placeholder="Romaneio, motorista ou placa…" value="'+esc(_fCarga.busca)+'" '+
+      'oninput="clearTimeout(window._bc);window._bc=setTimeout(()=>{_fCarga.busca=this.value;render();},250)">':'')+
+  '</div>';
+
+  if(!cargas.length)
+    return h+'<div class="empty"><strong>Nenhuma carga lançada</strong>'+
+      'Cada caminhão que sai da lavoura vira uma carga. O sistema calcula o desconto de umidade e as sacas.</div>';
+  if(!l.length)
+    return h+'<div class="empty"><strong>Nada encontrado</strong>Ajuste os filtros para ver as cargas.</div>';
+
+  h += '<div class="tbl"><table><thead><tr>'+
+    '<th>Data</th><th>Romaneio</th><th>Destino</th><th class="hide-sm">Motorista</th>'+
+    '<th class="num">Líq. seco</th><th class="num">Sacas</th><th class="num hide-sm">Umid.</th>'+
+    '<th>Talhão</th><th></th></tr></thead><tbody>';
+  l.forEach(c=>{
+    const nomes = (c.talhoes||[]).map(i=>{
+      const t = talhoesDe(f.id).find(x=>x.id===i.talhao_id);
+      return t?t.nome:"—";
+    });
+    const alta = (Number(c.umidade)||0) >= 18;
+    h += '<tr>'+
+      '<td class="mono">'+dataBR(c.data)+'</td>'+
+      '<td class="mono">'+esc(c.romaneio||c.codigo||"")+'</td>'+
+      '<td><span class="tagdest">'+esc(c.destino||"—")+'</span></td>'+
+      '<td class="hide-sm">'+esc(c.motorista||"—")+'</td>'+
+      '<td class="num mono">'+n0(c.seco)+'</td>'+
+      '<td class="num mono forte">'+nf(c.sacas,1)+'</td>'+
+      '<td class="num mono hide-sm'+(alta?' alerta':'')+'">'+nf(c.umidade,1)+'%</td>'+
+      '<td class="tal-col" title="'+esc(nomes.join(" + "))+'">'+esc(nomes.join(" + ")||"—")+'</td>'+
+      '<td class="acoes">'+
+        '<button onclick="modalCarga(\''+c.id+'\')">Editar</button>'+
+        '<button class="rm" onclick="removerCarga(\''+c.id+'\')">✕</button></td>'+
+    '</tr>';
+  });
+  h += '</tbody></table></div>';
+  if(l.length!==cargas.length) h+='<p class="ver">'+l.length+' de '+cargas.length+' cargas</p>';
+  return h;
+}
+
+/* ── Aba: produtividade ──────────────────── */
+function abaProdutividade(f, p){
+  if(!p.linhas.length)
+    return '<div class="empty"><strong>Sem talhões cadastrados</strong>'+
+      'Cadastre os talhões em Dados da fazenda para acompanhar a produtividade.</div>';
+
+  const cap = siloCap(f.id);
+  let h = '<div class="acts">'+
+    '<button class="btn-act" onclick="modalSiloCap()">Saca por silo: '+n0(cap)+'</button>'+
+    '<button class="btn-act" onclick="exportarProdutividade()">Baixar planilha</button></div>';
+
+  h += '<div class="tbl"><table><thead><tr>'+
+    '<th>Talhão</th><th class="num">Área</th><th class="num">Sacas armazém</th>'+
+    '<th class="num">Silos</th><th class="num">Sacas silo</th>'+
+    '<th class="num">Total</th><th class="num">sc/ha</th></tr></thead><tbody>';
+  p.linhas.forEach(t=>{
+    const media = p.prodColhida;
+    const cor = !t.colhido ? "" : (t.sc_ha>=media ? " bom" : " baixo");
+    h += '<tr'+(t.colhido?"":' class="pendente"')+'>'+
+      '<td class="forte">'+esc(t.nome)+'</td>'+
+      '<td class="num mono">'+nf(t.hectares,2)+'</td>'+
+      '<td class="num mono">'+(t.sacas>0?nf(t.sacas,1):"—")+'</td>'+
+      '<td class="num"><input class="silo" type="number" min="0" step="0.5" value="'+(t.silos||"")+'" '+
+        'placeholder="0" oninput="clearTimeout(window._bs);window._bs=setTimeout(()=>{aplicarSilo(\''+t.id+'\',this.value);},400)"></td>'+
+      '<td class="num mono">'+(t.sc_silo>0?nf(t.sc_silo,0):"—")+'</td>'+
+      '<td class="num mono forte">'+(t.total_sc>0?nf(t.total_sc,1):"—")+'</td>'+
+      '<td class="num mono sc-ha'+cor+'">'+(t.colhido?nf(t.sc_ha,2):"—")+'</td>'+
+    '</tr>';
+  });
+  h += '</tbody></table></div>';
+
+  h += '<div class="resumo">'+
+    '<div class="resumo-t">Resumo da safra</div><div class="resumo-g">'+
+    linhaResumo("Sacas no armazém", nf(p.sacasArmazem,2)+" sc")+
+    linhaResumo("Sacas em silo bolsa", nf(p.sacasSilo,0)+" sc")+
+    linhaResumo("Total colhido", nf(p.totalSacas,2)+" sc")+
+    linhaResumo("Área colhida", nf(p.haColhida,2)+" ha")+
+    linhaResumo("Produtividade da área colhida", nf(p.prodColhida,2)+" sc/ha", true)+
+    linhaResumo("Produtividade da fazenda toda", nf(p.prodFazenda,2)+" sc/ha")+
+    '</div><p class="resumo-obs">A produtividade da área colhida considera só os '+
+    p.colhidos.length+' talhões com carga ou silo lançado. A da fazenda divide pelos '+
+    nf(p.haTotal,2)+' ha totais.</p></div>';
+  return h;
+}
+function linhaResumo(rot,val,forte){
+  return '<div class="rl'+(forte?" forte":"")+'"><span>'+esc(rot)+'</span><b>'+esc(val)+'</b></div>';
+}
+
+/* ── Aba: cadastros ──────────────────────── */
+function abaCadastros(f){
+  const arm = armazensDe(f.id), cam = caminhoesDe(f.id);
+  let h = '<div class="dupla">';
+
+  h += '<div class="bloco"><div class="bloco-h"><h3>Armazéns e destinos</h3>'+
+       '<button class="btn-act" onclick="modalArmazem()">+ Novo</button></div>';
+  h += arm.length ? '<div class="chips">'+arm.map(a=>
+        '<span class="chip">'+esc(a)+'<button onclick="removerArmazem(\''+esc(a).replace(/'/g,"\\'")+'\')">✕</button></span>').join("")+'</div>'
+      : '<p class="vazio">Nenhum destino cadastrado.</p>';
+  h += '</div>';
+
+  h += '<div class="bloco"><div class="bloco-h"><h3>Caminhões</h3>'+
+       '<button class="btn-act" onclick="modalCaminhao()">+ Novo</button></div>';
+  h += cam.length ? '<div class="lista-cam">'+cam.map(c=>
+        '<div class="cam"><span class="mono">'+esc(c.placa)+'</span>'+
+        '<span>'+esc(c.motorista||"—")+'</span>'+
+        '<button onclick="removerCaminhao(\''+c.id+'\')">✕</button></div>').join("")+'</div>'
+      : '<p class="vazio">Nenhum caminhão cadastrado.</p>';
+  h += '</div></div>';
+  return h;
+}
+
 function telaModulo(){
   const f=acharFazenda(App.fazendaId), m=acharModulo(App.moduloId);
   const nome = m ? m.nome
@@ -893,6 +1313,262 @@ function salvarPerfil(){
   fecharModal(); toast("Perfil salvo"); render();
 }
 
+/* ═══════════════════════════════════════════════════
+   AÇÕES — Colheita
+   ═══════════════════════════════════════════════════ */
+let _itensCarga = [];
+
+function modalCarga(id){
+  const f = acharFazenda(App.fazendaId); if(!f) return;
+  const c = id ? cargasDe(f.id).find(x=>x.id===id) : null;
+  const tals = talhoesDe(f.id), arm = armazensDe(f.id), cam = caminhoesDe(f.id);
+  _itensCarga = c && c.talhoes && c.talhoes.length
+    ? c.talhoes.map(i=>({talhao_id:i.talhao_id, kg:i.kg}))
+    : [{talhao_id:tals[0]?tals[0].id:"", kg:""}];
+
+  const hoje = new Date().toISOString().slice(0,10);
+  document.getElementById("modal-root").innerHTML =
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal modal-lg">'+
+    '<h2>'+(c?"Editar carga "+esc(c.codigo||""):"Lançar carga")+'</h2>'+
+    '<p class="sub">Informe os pesos da balança. O desconto de umidade e as sacas saem sozinhos.</p>'+
+    '<div class="frm">'+
+      '<div class="g3">'+
+        '<div><label for="k-data">Data</label><input type="date" id="k-data" value="'+(c?c.data:hoje)+'"></div>'+
+        '<div><label for="k-rom">Romaneio</label><input id="k-rom" value="'+esc(c?c.romaneio:"")+'" placeholder="Nº"></div>'+
+        '<div><label for="k-dest">Destino</label><select id="k-dest">'+
+          (arm.length?"":'<option value="">— cadastre —</option>')+
+          arm.map(a=>'<option '+(c&&c.destino===a?"selected":"")+'>'+esc(a)+'</option>').join("")+
+        '</select></div>'+
+      '</div>'+
+      '<div class="g2">'+
+        '<div><label for="k-cam">Caminhão</label><select id="k-cam" onchange="preencherPlaca()">'+
+          '<option value="">Avulso</option>'+
+          cam.map(x=>'<option value="'+x.id+'" '+(c&&c.placa===x.placa?"selected":"")+'>'+
+            esc(x.placa)+(x.motorista?" · "+esc(x.motorista):"")+'</option>').join("")+
+        '</select></div>'+
+        '<div><label for="k-mot">Motorista</label><input id="k-mot" value="'+esc(c?c.motorista:"")+'" placeholder="Nome"></div>'+
+      '</div>'+
+      '<div class="g3">'+
+        '<div><label for="k-bruto">Peso bruto (kg)</label><input id="k-bruto" type="number" inputmode="decimal" value="'+(c?c.peso_bruto:"")+'" oninput="recalcCarga()"></div>'+
+        '<div><label for="k-tara">Tara (kg)</label><input id="k-tara" type="number" inputmode="decimal" value="'+(c?c.tara:"")+'" oninput="recalcCarga()"></div>'+
+        '<div><label for="k-umid">Umidade (%)</label><input id="k-umid" type="number" step="0.1" inputmode="decimal" value="'+(c?c.umidade:"")+'" oninput="recalcCarga()"></div>'+
+      '</div>'+
+      '<div id="calc-box" class="calc"></div>'+
+      '<div><label>Talhões de origem</label><div id="itens"></div>'+
+        '<button type="button" class="btn-mini" onclick="addItemCarga()">+ outro talhão</button></div>'+
+      '<div class="g2">'+
+        '<div><label for="k-pf">Peso saído da fazenda (kg)</label>'+
+          '<input id="k-pf" type="number" inputmode="decimal" value="'+(c&&c.peso_fazenda?c.peso_fazenda:"")+'" oninput="recalcCarga()" placeholder="opcional"></div>'+
+        '<div><label for="k-obs">Observação</label><input id="k-obs" value="'+esc(c?c.obs:"")+'" placeholder="opcional"></div>'+
+      '</div>'+
+    '</div>'+
+    '<div class="modal-acts">'+
+      '<button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
+      '<button class="btn-save" onclick="gravarCarga('+(c?"'"+c.id+"'":"null")+')">Salvar carga</button>'+
+    '</div></div></div>';
+  desenharItens(); recalcCarga();
+  setTimeout(()=>{const e=document.getElementById("k-rom"); if(e&&!id) e.focus();},60);
+}
+
+function desenharItens(){
+  const f = acharFazenda(App.fazendaId);
+  const tals = talhoesDe(f.id).slice().sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR",{numeric:true}));
+  document.getElementById("itens").innerHTML = _itensCarga.map((it,i)=>
+    '<div class="item">'+
+      '<select onchange="_itensCarga['+i+'].talhao_id=this.value">'+
+        tals.map(t=>'<option value="'+t.id+'" '+(it.talhao_id===t.id?"selected":"")+'>'+esc(t.nome)+'</option>').join("")+
+      '</select>'+
+      '<input type="number" inputmode="decimal" placeholder="kg (opcional)" value="'+(it.kg||"")+'" '+
+        'oninput="_itensCarga['+i+'].kg=this.value">'+
+      (_itensCarga.length>1?'<button type="button" onclick="remItemCarga('+i+')">✕</button>':'<span></span>')+
+    '</div>').join("") +
+    (_itensCarga.length>1?'<p class="dica">Sem os kg, a carga é dividida em partes iguais entre os talhões.</p>':"");
+}
+function addItemCarga(){
+  const f=acharFazenda(App.fazendaId), t=talhoesDe(f.id);
+  _itensCarga.push({talhao_id:t[0]?t[0].id:"", kg:""}); desenharItens();
+}
+function remItemCarga(i){ _itensCarga.splice(i,1); desenharItens(); }
+
+function preencherPlaca(){
+  const f=acharFazenda(App.fazendaId);
+  const sel=document.getElementById("k-cam").value;
+  const cm=caminhoesDe(f.id).find(x=>x.id===sel);
+  if(cm && cm.motorista){ const m=document.getElementById("k-mot"); if(m && !m.value) m.value=cm.motorista; }
+}
+
+function recalcCarga(){
+  const g=id=>parseFloat(String((document.getElementById(id)||{}).value||"").replace(",","."))||0;
+  const r = calcCarga({ peso_bruto:g("k-bruto"), tara:g("k-tara"),
+                        umidade:g("k-umid"), peso_fazenda:g("k-pf") });
+  const box=document.getElementById("calc-box"); if(!box) return;
+  const u=g("k-umid");
+  box.innerHTML =
+    '<span><i>Líquido</i><b>'+n0(r.liquido)+' kg</b></span>'+
+    '<span><i>Desc. umidade</i><b class="'+(r.desconto>0?"neg":"")+'">'+(r.desconto>0?"−"+n0(r.desconto):"0")+' kg</b></span>'+
+    '<span><i>Líquido seco</i><b>'+n0(r.seco)+' kg</b></span>'+
+    '<span><i>Sacas</i><b class="ok">'+nf(r.sacas,1)+' sc</b></span>'+
+    (r.diferenca ? '<span><i>Diferença</i><b class="'+(Math.abs(r.diferenca)>500?"neg":"")+'">'+
+      (r.diferenca>0?"+":"")+n0(r.diferenca)+' kg</b></span>' : '')+
+    (u>0&&u<=UMID_BASE ? '<span class="nota">Sem desconto: umidade dentro do padrão</span>' : '');
+}
+
+function gravarCarga(id){
+  const f = acharFazenda(App.fazendaId); if(!f) return;
+  const g=i=>String((document.getElementById(i)||{}).value||"").trim();
+  const n=i=>parseFloat(g(i).replace(",","."))||0;
+
+  const bruto=n("k-bruto"), tara=n("k-tara");
+  if(bruto<=0){ toast("Informe o peso bruto"); return; }
+  if(tara>=bruto){ toast("A tara precisa ser menor que o peso bruto"); return; }
+  const itens=_itensCarga.filter(i=>i.talhao_id);
+  if(!itens.length){ toast("Escolha o talhão de origem"); return; }
+  const dest=g("k-dest");
+  if(!dest){ toast("Escolha o destino da carga"); return; }
+
+  const cm=caminhoesDe(f.id).find(x=>x.id===g("k-cam"));
+  salvarCarga(f.id,{
+    data:g("k-data")||new Date().toISOString().slice(0,10),
+    romaneio:g("k-rom"), destino:dest,
+    placa: cm?cm.placa:"", motorista:g("k-mot"),
+    peso_bruto:bruto, tara:tara, umidade:n("k-umid"),
+    peso_fazenda:n("k-pf"), obs:g("k-obs"),
+    talhoes: itens.map(i=>({talhao_id:i.talhao_id, kg:parseFloat(String(i.kg).replace(",","."))||0}))
+  }, id);
+  fecharModal(); toast(id?"Carga atualizada":"Carga lançada"); render();
+}
+
+function removerCarga(id){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const c=cargasDe(f.id).find(x=>x.id===id); if(!c) return;
+  if(!confirm("Remover a carga "+(c.romaneio||c.codigo)+"?")) return;
+  apagarCarga(f.id,id); toast("Carga removida"); render();
+}
+
+function aplicarSilo(talId, v){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  definirSilo(f.id, talId, v); render();
+}
+
+function modalSiloCap(){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal">'+
+    '<h2>Capacidade do silo bolsa</h2>'+
+    '<p class="sub">Quantas sacas cabem em um silo. Muda conforme o grão.</p>'+
+    '<div class="frm"><div><label for="sc-cap">Sacas por silo</label>'+
+      '<input id="sc-cap" type="number" inputmode="numeric" value="'+siloCap(f.id)+'"></div></div>'+
+    '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
+      '<button class="btn-save" onclick="gravarSiloCap()">Salvar</button></div></div></div>';
+}
+function gravarSiloCap(){
+  const f=acharFazenda(App.fazendaId);
+  const v=parseInt(document.getElementById("sc-cap").value)||0;
+  if(v<=0){ toast("Informe um valor maior que zero"); return; }
+  Store.set(kSiloCap(f.id), v); fecharModal(); toast("Capacidade salva"); render();
+}
+
+function modalArmazem(){
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal">'+
+    '<h2>Novo destino</h2><p class="sub">Armazém, cerealista ou silo onde a carga é entregue.</p>'+
+    '<div class="frm"><div><label for="ar-nome">Nome</label>'+
+      '<input id="ar-nome" placeholder="CARGILL, FOCO ARMAZÉM…"></div></div>'+
+    '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
+      '<button class="btn-save" onclick="gravarArmazem()">Adicionar</button></div></div></div>';
+  setTimeout(()=>{const e=document.getElementById("ar-nome"); if(e) e.focus();},60);
+}
+function gravarArmazem(){
+  const f=acharFazenda(App.fazendaId);
+  const v=document.getElementById("ar-nome").value.trim();
+  if(!v){ toast("Informe o nome"); return; }
+  const l=armazensDe(f.id);
+  if(l.some(a=>a.toLowerCase()===v.toLowerCase())){ toast("Esse destino já existe"); return; }
+  l.push(v); Store.set(kArmaz(f.id),l);
+  fecharModal(); toast("Destino adicionado"); render();
+}
+function removerArmazem(nome){
+  const f=acharFazenda(App.fazendaId);
+  const uso=cargasDe(f.id).filter(c=>c.destino===nome).length;
+  if(uso){ toast("Há "+uso+" carga(s) nesse destino"); return; }
+  Store.set(kArmaz(f.id), armazensDe(f.id).filter(a=>a!==nome));
+  toast("Destino removido"); render();
+}
+
+function modalCaminhao(){
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal">'+
+    '<h2>Novo caminhão</h2><p class="sub">Placa e motorista aparecem na hora de lançar a carga.</p>'+
+    '<div class="frm"><div><label for="cm-placa">Placa</label>'+
+      '<input id="cm-placa" placeholder="ABC1D23" maxlength="8"></div>'+
+      '<div><label for="cm-mot">Motorista</label><input id="cm-mot" placeholder="Nome"></div></div>'+
+    '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
+      '<button class="btn-save" onclick="gravarCaminhao()">Adicionar</button></div></div></div>';
+  setTimeout(()=>{const e=document.getElementById("cm-placa"); if(e) e.focus();},60);
+}
+function gravarCaminhao(){
+  const f=acharFazenda(App.fazendaId);
+  const p=document.getElementById("cm-placa").value.trim().toUpperCase();
+  if(!p){ toast("Informe a placa"); return; }
+  const l=caminhoesDe(f.id);
+  if(l.some(c=>c.placa===p)){ toast("Essa placa já está cadastrada"); return; }
+  const novo={id:"cm_"+Date.now().toString(36), fazenda_id:f.id, placa:p,
+              motorista:document.getElementById("cm-mot").value.trim()};
+  l.push(novo); Store.set(kCam(f.id),l);
+  Sync.push("caminhoes","upsert",novo);
+  fecharModal(); toast("Caminhão adicionado"); render();
+}
+function removerCaminhao(id){
+  const f=acharFazenda(App.fazendaId);
+  Store.set(kCam(f.id), caminhoesDe(f.id).filter(c=>c.id!==id));
+  Sync.push("caminhoes","delete",{id});
+  toast("Caminhão removido"); render();
+}
+
+/* ── Planilhas ───────────────────────────── */
+function baixarCSV(linhas, nome){
+  const csv="\ufeff"+linhas.map(r=>r.map(v=>{
+    const s=String(v==null?"":v);
+    return /[;"\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s;
+  }).join(";")).join("\r\n");
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8;"}));
+  a.download=nome+".csv"; a.click(); URL.revokeObjectURL(a.href);
+  toast("Planilha baixada");
+}
+const vBR = v => String(v==null?"":v).replace(".",",");
+
+function exportarCargas(){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const tals=talhoesDe(f.id);
+  const nome=id=>{const t=tals.find(x=>x.id===id); return t?t.nome:"";};
+  const l=[["Codigo","Data","Romaneio","Destino","Motorista","Placa","Bruto_kg","Tara_kg",
+            "Liquido_kg","Umidade_pc","Desconto_kg","Liquido_seco_kg","Sacas","Peso_fazenda_kg",
+            "Diferenca_kg","Talhoes","Obs"]];
+  cargasDe(f.id).slice().sort((a,b)=>(a.data||"").localeCompare(b.data||"")).forEach(c=>{
+    l.push([c.codigo, dataBR(c.data), c.romaneio, c.destino, c.motorista, c.placa,
+      vBR(c.peso_bruto), vBR(c.tara), vBR(c.liquido), vBR(c.umidade), vBR(c.desconto),
+      vBR(c.seco), vBR(Number(c.sacas||0).toFixed(4)), vBR(c.peso_fazenda), vBR(c.diferenca),
+      (c.talhoes||[]).map(i=>nome(i.talhao_id)).join(" + "), c.obs]);
+  });
+  baixarCSV(l,"cargas-"+f.nome.toLowerCase().replace(/[^a-z0-9]+/g,"-"));
+}
+
+function exportarProdutividade(){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const p=produtividade(f.id);
+  const l=[["Talhao","Area_ha","Sacas_armazem","Silos","Sacas_silo","Total_sacas","sc_ha","Cargas"]];
+  p.linhas.forEach(t=>l.push([t.nome, vBR(t.hectares.toFixed(2)), vBR(t.sacas.toFixed(2)),
+    vBR(t.silos), vBR(t.sc_silo.toFixed(2)), vBR(t.total_sc.toFixed(2)),
+    vBR(t.sc_ha.toFixed(2)), t.cargas]));
+  l.push([]);
+  l.push(["Area colhida", vBR(p.haColhida.toFixed(2))]);
+  l.push(["Total colhido", vBR(p.totalSacas.toFixed(2))]);
+  l.push(["Produtividade area colhida", vBR(p.prodColhida.toFixed(2))]);
+  l.push(["Produtividade fazenda", vBR(p.prodFazenda.toFixed(2))]);
+  baixarCSV(l,"produtividade-"+f.nome.toLowerCase().replace(/[^a-z0-9]+/g,"-"));
+}
+
 /* ── Boot ───────────────────────────────── */
 /* ═══════════════════════════════════════════════════
    PRIMEIRA ABERTURA — Santa Angelina já vem pronta.
@@ -906,6 +1582,9 @@ function semearPrimeiraVez(){
   const f = criarFazenda({ nome:d.nome, produtor:d.produtor,
                            municipio:d.municipio, uf:d.uf });
   aplicarSeedSA(f.id);
+  Store.set(kArmaz(f.id), SEED_ARMAZENS.slice());
+  Store.set(kCam(f.id), SEED_CAMINHOES.map((r,i)=>({
+    id:"cm_"+i, fazenda_id:f.id, placa:r[0], motorista:r[1] })));
 }
 
 semearPrimeiraVez();
