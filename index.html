@@ -389,6 +389,86 @@ input.silo:focus{border-color:var(--gold);outline:none}
   .calc span{min-width:calc(50% - 5px)}
 }
 
+/* ── Pluviometria ────────────────────────── */
+.mesnav{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:18px}
+.mn-b{width:38px;height:38px;border:1px solid var(--line);background:var(--card);
+  border-radius:9px;font-size:19px;color:var(--green);line-height:1}
+.mn-b:hover:not(:disabled){border-color:var(--gold)}
+.mn-b:disabled{opacity:.35;cursor:not-allowed}
+.mn-s{padding:10px 13px;border:1px solid var(--line);border-radius:9px;background:var(--card);
+  font-family:var(--mono);font-size:13px;font-weight:700;color:var(--green);min-width:160px}
+.mn-s:focus{border-color:var(--gold);outline:none}
+.mn-modo{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--card)}
+.mn-modo button{background:none;border:none;padding:10px 15px;font-family:var(--mono);
+  font-size:12px;font-weight:700;color:var(--muted)}
+.mn-modo button.on{background:var(--gold);color:#3A3117}
+.mn-modo button:not(.on):hover{background:var(--line-soft)}
+
+/* calendário de dias */
+.dias{display:grid;grid-template-columns:repeat(auto-fill,minmax(52px,1fr));gap:7px;margin-bottom:18px}
+.dq{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:8px 4px;
+  display:flex;flex-direction:column;align-items:center;gap:2px;line-height:1.1}
+.dq i{font-style:normal;font-family:var(--mono);font-size:13px;font-weight:700;color:var(--muted)}
+.dq u{text-decoration:none;font-family:var(--mono);font-size:10.5px;font-weight:700;color:var(--blue)}
+.dq:hover{border-color:var(--gold)}
+.dq.tem{background:var(--blue-soft);border-color:#C9DCEA}
+.dq.tem i{color:var(--blue)}
+.dq.sel{background:var(--green);border-color:var(--green)}
+.dq.sel i,.dq.sel u{color:#fff}
+
+/* lançamento do dia */
+.lanc{background:var(--card);border:1px solid var(--line);border-top:4px solid var(--blue);
+  border-radius:12px;padding:18px;margin-bottom:18px}
+.lanc-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px;
+  padding-bottom:13px;margin-bottom:13px;border-bottom:1px solid var(--line-soft)}
+.lanc-h h3{color:var(--green);font-size:17px;font-weight:800}
+.lanc-h span{color:var(--muted);font-family:var(--mono);font-size:12px}
+.lp{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 0;
+  border-bottom:1px solid var(--line-soft)}
+.lp:last-child{border-bottom:none}
+.lp label{color:var(--green);font-size:14.5px;font-weight:700}
+.lp-in{display:flex;align-items:center;gap:7px}
+.lp-in input{width:96px;padding:9px 11px;border:1px solid var(--line);border-radius:8px;
+  background:#fff;font-family:var(--mono);font-size:15px;text-align:right;color:var(--green)}
+.lp-in input:focus{border-color:var(--blue);outline:none}
+.lp-in span{color:var(--muted);font-family:var(--mono);font-size:12px;width:20px}
+
+/* grade mensal */
+.grade table{font-size:12.5px}
+.grade th.fix,.grade td.fix{position:sticky;left:0;background:var(--line-soft);z-index:2;
+  font-family:var(--mono);font-weight:700;color:var(--green);min-width:54px;text-align:left}
+.grade tbody td.fix{background:var(--card)}
+.grade tr.molhado td.fix{background:var(--blue-soft);color:var(--blue)}
+.grade td{padding:3px 4px}
+.grade th{padding:9px 7px;font-size:9.5px}
+input.gr{width:100%;min-width:46px;padding:6px 5px;border:1px solid transparent;border-radius:6px;
+  background:transparent;font-family:var(--mono);font-size:12.5px;text-align:center;color:var(--green)}
+input.gr:hover{border-color:var(--line)}
+input.gr:focus{border-color:var(--blue);background:#fff;outline:none}
+.grade .tot{background:var(--gold-soft);font-weight:800;color:var(--amber)}
+.grade tfoot td{background:var(--line-soft);font-weight:800;color:var(--green);
+  border-top:2px solid var(--line);padding:10px 7px}
+.grade tfoot td.tot{background:var(--gold);color:#3A3117}
+
+/* acumulado */
+.acum{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+.ac{background:var(--bg);border-radius:9px;padding:11px 13px;display:flex;
+  flex-direction:column;gap:3px}
+.ac span{color:var(--muted);font-size:11.5px}
+.ac b{color:var(--green);font-family:var(--mono);font-size:16px;font-weight:800}
+.ac b i{font-style:normal;font-size:11px;color:var(--muted);font-weight:600}
+
+@media(max-width:640px){
+  .mesnav{gap:7px}
+  .mn-s{flex:1;min-width:0}
+  .mn-modo{width:100%;order:5}
+  .mn-modo button{flex:1}
+  .mesnav .btn-act{flex:1}
+  .dias{grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:5px}
+  .dq{padding:6px 2px}
+  .acum{grid-template-columns:1fr 1fr}
+}
+
 @media(max-width:640px){
   body{font-size:14.5px}
   .wrap{padding:16px 12px 34px}
@@ -419,7 +499,7 @@ input.silo:focus{border-color:var(--gold);outline:none}
 
 <script>
 "use strict";
-const APP_VERSION = "0.7.0";
+const APP_VERSION = "0.8.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -729,6 +809,83 @@ function definirSilo(f, talhaoId, qtd){
   Sync.push("talhoes","upsert",t);
 }
 
+
+/* ═══════════════════════════════════════════════════
+   PLUVIOMETRIA — dias x pontos de medição
+   Cada ponto é um pluviômetro. Pode cobrir um talhão
+   ou um grupo deles ("Pivôs", "T1 T2").
+   ═══════════════════════════════════════════════════ */
+const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho",
+               "Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+
+function kPontos(f){ return "faz_"+f+"_pontos"; }
+function kChuva(f){ return "faz_"+f+"_chuva"; }
+function pontosDe(f){ return Store.get(kPontos(f), []); }
+function chuvaDe(f){ return Store.get(kChuva(f), {}); }
+
+/* A safra vai de outubro do 1º ano a setembro do 2º */
+function mesesDaSafra(safra){
+  const a = parseInt(String(safra).slice(0,4),10);
+  const out = [];
+  for(let m=9;m<12;m++) out.push({ano:a, mes:m});
+  for(let m=0;m<9;m++) out.push({ano:a+1, mes:m});
+  return out;
+}
+function diasNoMes(ano,mes){ return new Date(ano,mes+1,0).getDate(); }
+function chaveDia(ano,mes,dia){
+  return ano+"-"+String(mes+1).padStart(2,"0")+"-"+String(dia).padStart(2,"0");
+}
+
+function lerChuva(f,dia,pontoId){
+  const d = chuvaDe(f)[dia];
+  return d && d[pontoId] != null ? Number(d[pontoId]) : null;
+}
+function gravarChuva(f,dia,pontoId,mm){
+  const todo = chuvaDe(f);
+  const v = (mm===""||mm==null) ? null : Number(String(mm).replace(",","."));
+  if(!todo[dia]) todo[dia] = {};
+  if(v==null || isNaN(v) || v<0) delete todo[dia][pontoId];
+  else todo[dia][pontoId] = v;
+  if(!Object.keys(todo[dia]).length) delete todo[dia];
+  Store.set(kChuva(f), todo);
+  Sync.push("chuva","upsert",{fazenda_id:f, dia:dia, ponto_id:pontoId, mm:v});
+}
+
+/* Totais do mês: por ponto, por dia e geral */
+function resumoMes(f, ano, mes){
+  const pts = pontosDe(f), nd = diasNoMes(ano,mes), todo = chuvaDe(f);
+  const porPonto = {}, porDia = {};
+  let geral = 0, diasComChuva = 0;
+  pts.forEach(p=>porPonto[p.id]=0);
+  for(let d=1; d<=nd; d++){
+    const k = chaveDia(ano,mes,d), reg = todo[k] || {};
+    let soma = 0, n = 0;
+    pts.forEach(p=>{
+      const v = reg[p.id];
+      if(v!=null){ soma += v; n++; porPonto[p.id] += v; }
+    });
+    porDia[d] = { soma, n, media: n ? soma/n : 0 };
+    if(n) diasComChuva++;
+    geral += soma;
+  }
+  const medias = pts.map(p=>porPonto[p.id]);
+  return { porPonto, porDia, geral, diasComChuva, nd,
+           mediaPontos: medias.length ? medias.reduce((a,b)=>a+b,0)/medias.length : 0 };
+}
+
+function acumuladoSafra(f, safra){
+  const pts = pontosDe(f);
+  const por = {}; pts.forEach(p=>por[p.id]=0);
+  let total = 0;
+  mesesDaSafra(safra).forEach(({ano,mes})=>{
+    const r = resumoMes(f,ano,mes);
+    pts.forEach(p=>por[p.id]+=r.porPonto[p.id]||0);
+    total += r.geral;
+  });
+  return { porPonto:por, total,
+           media: pts.length ? total/pts.length : 0 };
+}
+
 /* ═══════════════════════════════════════════════════
    MÓDULOS
    ═══════════════════════════════════════════════════ */
@@ -739,7 +896,7 @@ const MODULOS = [
     { id:"operacoes", ic:"operacoes", nome:"Operações no talhão", desc:"Pulverização, semeadura e adubação", pronto:false },
     { id:"estoque",   ic:"estoque",   nome:"Estoque", desc:"Desconta automaticamente o que foi aplicado", pronto:false },
     { id:"ndvi",      ic:"ndvi",      nome:"Mapa NDVI", desc:"Acompanhamento por satélite", pronto:false },
-    { id:"chuva",     ic:"chuva",     nome:"Pluviometria", desc:"Lançar e comparar chuvas", pronto:false },
+    { id:"chuva",     ic:"chuva",     nome:"Pluviometria", desc:"Lançar e comparar chuvas", pronto:true, resumo:f=>{const a=acumuladoSafra(f.id,f.safra); return a.total>0 ? Math.round(a.media)+" mm na safra" : "Lance a primeira chuva";} },
     { id:"colheita",  ic:"colheita",  nome:"Colheita", desc:"Cargas, caminhões e produtividade por talhão", pronto:true, resumo:f=>{const n=cargasDe(f.id).length; return n? n+" cargas lançadas" : "Lance a primeira carga";} }
   ]},
   { grupo:"Dinheiro e máquinas", itens:[
@@ -782,7 +939,7 @@ function render(){
   let h = topbar();
   if(App.tela==="fazendas")      h += telaFazendas();
   else if(App.tela==="fazenda")  h += telaFazenda();
-  else if(App.tela==="modulo")   h += (App.moduloId==="talhoes" ? telaTalhoes() : App.moduloId==="colheita" ? telaColheita() : telaModulo());
+  else if(App.tela==="modulo")   h += (App.moduloId==="talhoes" ? telaTalhoes() : App.moduloId==="colheita" ? telaColheita() : App.moduloId==="chuva" ? telaChuva() : telaModulo());
   else if(App.tela==="panorama") h += telaPanorama();
   document.getElementById("root").innerHTML = h;
   Sync.render();
@@ -1216,6 +1373,201 @@ function abaCadastros(f){
   return h;
 }
 
+/* ═══════════════════════════════════════════════════
+   TELA — Pluviometria
+   ═══════════════════════════════════════════════════ */
+let _mesIdx = null;      // posição dentro da safra
+let _modoChuva = "dia";  // dia | planilha
+
+function telaChuva(){
+  const f = acharFazenda(App.fazendaId);
+  if(!f){ App.tela="fazendas"; return telaFazendas(); }
+  const meses = mesesDaSafra(f.safra);
+  if(_mesIdx==null){
+    const hoje=new Date(), i=meses.findIndex(m=>m.ano===hoje.getFullYear()&&m.mes===hoje.getMonth());
+    _mesIdx = i>=0 ? i : 0;
+  }
+  _mesIdx = Math.max(0, Math.min(meses.length-1, _mesIdx));
+  const {ano,mes} = meses[_mesIdx];
+  const pts = pontosDe(f.id);
+  const r = resumoMes(f.id,ano,mes);
+  const ac = acumuladoSafra(f.id,f.safra);
+
+  let h = '<div class="wrap wrap-wide">';
+  h += '<div class="farm-head">'+
+       '<button class="btn-back" onclick="irPara(\'fazenda\')">← '+esc(f.nome)+'</button>'+
+       '<div class="farm-head-mid"><h1>Pluviometria</h1>'+
+       '<p>Chuva por dia e ponto de medição · safra '+esc(f.safra)+'</p></div></div>';
+
+  if(!pts.length)
+    return h+'<div class="empty"><strong>Cadastre os pontos de medição</strong>'+
+      'Cada pluviômetro da fazenda vira uma coluna. Pode ser um talhão ou um grupo deles.'+
+      '<div style="margin-top:16px"><button class="btn-act primary" onclick="modalPonto()">'+
+      'Cadastrar ponto</button></div></div></div>';
+
+  h += '<div class="kpis kpis-4">'+
+    kpi("No mês", nf(r.mediaPontos,0), "mm (média)")+
+    kpi("Dias com chuva", r.diasComChuva, "de "+r.nd)+
+    kpi("Acumulado da safra", nf(ac.media,0), "mm (média)")+
+    kpi("Pontos", pts.length, "")+
+  '</div>';
+
+  // Navegação de mês
+  h += '<div class="mesnav">'+
+    '<button class="mn-b" onclick="_mesIdx--;render()" '+(_mesIdx===0?'disabled':'')+'>‹</button>'+
+    '<select class="mn-s" onchange="_mesIdx=+this.value;render()">'+
+      meses.map((m,i)=>'<option value="'+i+'" '+(i===_mesIdx?'selected':'')+'>'+
+        MESES[m.mes]+' '+m.ano+'</option>').join("")+
+    '</select>'+
+    '<button class="mn-b" onclick="_mesIdx++;render()" '+(_mesIdx===meses.length-1?'disabled':'')+'>›</button>'+
+    '<div class="mn-modo">'+
+      '<button class="'+(_modoChuva==="dia"?"on":"")+'" onclick="_modoChuva=\'dia\';render()">Por dia</button>'+
+      '<button class="'+(_modoChuva==="planilha"?"on":"")+'" onclick="_modoChuva=\'planilha\';render()">Planilha</button>'+
+    '</div>'+
+    '<button class="btn-act" onclick="modalPontos()">Pontos</button>'+
+    '<button class="btn-act" onclick="exportarChuva()">Baixar planilha</button>'+
+  '</div>';
+
+  h += _modoChuva==="dia" ? chuvaPorDia(f,ano,mes,pts,r) : chuvaPlanilha(f,ano,mes,pts,r);
+
+  // Acumulado por ponto
+  h += '<div class="resumo"><div class="resumo-t">Acumulado da safra por ponto</div>'+
+    '<div class="acum">'+ pts.map(p=>
+      '<div class="ac"><span>'+esc(p.nome)+'</span><b>'+nf(ac.porPonto[p.id]||0,0)+' <i>mm</i></b></div>'
+    ).join("")+'</div>'+
+    '<p class="resumo-obs">Total lançado na safra: '+nf(ac.total,0)+' mm somando todos os pontos. '+
+    'A média entre os '+pts.length+' pontos é '+nf(ac.media,0)+' mm.</p></div>';
+
+  return h+'</div>';
+}
+
+/* Modo celular: escolhe o dia, digita ponto a ponto */
+function chuvaPorDia(f,ano,mes,pts,r){
+  const nd = diasNoMes(ano,mes);
+  const hoje = new Date();
+  let dia = (hoje.getFullYear()===ano && hoje.getMonth()===mes) ? hoje.getDate() : 1;
+  if(window._diaSel && window._diaSel.ano===ano && window._diaSel.mes===mes) dia = window._diaSel.dia;
+
+  let h = '<div class="dias">';
+  for(let d=1; d<=nd; d++){
+    const info = r.porDia[d];
+    const cls = d===dia ? " sel" : (info.n ? " tem" : "");
+    h += '<button class="dq'+cls+'" onclick="selDia('+ano+','+mes+','+d+')">'+
+         '<i>'+d+'</i>'+(info.n?'<u>'+nf(info.media,0)+'</u>':'')+'</button>';
+  }
+  h += '</div>';
+
+  const k = chaveDia(ano,mes,dia);
+  h += '<div class="lanc"><div class="lanc-h">'+
+    '<h3>'+dia+' de '+MESES[mes]+'</h3>'+
+    '<span>'+(r.porDia[dia].n ? nf(r.porDia[dia].media,1)+' mm de média' : "sem registro")+'</span></div>';
+  pts.forEach(p=>{
+    const v = lerChuva(f.id,k,p.id);
+    h += '<div class="lp"><label for="mm-'+p.id+'">'+esc(p.nome)+'</label>'+
+      '<div class="lp-in"><input id="mm-'+p.id+'" type="number" inputmode="decimal" step="0.5" min="0" '+
+      'value="'+(v==null?"":v)+'" placeholder="0" '+
+      'onchange="gravarChuva(\''+f.id+'\',\''+k+'\',\''+p.id+'\',this.value);render()"><span>mm</span></div></div>';
+  });
+  return h+'</div>';
+}
+
+/* Modo planilha: o mês inteiro, igual à referência */
+function chuvaPlanilha(f,ano,mes,pts,r){
+  const nd = diasNoMes(ano,mes);
+  let h = '<div class="tbl grade"><table><thead><tr>'+
+    '<th class="fix">'+MESES[mes]+'</th>'+
+    pts.map(p=>'<th class="num">'+esc(p.nome)+'</th>').join("")+
+    '<th class="num tot">Total</th></tr></thead><tbody>';
+  for(let d=1; d<=nd; d++){
+    const k = chaveDia(ano,mes,d), info = r.porDia[d];
+    h += '<tr'+(info.n?' class="molhado"':'')+'><td class="fix mono">'+d+'</td>';
+    pts.forEach(p=>{
+      const v = lerChuva(f.id,k,p.id);
+      h += '<td class="num"><input class="gr" type="number" inputmode="decimal" step="0.5" min="0" '+
+        'value="'+(v==null?"":v)+'" '+
+        'onchange="gravarChuva(\''+f.id+'\',\''+k+'\',\''+p.id+'\',this.value);render()"></td>';
+    });
+    h += '<td class="num mono tot">'+(info.n?nf(info.soma,0):"")+'</td></tr>';
+  }
+  h += '</tbody><tfoot><tr><td class="fix">Total</td>'+
+    pts.map(p=>'<td class="num mono">'+nf(r.porPonto[p.id]||0,0)+'</td>').join("")+
+    '<td class="num mono tot">'+nf(r.geral,0)+'</td></tr></tfoot></table></div>';
+  return h;
+}
+
+function selDia(ano,mes,dia){ window._diaSel={ano,mes,dia}; render(); }
+
+/* ── Pontos de medição ───────────────────── */
+function modalPontos(){
+  const f=acharFazenda(App.fazendaId);
+  const pts=pontosDe(f.id);
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal">'+
+    '<h2>Pontos de medição</h2>'+
+    '<p class="sub">Cada pluviômetro vira uma coluna na planilha.</p>'+
+    (pts.length?'<div class="lista-cam">'+pts.map(p=>
+      '<div class="cam"><span class="mono">'+esc(p.nome)+'</span><span></span>'+
+      '<button onclick="removerPonto(\''+p.id+'\')">✕</button></div>').join("")+'</div>'
+      :'<p class="vazio">Nenhum ponto cadastrado.</p>')+
+    '<div class="modal-acts">'+
+      '<button class="btn-cancel" onclick="fecharModal()">Fechar</button>'+
+      '<button class="btn-save" onclick="modalPonto()">+ Novo ponto</button></div>'+
+  '</div></div>';
+}
+function modalPonto(){
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal">'+
+    '<h2>Novo ponto</h2><p class="sub">Nome curto — aparece como coluna na planilha.</p>'+
+    '<div class="frm"><div><label for="pt-nome">Nome</label>'+
+      '<input id="pt-nome" placeholder="Pivôs, Sede, T1 T2…" maxlength="22"></div></div>'+
+    '<div class="modal-acts"><button class="btn-cancel" onclick="modalPontos()">Voltar</button>'+
+      '<button class="btn-save" onclick="gravarPonto()">Adicionar</button></div></div></div>';
+  setTimeout(()=>{const e=document.getElementById("pt-nome"); if(e) e.focus();},60);
+}
+function gravarPonto(){
+  const f=acharFazenda(App.fazendaId);
+  const v=document.getElementById("pt-nome").value.trim();
+  if(!v){ toast("Informe o nome"); return; }
+  const l=pontosDe(f.id);
+  if(l.some(p=>p.nome.toLowerCase()===v.toLowerCase())){ toast("Esse ponto já existe"); return; }
+  const novo={id:"pt_"+Date.now().toString(36), fazenda_id:f.id, nome:v};
+  l.push(novo); Store.set(kPontos(f.id),l);
+  Sync.push("chuva_pontos","upsert",novo);
+  fecharModal(); toast("Ponto adicionado"); render();
+}
+function removerPonto(id){
+  const f=acharFazenda(App.fazendaId);
+  const todo=chuvaDe(f.id);
+  let usos=0; Object.values(todo).forEach(d=>{ if(d[id]!=null) usos++; });
+  if(usos && !confirm("Esse ponto tem "+usos+" lançamento(s) de chuva.\nRemover mesmo assim?")) return;
+  Store.set(kPontos(f.id), pontosDe(f.id).filter(p=>p.id!==id));
+  if(usos){ Object.keys(todo).forEach(d=>{ delete todo[d][id];
+    if(!Object.keys(todo[d]).length) delete todo[d]; }); Store.set(kChuva(f.id),todo); }
+  Sync.push("chuva_pontos","delete",{id});
+  toast("Ponto removido"); modalPontos(); render();
+}
+
+function exportarChuva(){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const pts=pontosDe(f.id);
+  const linhas=[];
+  mesesDaSafra(f.safra).forEach(({ano,mes})=>{
+    const r=resumoMes(f.id,ano,mes), nd=diasNoMes(ano,mes);
+    if(r.geral===0) return;
+    linhas.push([MESES[mes]+" "+ano].concat(pts.map(p=>p.nome)).concat(["Total"]));
+    for(let d=1;d<=nd;d++){
+      const k=chaveDia(ano,mes,d);
+      linhas.push([d].concat(pts.map(p=>{
+        const v=lerChuva(f.id,k,p.id); return v==null?"":vBR(v);
+      })).concat([r.porDia[d].n?vBR(r.porDia[d].soma):""]));
+    }
+    linhas.push(["Total ponto"].concat(pts.map(p=>vBR(r.porPonto[p.id]||0))).concat([vBR(r.geral)]));
+    linhas.push([]);
+  });
+  if(!linhas.length){ toast("Nenhuma chuva lançada ainda"); return; }
+  baixarCSV(linhas,"chuvas-"+f.nome.toLowerCase().replace(/[^a-z0-9]+/g,"-"));
+}
+
 function telaModulo(){
   const f=acharFazenda(App.fazendaId), m=acharModulo(App.moduloId);
   const nome = m ? m.nome
@@ -1585,6 +1937,9 @@ function semearPrimeiraVez(){
   Store.set(kArmaz(f.id), SEED_ARMAZENS.slice());
   Store.set(kCam(f.id), SEED_CAMINHOES.map((r,i)=>({
     id:"cm_"+i, fazenda_id:f.id, placa:r[0], motorista:r[1] })));
+  Store.set(kPontos(f.id), ["Pivôs","Sede","Luiz","Talhões 01-08",
+    "Talhões 09-17","Paulo","Saquetin"].map((n,i)=>({
+      id:"pt_"+i, fazenda_id:f.id, nome:n })));
 }
 
 semearPrimeiraVez();

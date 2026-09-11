@@ -2,7 +2,7 @@
    Guarda o app no aparelho para abrir sem internet.
    Troque CACHE ao publicar uma versão nova. */
 
-const CACHE = "safra-v0.7.0";
+const CACHE = "safra-v0.8.0";
 const SHELL = ["./", "./index.html", "./manifest.json", "./icone.svg", "./icone-maskable.svg"];
 
 self.addEventListener("install", e => {
