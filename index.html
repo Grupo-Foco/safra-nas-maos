@@ -499,6 +499,52 @@ input.gr:focus{border-color:var(--blue);background:#fff;outline:none}
   background:var(--line-soft);padding:1px 5px;border-radius:4px;margin:0 2px}
 .tbl u.cmp.alerta{background:var(--red-soft);color:var(--red)}
 
+/* ── Operações ───────────────────────────── */
+.tbl tr.ap-ini td{border-top:2px solid var(--line)}
+.tbl td u.tp{display:block;text-decoration:none;font-family:var(--mono);font-size:9px;
+  color:var(--muted);margin-top:3px;letter-spacing:.04em}
+.tbl td u.ob{display:block;text-decoration:none;font-size:11px;color:var(--muted);
+  font-weight:400;margin-top:3px}
+.tbl i.un{font-style:normal;font-size:10px;color:var(--muted);font-family:var(--mono)}
+.tbl i.sp{font-style:normal;font-size:10.5px;color:var(--amber);font-family:var(--mono)}
+.tbl td.vaz{color:var(--muted);font-style:italic;font-size:12.5px}
+.barra{display:inline-block;width:64px;height:6px;background:var(--line-soft);
+  border-radius:3px;overflow:hidden;vertical-align:middle}
+.barra i{display:block;height:100%;background:var(--gold);border-radius:3px}
+u.pc{text-decoration:none;font-family:var(--mono);font-size:11px;color:var(--muted);margin-left:7px}
+.tsel{display:flex;flex-wrap:wrap;gap:6px;max-height:160px;overflow-y:auto;
+  border:1px solid var(--line);border-radius:9px;padding:10px;background:#fff}
+.tc{display:inline-flex;align-items:center;gap:6px;background:var(--bg);border:1px solid transparent;
+  border-radius:7px;padding:5px 10px;font-size:12.5px;color:var(--muted);cursor:pointer}
+.tc input{width:13px;height:13px;margin:0}
+.tc.on{background:var(--leaf-soft);border-color:var(--leaf);color:var(--green);font-weight:700}
+.item-p{grid-template-columns:1fr 110px 34px}
+
+.descs{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.dsc label{display:block;color:var(--green);font-family:var(--mono);font-size:11px;
+  font-weight:700;letter-spacing:.07em;text-transform:uppercase;margin-bottom:6px}
+.dsc-in{display:grid;grid-template-columns:1fr 1.15fr;gap:6px}
+.dsc-c{position:relative;display:block}
+.dsc-c input{width:100%;padding:11px 30px 11px 11px;border:1px solid var(--line);
+  border-radius:8px;background:#fff;font-family:var(--mono);font-size:14px;
+  text-align:right;color:var(--green)}
+.dsc-c input:focus{border-color:var(--gold);outline:none}
+.dsc-c i{position:absolute;right:9px;top:50%;transform:translateY(-50%);font-style:normal;
+  font-family:var(--mono);font-size:10.5px;color:var(--muted);pointer-events:none}
+@media(max-width:640px){ .descs{grid-template-columns:1fr} }
+
+.lav table{font-size:13px}
+.lav td{padding:6px 8px}
+input.lv{width:100%;padding:8px 9px;border:1px solid transparent;border-radius:7px;
+  background:transparent;font-size:13px;color:var(--text)}
+input.lv:hover{border-color:var(--line);background:#fff}
+input.lv:focus{border-color:var(--gold);background:#fff;outline:none}
+input.lv-n{font-family:var(--mono);text-align:right;font-variant-numeric:tabular-nums}
+input.lv-s{font-family:var(--mono);text-align:center;max-width:80px}
+input.lv-d{font-family:var(--mono);font-size:12.5px;min-width:130px}
+.lav tr.pendente td{opacity:1}
+.lav tr.pendente td.forte{color:var(--muted)}
+
 @media(max-width:640px){
   body{font-size:14.5px}
   .wrap{padding:16px 12px 34px}
@@ -529,7 +575,7 @@ input.gr:focus{border-color:var(--blue);background:#fff;outline:none}
 
 <script>
 "use strict";
-const APP_VERSION = "1.1.0";
+const APP_VERSION = "1.3.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -795,18 +841,23 @@ const BASE_PADRAO = { umidade:14, impureza:1, avariados:6 };
 function kBases(f){ return "faz_"+f+"_bases"; }
 function basesDe(f){ return Store.get(kBases(f), BASE_PADRAO); }
 
-/* Desconto: umidade pela fórmula, impureza e avariados no excedente */
-function calcBaixa(b, bases){
-  const liq = Number(b.liquido)||0;
-  const u   = Number(b.umidade)||0;
-  const imp = Number(b.impureza)||0;
-  const av  = Number(b.avariados)||0;
-  const bu = Number(bases.umidade), bi = Number(bases.impureza), ba = Number(bases.avariados);
+/* Desconto: o kg vale o que veio no romaneio. A fórmula só
+   sugere quando o campo está vazio — cada armazém tem sua regra. */
+function sugerirDesc(tipo, liq, pct, bases){
+  const p = Number(pct)||0;
+  if(tipo==="umidade"){
+    const b = Number(bases.umidade);
+    return p > b ? Math.round(liq * ((p-b)/(100-p))) : 0;
+  }
+  const b = Number(tipo==="impureza" ? bases.impureza : bases.avariados);
+  return p > b ? Math.round(liq * (p-b)/100) : 0;
+}
 
-  const dUmid = u > bu ? Math.round(liq * ((u-bu)/(100-u))) : 0;
-  const base2 = liq - dUmid;                       // impureza e avariados sobre o peso já seco
-  const dImp  = imp > bi ? Math.round(base2 * (imp-bi)/100) : 0;
-  const dAvar = av  > ba ? Math.round(base2 * (av-ba)/100)  : 0;
+function calcBaixa(b){
+  const liq   = Number(b.liquido)||0;
+  const dUmid = Math.max(0, Number(b.desc_umidade)||0);
+  const dImp  = Math.max(0, Number(b.desc_impureza)||0);
+  const dAvar = Math.max(0, Number(b.desc_avariados)||0);
   const final = Math.max(0, liq - dUmid - dImp - dAvar);
   return { desc_umidade:dUmid, desc_impureza:dImp, desc_avariados:dAvar,
            desc_total:dUmid+dImp+dAvar, peso_final:final, sacas_final:final/SACA_KG };
@@ -818,7 +869,7 @@ function sacasValidas(c){ return cargaBaixada(c) ? c.baixa.sacas_final : 0; }
 function darBaixa(f, id, dados){
   const l = cargasDe(f), i = l.findIndex(x=>x.id===id);
   if(i<0) return null;
-  const calc = calcBaixa(dados, basesDe(f));
+  const calc = calcBaixa(dados);
   l[i].baixa = Object.assign({}, dados, calc);
   l[i].status = "baixada";
   Store.set(kCargas(f), l);
@@ -1002,14 +1053,170 @@ function acumuladoSafra(f, safra){
            media: pts.length ? total/pts.length : 0 };
 }
 
+
+/* ═══════════════════════════════════════════════════
+   OPERAÇÕES NO TALHÃO
+   Uma aplicação = data + área + tipo + a calda de
+   produtos. Quantidade = dose × hectares.
+   ═══════════════════════════════════════════════════ */
+const TIPOS_OP = ["Pulverização terrestre","Pulverização aérea","Semeadura","Adubação"];
+
+function kProd(f){ return "faz_"+f+"_produtos"; }
+function kApl(f){ return "faz_"+f+"_aplicacoes"; }
+function produtosDe(f){ return Store.get(kProd(f), []); }
+function aplicacoesDe(f){ return Store.get(kApl(f), []); }
+function acharProduto(f,id){ return produtosDe(f).find(p=>p.id===id)||null; }
+
+function salvarProduto(f, d, id){
+  const l = produtosDe(f);
+  if(id){
+    const p = l.find(x=>x.id===id); if(!p) return null;
+    Object.assign(p,{nome:d.nome.trim(), unidade:d.unidade, preco:Number(d.preco)||0});
+    Store.set(kProd(f),l); Sync.push("produtos","upsert",p); return p;
+  }
+  const novo = { id:"pr_"+Date.now().toString(36)+Math.random().toString(36).slice(2,4),
+    fazenda_id:f, nome:d.nome.trim(), unidade:d.unidade||"L", preco:Number(d.preco)||0 };
+  l.push(novo); Store.set(kProd(f),l); Sync.push("produtos","upsert",novo);
+  return novo;
+}
+function apagarProduto(f,id){
+  Store.set(kProd(f), produtosDe(f).filter(p=>p.id!==id));
+  Sync.push("produtos","delete",{id});
+}
+
+/* Linhas da aplicação: uma por produto, como no relatório */
+function linhasAplicacao(f, a){
+  const ha = Number(a.hectares)||0;
+  return (a.itens||[]).map(i=>{
+    const p = acharProduto(f, i.produto_id);
+    const dose = Number(i.dose)||0;
+    const qtd  = dose * ha;
+    const preco = p ? Number(p.preco)||0 : 0;
+    return { produto: p?p.nome:"(removido)", unidade: p?p.unidade:"L",
+             dose, hectares:ha, qtd, preco, valor: qtd*preco, semPreco: preco<=0 };
+  });
+}
+function custoAplicacao(f,a){
+  return linhasAplicacao(f,a).reduce((s,l)=>s+l.valor,0);
+}
+
+function salvarAplicacao(f, d, id){
+  const l = aplicacoesDe(f);
+  const dados = { data:d.data, tipo:d.tipo, talhoes:d.talhoes||[],
+                  hectares:Number(d.hectares)||0, obs:(d.obs||"").trim(),
+                  itens:(d.itens||[]).filter(i=>i.produto_id && Number(i.dose)>0) };
+  if(id){
+    const i = l.findIndex(x=>x.id===id); if(i<0) return null;
+    l[i] = Object.assign({}, l[i], dados);
+    Store.set(kApl(f),l); Sync.push("aplicacoes","upsert",l[i]); return l[i];
+  }
+  const nova = Object.assign({ id:"ap_"+Date.now().toString(36)+Math.random().toString(36).slice(2,4),
+    fazenda_id:f, criado_em:new Date().toISOString() }, dados);
+  l.push(nova); Store.set(kApl(f),l); Sync.push("aplicacoes","upsert",nova);
+  return nova;
+}
+function apagarAplicacao(f,id){
+  Store.set(kApl(f), aplicacoesDe(f).filter(a=>a.id!==id));
+  Sync.push("aplicacoes","delete",{id});
+}
+
+/* Resumo: custo total, por tipo, por produto e por talhão */
+function resumoOperacoes(f, tipo){
+  let aps = aplicacoesDe(f);
+  if(tipo) aps = aps.filter(a=>a.tipo===tipo);
+  const porProduto = {}, porTipo = {}, porTalhao = {};
+  let total = 0, haAplicada = 0, semPreco = 0;
+
+  aps.forEach(a=>{
+    const custo = custoAplicacao(f,a);
+    total += custo;
+    haAplicada += Number(a.hectares)||0;
+    porTipo[a.tipo] = (porTipo[a.tipo]||0) + custo;
+    linhasAplicacao(f,a).forEach(l=>{
+      if(l.semPreco) semPreco++;
+      if(!porProduto[l.produto]) porProduto[l.produto]={nome:l.produto,unidade:l.unidade,qtd:0,valor:0,aplic:0};
+      const p=porProduto[l.produto];
+      p.qtd+=l.qtd; p.valor+=l.valor; p.aplic++;
+    });
+    const n = (a.talhoes||[]).length || 1;
+    (a.talhoes||[]).forEach(tid=>{
+      if(!porTalhao[tid]) porTalhao[tid]={talhao_id:tid,valor:0,aplic:0};
+      porTalhao[tid].valor += custo/n;
+      porTalhao[tid].aplic++;
+    });
+  });
+
+  return { aplicacoes:aps, total, haAplicada, semPreco,
+    custoHa: haAplicada>0 ? total/haAplicada : 0,
+    porProduto: Object.values(porProduto).sort((a,b)=>b.valor-a.valor),
+    porTipo, porTalhao };
+}
+
+const moeda = v => "R$ " + Number(v||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+
+
+/* ═══════════════════════════════════════════════════
+   DADOS DA LAVOURA — plantio por talhão
+   Variedade, sementes por metro e janela de plantio.
+   ═══════════════════════════════════════════════════ */
+function kLavoura(f){ return "faz_"+f+"_lavoura"; }
+function lavouraDe(f){ return Store.get(kLavoura(f), {}); }
+
+function plantioDe(f, talId){
+  const l = lavouraDe(f)[talId];
+  return l || { variedade:"", area:null, sementes:"", inicio:"", fim:"" };
+}
+function salvarPlantio(f, talId, campo, valor){
+  const todo = lavouraDe(f);
+  if(!todo[talId]) todo[talId] = { variedade:"", area:null, sementes:"", inicio:"", fim:"" };
+  todo[talId][campo] = valor;
+  const p = todo[talId];
+  const vazio = !p.variedade && p.area==null && !p.sementes && !p.inicio && !p.fim;
+  if(vazio) delete todo[talId];
+  Store.set(kLavoura(f), todo);
+  Sync.push("lavoura","upsert",{fazenda_id:f, talhao_id:talId, ...todo[talId]});
+}
+
+function resumoLavoura(f){
+  const tals = talhoesDe(f).slice()
+    .sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR",{numeric:true}));
+  const linhas = tals.map(t=>{
+    const p = plantioDe(f,t.id);
+    const area = p.area!=null && p.area!=="" ? Number(p.area) : t.hectares;
+    const plantado = !!(p.variedade || p.inicio);
+    let dias = null;
+    if(p.inicio && p.fim){
+      const d = (new Date(p.fim+"T12:00:00") - new Date(p.inicio+"T12:00:00"))/86400000;
+      if(!isNaN(d) && d>=0) dias = Math.round(d)+1;
+    }
+    return { id:t.id, nome:t.nome, hectares:t.hectares, area,
+             variedade:p.variedade||"", sementes:p.sementes||"",
+             inicio:p.inicio||"", fim:p.fim||"", dias, plantado };
+  });
+  const plantadas = linhas.filter(l=>l.plantado);
+  const vars = {};
+  plantadas.forEach(l=>{
+    const v = l.variedade.trim() || "—";
+    vars[v] = (vars[v]||0) + l.area;
+  });
+  const datas = plantadas.map(l=>l.inicio).filter(Boolean).sort();
+  const fins  = plantadas.map(l=>l.fim).filter(Boolean).sort();
+  return { linhas, plantadas,
+    areaPlantada: plantadas.reduce((s,l)=>s+l.area,0),
+    areaTotal: linhas.reduce((s,l)=>s+l.area,0),
+    variedades: Object.entries(vars).map(([nome,area])=>({nome,area}))
+                  .sort((a,b)=>b.area-a.area),
+    inicio: datas[0]||"", fim: fins[fins.length-1]||"" };
+}
+
 /* ═══════════════════════════════════════════════════
    MÓDULOS
    ═══════════════════════════════════════════════════ */
 const MODULOS = [
   { grupo:"Fazenda e lavoura", itens:[
     { id:"talhoes",   ic:"talhoes",   nome:"Dados da fazenda", desc:"Talhões, áreas e mapa da propriedade", pronto:true, resumo:f=>f.talhoes ? f.talhoes+" talhões · "+f.hectares.toLocaleString("pt-BR",{maximumFractionDigits:1})+" ha" : "Cadastre os talhões da fazenda" },
-    { id:"lavoura",   ic:"lavoura",   nome:"Dados da lavoura", desc:"Cultura, plantio e emergência", pronto:false },
-    { id:"operacoes", ic:"operacoes", nome:"Operações no talhão", desc:"Pulverização, semeadura e adubação", pronto:false },
+    { id:"lavoura",   ic:"lavoura",   nome:"Dados da lavoura", desc:"Variedade, semente e janela de plantio", pronto:true, resumo:f=>{const R=resumoLavoura(f.id); return R.plantadas.length? R.plantadas.length+" talhões · "+nf(R.areaPlantada,0)+" ha plantados" : "Lance o plantio";} },
+    { id:"operacoes", ic:"operacoes", nome:"Operações no talhão", desc:"Pulverização, semeadura e adubação", pronto:true, resumo:f=>{const n=aplicacoesDe(f.id).length; return n? n+" aplicações · "+moeda(resumoOperacoes(f.id).total) : "Lance a primeira aplicação";} },
     { id:"estoque",   ic:"estoque",   nome:"Estoque", desc:"Desconta automaticamente o que foi aplicado", pronto:false },
     { id:"ndvi",      ic:"ndvi",      nome:"Mapa NDVI", desc:"Acompanhamento por satélite", pronto:false },
     { id:"chuva",     ic:"chuva",     nome:"Pluviometria", desc:"Lançar e comparar chuvas", pronto:true, resumo:f=>{const a=acumuladoSafra(f.id,f.safra); return a.total>0 ? Math.round(a.media)+" mm na safra" : "Lance a primeira chuva";} },
@@ -1055,7 +1262,7 @@ function render(){
   let h = topbar();
   if(App.tela==="fazendas")      h += telaFazendas();
   else if(App.tela==="fazenda")  h += telaFazenda();
-  else if(App.tela==="modulo")   h += (App.moduloId==="talhoes" ? telaTalhoes() : App.moduloId==="colheita" ? telaColheita() : App.moduloId==="chuva" ? telaChuva() : telaModulo());
+  else if(App.tela==="modulo")   h += (App.moduloId==="talhoes" ? telaTalhoes() : App.moduloId==="colheita" ? telaColheita() : App.moduloId==="chuva" ? telaChuva() : App.moduloId==="operacoes" ? telaOperacoes() : App.moduloId==="lavoura" ? telaLavoura() : telaModulo());
   else if(App.tela==="panorama") h += telaPanorama();
   document.getElementById("root").innerHTML = h;
   Sync.render();
@@ -1726,6 +1933,265 @@ function exportarChuva(){
   baixarCSV(linhas,"chuvas-"+f.nome.toLowerCase().replace(/[^a-z0-9]+/g,"-"));
 }
 
+/* ═══════════════════════════════════════════════════
+   TELA — Operações no talhão
+   ═══════════════════════════════════════════════════ */
+let _abaOp = "relatorio";
+let _fTipo = "";
+let _itensApl = [];
+
+function telaOperacoes(){
+  const f = acharFazenda(App.fazendaId);
+  if(!f){ App.tela="fazendas"; return telaFazendas(); }
+  const R = resumoOperacoes(f.id, _fTipo);
+  const todas = aplicacoesDe(f.id);
+
+  let h = '<div class="wrap wrap-wide">';
+  h += '<div class="farm-head">'+
+    '<button class="btn-back" onclick="irPara(\'fazenda\')">← '+esc(f.nome)+'</button>'+
+    '<div class="farm-head-mid"><h1>Operações no talhão</h1>'+
+    '<p>Pulverização, semeadura e adubação · safra '+esc(f.safra)+'</p></div></div>';
+
+  h += '<div class="kpis kpis-4">'+
+    kpi("Aplicações", todas.length, _fTipo?R.aplicacoes.length+" no filtro":"")+
+    kpi("Custo total", moeda(R.total).replace("R$ ",""), "R$")+
+    kpi("Área aplicada", nf(R.haAplicada,0), "ha acumulados")+
+    kpi("Custo por hectare", nf(R.custoHa,2), "R$/ha aplicado")+
+  '</div>';
+
+  h += '<div class="abas">'+
+    abaOp("relatorio","Relatório", R.aplicacoes.length)+
+    abaOp("produtos","Produtos", produtosDe(f.id).length)+
+    abaOp("resumo","Por produto", R.porProduto.length)+
+  '</div>';
+
+  if(_abaOp==="produtos")     h += abaProdutos(f);
+  else if(_abaOp==="resumo")  h += abaResumoProd(f,R);
+  else                        h += abaRelatorio(f,R);
+  return h+'</div>';
+}
+function abaOp(id,rot,n){
+  return '<button class="ab'+(_abaOp===id?' on':'')+'" onclick="_abaOp=\''+id+'\';render()">'+
+         esc(rot)+(n?'<b>'+n+'</b>':'')+'</button>';
+}
+
+/* ── Relatório: igual ao da fazenda ──────── */
+function abaRelatorio(f,R){
+  const tals = talhoesDe(f.id);
+  const nomeT = a => (a.talhoes||[]).map(id=>{
+    const t=tals.find(x=>x.id===id); return t?t.nome:"—"; }).join(", ") || "—";
+
+  let h = '<div class="acts">'+
+    '<button class="btn-act primary" onclick="modalAplicacao()">+ Nova aplicação</button>'+
+    (R.aplicacoes.length?'<button class="btn-act" onclick="exportarOperacoes()">Baixar planilha</button>':'')+
+    '<select class="sel-f" onchange="_fTipo=this.value;render()">'+
+      '<option value="">Todos os tipos</option>'+
+      TIPOS_OP.map(t=>'<option '+(_fTipo===t?'selected':'')+'>'+esc(t)+'</option>').join("")+
+    '</select></div>';
+
+  if(!produtosDe(f.id).length)
+    return h+'<div class="empty"><strong>Cadastre os produtos primeiro</strong>'+
+      'Defesivos, adubos e sementes com o preço por litro ou quilo.'+
+      '<div style="margin-top:16px"><button class="btn-act primary" '+
+      'onclick="_abaOp=\'produtos\';render();setTimeout(modalProduto,80)">Cadastrar produto</button></div></div>';
+
+  if(!R.aplicacoes.length)
+    return h+'<div class="empty"><strong>Nenhuma aplicação lançada</strong>'+
+      'Cada passada de pulverizador vira uma aplicação, com a calda de produtos e a área tratada.</div>';
+
+  const aps = R.aplicacoes.slice().sort((a,b)=>(b.data||"").localeCompare(a.data||""));
+  let h2 = '<div class="tbl"><table><thead><tr>'+
+    '<th>Data</th><th>Talhão</th><th>Produto</th><th class="num">Dose</th>'+
+    '<th class="num">Hectares</th><th class="num">Qtd</th>'+
+    '<th class="num hide-sm">Valor un.</th><th class="num">Valor total</th><th></th>'+
+    '</tr></thead><tbody>';
+  let total = 0;
+  aps.forEach(a=>{
+    const ls = linhasAplicacao(f.id,a);
+    const custo = ls.reduce((s,l)=>s+l.valor,0);
+    total += custo;
+    if(!ls.length){
+      h2 += '<tr class="ap-ini"><td class="mono">'+dataBR(a.data)+'</td>'+
+        '<td class="forte">'+esc(nomeT(a))+'</td><td colspan="6" class="vaz">sem produto na calda</td>'+
+        '<td class="acoes"><button onclick="modalAplicacao(\''+a.id+'\')">Editar</button>'+
+        '<button class="rm" onclick="removerAplicacao(\''+a.id+'\')">✕</button></td></tr>';
+      return;
+    }
+    ls.forEach((l,i)=>{
+      h2 += '<tr'+(i===0?' class="ap-ini"':'')+'>'+
+        (i===0 ? '<td class="mono" rowspan="'+ls.length+'">'+dataBR(a.data)+
+                 '<u class="tp">'+esc(a.tipo||"").replace("Pulverização ","")+'</u></td>'+
+                 '<td class="forte" rowspan="'+ls.length+'">'+esc(nomeT(a))+
+                 (a.obs?'<u class="ob">'+esc(a.obs)+'</u>':'')+'</td>' : '')+
+        '<td>'+esc(l.produto)+'</td>'+
+        '<td class="num mono">'+nf(l.dose,l.dose<1?3:2)+'</td>'+
+        '<td class="num mono">'+nf(l.hectares,0)+'</td>'+
+        '<td class="num mono">'+nf(l.qtd,1)+' <i class="un">'+esc(l.unidade)+'</i></td>'+
+        '<td class="num mono hide-sm">'+(l.semPreco?'<i class="sp">sem preço</i>':moeda(l.preco))+'</td>'+
+        '<td class="num mono forte">'+(l.semPreco?"—":moeda(l.valor))+'</td>'+
+        (i===0 ? '<td class="acoes" rowspan="'+ls.length+'">'+
+                 '<button onclick="modalAplicacao(\''+a.id+'\')">Editar</button>'+
+                 '<button class="rm" onclick="removerAplicacao(\''+a.id+'\')">✕</button></td>' : '')+
+      '</tr>';
+    });
+  });
+  h2 += '</tbody><tfoot><tr><td class="fix" colspan="7">Total geral'+
+    (_fTipo?' · '+esc(_fTipo):'')+'</td>'+
+    '<td class="num mono tot">'+moeda(total)+'</td><td></td></tr></tfoot></table></div>';
+
+  if(R.semPreco) h2 += '<p class="resumo-obs">'+R.semPreco+
+    ' lançamento(s) sem preço cadastrado — o valor deles não entra no total.</p>';
+  return h+h2;
+}
+
+/* ── Produtos ────────────────────────────── */
+function abaProdutos(f){
+  const l = produtosDe(f.id).slice().sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR"));
+  let h = '<div class="acts"><button class="btn-act primary" onclick="modalProduto()">+ Novo produto</button></div>';
+  if(!l.length)
+    return h+'<div class="empty"><strong>Nenhum produto cadastrado</strong>'+
+      'Cadastre defensivos, adubos e sementes com o preço por litro ou quilo. '+
+      'O custo das aplicações sai daqui.</div>';
+  h += '<div class="tbl"><table><thead><tr><th>Produto</th><th class="num">Unidade</th>'+
+    '<th class="num">Preço</th><th class="num hide-sm">Aplicações</th><th></th></tr></thead><tbody>';
+  const R = resumoOperacoes(f.id);
+  l.forEach(p=>{
+    const u = R.porProduto.find(x=>x.nome===p.nome);
+    h += '<tr><td class="forte">'+esc(p.nome)+'</td>'+
+      '<td class="num mono">'+esc(p.unidade)+'</td>'+
+      '<td class="num mono'+(p.preco>0?'':' vaz')+'">'+(p.preco>0?moeda(p.preco):"sem preço")+'</td>'+
+      '<td class="num mono hide-sm">'+(u?u.aplic:0)+'</td>'+
+      '<td class="acoes"><button onclick="modalProduto(\''+p.id+'\')">Editar</button>'+
+      '<button class="rm" onclick="removerProduto(\''+p.id+'\')">✕</button></td></tr>';
+  });
+  return h+'</tbody></table></div>';
+}
+
+/* ── Consumo por produto ─────────────────── */
+function abaResumoProd(f,R){
+  if(!R.porProduto.length)
+    return '<div class="empty"><strong>Nada aplicado ainda</strong>'+
+      'Este resumo mostra quanto de cada produto foi gasto na safra.</div>';
+  let h = '<div class="tbl"><table><thead><tr><th>Produto</th>'+
+    '<th class="num">Aplicações</th><th class="num">Quantidade</th>'+
+    '<th class="num">Valor</th><th class="num hide-sm">% do custo</th></tr></thead><tbody>';
+  R.porProduto.forEach(p=>{
+    const pct = R.total>0 ? p.valor/R.total*100 : 0;
+    h += '<tr><td class="forte">'+esc(p.nome)+'</td>'+
+      '<td class="num mono">'+p.aplic+'</td>'+
+      '<td class="num mono">'+nf(p.qtd,1)+' <i class="un">'+esc(p.unidade)+'</i></td>'+
+      '<td class="num mono forte">'+moeda(p.valor)+'</td>'+
+      '<td class="num hide-sm"><div class="barra"><i style="width:'+Math.min(100,pct).toFixed(1)+'%"></i></div>'+
+      '<u class="pc">'+nf(pct,1)+'%</u></td></tr>';
+  });
+  h += '</tbody><tfoot><tr><td class="fix">Total</td><td></td><td></td>'+
+    '<td class="num mono tot">'+moeda(R.total)+'</td><td class="hide-sm"></td></tr></tfoot></table></div>';
+  return h;
+}
+
+/* ═══════════════════════════════════════════════════
+   TELA — Dados da lavoura
+   ═══════════════════════════════════════════════════ */
+function telaLavoura(){
+  const f = acharFazenda(App.fazendaId);
+  if(!f){ App.tela="fazendas"; return telaFazendas(); }
+  const R = resumoLavoura(f.id);
+
+  let h = '<div class="wrap wrap-wide">';
+  h += '<div class="farm-head">'+
+    '<button class="btn-back" onclick="irPara(\'fazenda\')">← '+esc(f.nome)+'</button>'+
+    '<div class="farm-head-mid"><h1>Dados da lavoura</h1>'+
+    '<p>Variedade, semente e janela de plantio · safra '+esc(f.safra)+'</p></div></div>';
+
+  if(!R.linhas.length)
+    return h+'<div class="empty"><strong>Cadastre os talhões primeiro</strong>'+
+      'A lavoura é lançada em cima dos talhões da fazenda.'+
+      '<div style="margin-top:16px"><button class="btn-act primary" '+
+      'onclick="irPara(\'modulo\',{moduloId:\'talhoes\'})">Ir para Dados da fazenda</button></div></div></div>';
+
+  h += '<div class="kpis kpis-4">'+
+    kpi("Talhões plantados", R.plantadas.length, "de "+R.linhas.length)+
+    kpi("Área plantada", nf(R.areaPlantada,2), "ha")+
+    kpi("Variedades", R.variedades.length, R.variedades.length?R.variedades[0].nome:"")+
+    kpi("Janela de plantio", R.inicio?dataBR(R.inicio):"—", R.fim?"até "+dataBR(R.fim):"")+
+  '</div>';
+
+  h += '<div class="acts">'+
+    '<button class="btn-act" onclick="exportarLavoura()">Baixar planilha</button>'+
+    (R.variedades.length?'<button class="btn-act" onclick="modalVariedades()">Ver por variedade</button>':'')+
+  '</div>';
+
+  h += '<div class="tbl lav"><table><thead><tr>'+
+    '<th>Área</th><th>Variedade</th><th class="num">Área-ha</th>'+
+    '<th class="num">Sementes/m</th><th>Início</th><th>Fim</th>'+
+    '<th class="num hide-sm">Dias</th></tr></thead><tbody>';
+  R.linhas.forEach(l=>{
+    h += '<tr'+(l.plantado?'':' class="pendente"')+'>'+
+      '<td class="forte">'+esc(l.nome)+'</td>'+
+      '<td><input class="lv lv-v" value="'+esc(l.variedade)+'" placeholder="Olimpo, Neo 790…" '+
+        'onchange="gravarLav(\''+l.id+'\',\'variedade\',this.value)"></td>'+
+      '<td class="num"><input class="lv lv-n" type="number" step="0.01" inputmode="decimal" '+
+        'value="'+nf(l.area,2).replace(/\./g,"").replace(",",".")+'" '+
+        'onchange="gravarLav(\''+l.id+'\',\'area\',this.value)"></td>'+
+      '<td class="num"><input class="lv lv-s" value="'+esc(l.sementes)+'" placeholder="14" '+
+        'onchange="gravarLav(\''+l.id+'\',\'sementes\',this.value)"></td>'+
+      '<td><input class="lv lv-d" type="date" value="'+esc(l.inicio)+'" '+
+        'onchange="gravarLav(\''+l.id+'\',\'inicio\',this.value)"></td>'+
+      '<td><input class="lv lv-d" type="date" value="'+esc(l.fim)+'" '+
+        'onchange="gravarLav(\''+l.id+'\',\'fim\',this.value)"></td>'+
+      '<td class="num mono hide-sm">'+(l.dias!=null?l.dias:"—")+'</td>'+
+    '</tr>';
+  });
+  h += '</tbody><tfoot><tr><td class="fix">Total plantado</td><td></td>'+
+    '<td class="num mono tot">'+nf(R.areaPlantada,2)+'</td>'+
+    '<td></td><td></td><td></td><td class="hide-sm"></td></tr></tfoot></table></div>';
+
+  if(R.variedades.length){
+    h += '<div class="resumo"><div class="resumo-t">Área por variedade</div><div class="acum">'+
+      R.variedades.map(v=>'<div class="ac"><span>'+esc(v.nome)+'</span><b>'+
+        nf(v.area,2)+' <i>ha</i></b></div>').join("")+'</div></div>';
+  }
+  return h+'</div>';
+}
+
+function gravarLav(id, campo, valor){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  let v = valor;
+  if(campo==="area"){ v = String(valor).trim()===""? null : (parseFloat(String(valor).replace(",","."))||0); }
+  salvarPlantio(f.id,id,campo,v);
+  render();
+}
+
+function modalVariedades(){
+  const f=acharFazenda(App.fazendaId);
+  const R=resumoLavoura(f.id);
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal">'+
+    '<h2>Área por variedade</h2>'+
+    '<p class="sub">Total plantado: '+nf(R.areaPlantada,2)+' ha em '+R.plantadas.length+' talhões.</p>'+
+    '<div class="lista-cam">'+R.variedades.map(v=>{
+      const pct = R.areaPlantada>0 ? v.area/R.areaPlantada*100 : 0;
+      return '<div class="cam"><span class="mono">'+esc(v.nome)+'</span>'+
+        '<span><div class="barra"><i style="width:'+pct.toFixed(1)+'%"></i></div></span>'+
+        '<span class="mono">'+nf(v.area,1)+' ha · '+nf(pct,0)+'%</span></div>';
+    }).join("")+'</div>'+
+    '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Fechar</button></div>'+
+  '</div></div>';
+}
+
+function exportarLavoura(){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const R=resumoLavoura(f.id);
+  const linhas=[["RELATÓRIO DE PLANTIO · "+f.nome.toUpperCase()+" · SAFRA "+f.safra]];
+  linhas.push(["Área","Variedade","Área-ha","Sementes/m","Início","Fim","Dias"]);
+  R.linhas.forEach(l=>linhas.push([l.nome, l.variedade, vBR(l.area.toFixed(2)),
+    l.sementes, l.inicio?dataBR(l.inicio):"", l.fim?dataBR(l.fim):"", l.dias!=null?l.dias:""]));
+  linhas.push([]);
+  linhas.push(["Total plantado","",vBR(R.areaPlantada.toFixed(2))]);
+  R.variedades.forEach(v=>linhas.push([v.nome,"",vBR(v.area.toFixed(2))]));
+  baixarCSV(linhas,"plantio-"+f.nome.toLowerCase().replace(/[^a-z0-9]+/g,"-"));
+}
+
 function telaModulo(){
   const f=acharFazenda(App.fazendaId), m=acharModulo(App.moduloId);
   const nome = m ? m.nome
@@ -2077,6 +2543,36 @@ function abaDescontos(f){
   return h;
 }
 
+/* Cada desconto tem dois campos: o grau e o kg. O kg é o que
+   conta — vem pronto no romaneio. O grau fica de registro. */
+function campoDesc(k, rot, pct, kg, padrao, extra){
+  return '<div class="dsc">'+
+    '<label>'+esc(rot)+'</label>'+
+    '<div class="dsc-in">'+
+      '<span class="dsc-c"><input id="b-'+k+'-p" type="number" step="0.01" inputmode="decimal" '+
+        'value="'+(pct!=null?pct:"")+'" placeholder="0" oninput="sugerirKg(\''+k+'\');recalcBaixa()">'+
+        '<i>%</i></span>'+
+      '<span class="dsc-c"><input id="b-'+k+'-k" type="number" step="1" inputmode="decimal" '+
+        'value="'+(kg!=null?kg:"")+'" placeholder="0" oninput="_kgManual.'+k+'=true;recalcBaixa()">'+
+        '<i>kg</i></span>'+
+    '</div>'+
+    '<span class="pad">padrão '+padrao+(extra?" · "+esc(extra):"")+'</span>'+
+  '</div>';
+}
+let _kgManual = {};
+
+/* Preenche o kg a partir do grau — só enquanto o campo não
+   for tocado à mão. Armazém que calcula diferente, digita direto. */
+function sugerirKg(k){
+  if(_kgManual[k]) return;
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const g=i=>parseFloat(String((document.getElementById(i)||{}).value||"").replace(",","."))||0;
+  const tipo = k==="umid" ? "umidade" : k==="imp" ? "impureza" : "avariados";
+  const liq = g("b-liq");
+  const el = document.getElementById("b-"+k+"-k");
+  if(el) el.value = sugerirDesc(tipo, liq, g("b-"+k+"-p"), basesDe(f.id)) || "";
+}
+
 /* ── Modal: baixar carga ─────────────────── */
 function modalBaixa(id){
   const f = acharFazenda(App.fazendaId); if(!f) return;
@@ -2101,17 +2597,11 @@ function modalBaixa(id){
         '<div><label for="b-liq">Peso líquido no armazém (kg)</label>'+
           '<input id="b-liq" type="number" inputmode="decimal" value="'+(j.liquido!=null?j.liquido:(c.liquido||""))+'" oninput="recalcBaixa()"></div>'+
       '</div>'+
-      '<div class="g3">'+
-        '<div><label for="b-umid">Umidade (%)</label>'+
-          '<input id="b-umid" type="number" step="0.1" inputmode="decimal" value="'+(j.umidade!=null?j.umidade:"")+'" oninput="recalcBaixa()">'+
-          '<span class="pad">padrão '+nf(b.umidade,0)+'%'+
-          (c.umidade?' · fazenda marcou '+nf(c.umidade,1)+'%':'')+'</span></div>'+
-        '<div><label for="b-imp">Impureza (%)</label>'+
-          '<input id="b-imp" type="number" step="0.1" inputmode="decimal" value="'+(j.impureza!=null?j.impureza:"")+'" oninput="recalcBaixa()">'+
-          '<span class="pad">padrão '+nf(b.impureza,0)+'%</span></div>'+
-        '<div><label for="b-avar">Avariados (%)</label>'+
-          '<input id="b-avar" type="number" step="0.1" inputmode="decimal" value="'+(j.avariados!=null?j.avariados:"")+'" oninput="recalcBaixa()">'+
-          '<span class="pad">padrão '+nf(b.avariados,0)+'%</span></div>'+
+      '<div class="descs">'+
+        campoDesc("umid","Umidade", j.umidade, j.desc_umidade, nf(b.umidade,0)+"%",
+                  c.umidade?"fazenda marcou "+nf(c.umidade,1)+"%":"")+
+        campoDesc("imp","Impureza", j.impureza, j.desc_impureza, nf(b.impureza,0)+"%","")+
+        campoDesc("avar","Avariados", j.avariados, j.desc_avariados, nf(b.avariados,0)+"%","")+
       '</div>'+
       '<div id="baixa-calc" class="calc"></div>'+
       '<div><label>Como fica em cada talhão</label><div id="baixa-rateio" class="rateio"></div>'+
@@ -2127,6 +2617,7 @@ function modalBaixa(id){
         (cargaBaixada(c)?"Salvar alterações":"Confirmar baixa")+'</button>'+
     '</div></div></div>';
   window._cargaBaixa = c;
+  _kgManual = {};
   recalcBaixa();
 }
 
@@ -2134,24 +2625,22 @@ function recalcBaixa(){
   const f=acharFazenda(App.fazendaId), c=window._cargaBaixa;
   if(!f||!c) return;
   const g=i=>parseFloat(String((document.getElementById(i)||{}).value||"").replace(",","."))||0;
-  const r = calcBaixa({liquido:g("b-liq"), umidade:g("b-umid"),
-                       impureza:g("b-imp"), avariados:g("b-avar")}, basesDe(f.id));
   const liq=g("b-liq");
+  const r = calcBaixa({ liquido:liq,
+    desc_umidade:g("b-umid-k"), desc_impureza:g("b-imp-k"), desc_avariados:g("b-avar-k") });
+
   const box=document.getElementById("baixa-calc");
   if(box) box.innerHTML =
     '<span><i>Bruto armazém</i><b>'+n0(liq)+' kg</b></span>'+
-    '<span><i>Umidade</i><b class="'+(r.desc_umidade?"neg":"")+'">'+(r.desc_umidade?"−"+n0(r.desc_umidade):"0")+' kg</b></span>'+
-    '<span><i>Impureza</i><b class="'+(r.desc_impureza?"neg":"")+'">'+(r.desc_impureza?"−"+n0(r.desc_impureza):"0")+' kg</b></span>'+
-    '<span><i>Avariados</i><b class="'+(r.desc_avariados?"neg":"")+'">'+(r.desc_avariados?"−"+n0(r.desc_avariados):"0")+' kg</b></span>'+
+    '<span><i>Descontos</i><b class="'+(r.desc_total?"neg":"")+'">'+
+      (r.desc_total?"−"+n0(r.desc_total):"0")+' kg</b></span>'+
     '<span><i>Líquido final</i><b>'+n0(r.peso_final)+' kg</b></span>'+
     '<span><i>Sacas</i><b class="ok">'+nf(r.sacas_final,1)+' sc</b></span>'+
-    (liq>0 ? '<span class="nota">Desconto total de '+n0(r.desc_total)+' kg ('+
-      nf(r.desc_total/liq*100,2)+'% do bruto).'+
-      ((c.umidade && g("b-umid")) ? ' A fazenda mediu '+nf(c.umidade,1)+'% de umidade e o armazém '+
-        nf(g("b-umid"),1)+'% — diferença de '+nf(Math.abs(g("b-umid")-c.umidade),1)+' ponto(s).' : '')+
-      '</span>' : '');
+    (liq>0 && r.desc_total ? '<span class="nota">'+
+      nf(r.desc_total/liq*100,2)+'% do bruto descontado.'+
+      ((c.umidade && g("b-umid-p")) ? ' A fazenda mediu '+nf(c.umidade,1)+'% de umidade e o armazém '+
+        nf(g("b-umid-p"),1)+'%.' : '')+'</span>' : '');
 
-  // rateio proporcional entre os talhões da carga
   const tals=talhoesDe(f.id);
   const itens=(c.talhoes||[]).filter(i=>tals.some(t=>t.id===i.talhao_id));
   const soma=itens.reduce((s,i)=>s+(Number(i.kg)||0),0);
@@ -2171,11 +2660,14 @@ function gravarBaixa(id){
   const n=i=>parseFloat(g(i).replace(",","."))||0;
   const liq=n("b-liq");
   if(liq<=0){ toast("Informe o peso líquido do armazém"); return; }
-  const u=n("b-umid");
-  if(u<0||u>100){ toast("Umidade fora do intervalo"); return; }
+  const dTot = n("b-umid-k")+n("b-imp-k")+n("b-avar-k");
+  if(dTot > liq){ toast("Os descontos passam do peso líquido"); return; }
   darBaixa(f.id,id,{ data:g("b-data")||new Date().toISOString().slice(0,10),
-    romaneio_arm:g("b-rom"), liquido:liq, umidade:u,
-    impureza:n("b-imp"), avariados:n("b-avar"), obs:g("b-obs") });
+    romaneio_arm:g("b-rom"), liquido:liq,
+    umidade:n("b-umid-p"),   desc_umidade:n("b-umid-k"),
+    impureza:n("b-imp-p"),   desc_impureza:n("b-imp-k"),
+    avariados:n("b-avar-p"), desc_avariados:n("b-avar-k"),
+    obs:g("b-obs") });
   fecharModal(); toast("Carga baixada · entrou na produtividade"); render();
 }
 
@@ -2226,6 +2718,179 @@ function exportarDescontos(){
   linhas.push(["Total", "", "", "", "", "", vBR(R.bruto), "", vBR(R.umidade), "",
     vBR(R.impureza), "", vBR(R.avariados), vBR(R.total), vBR(R.final), vBR((R.final/SACA_KG).toFixed(2))]);
   baixarCSV(linhas,"descontos-"+f.nome.toLowerCase().replace(/[^a-z0-9]+/g,"-"));
+}
+
+/* ── Modal: aplicação ────────────────────── */
+function modalAplicacao(id){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const a = id ? aplicacoesDe(f.id).find(x=>x.id===id) : null;
+  const tals = talhoesDe(f.id).slice().sort((x,y)=>x.nome.localeCompare(y.nome,"pt-BR",{numeric:true}));
+  _itensApl = a && a.itens && a.itens.length
+    ? a.itens.map(i=>({produto_id:i.produto_id, dose:i.dose}))
+    : [{produto_id:"", dose:""}];
+  const sel = new Set(a?a.talhoes:[]);
+  const hoje = new Date().toISOString().slice(0,10);
+
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal modal-lg">'+
+    '<h2>'+(a?"Editar aplicação":"Nova aplicação")+'</h2>'+
+    '<p class="sub">A quantidade de cada produto sai da dose vezes a área tratada.</p>'+
+    '<div class="frm">'+
+      '<div class="g3">'+
+        '<div><label for="ap-data">Data</label><input type="date" id="ap-data" value="'+(a?a.data:hoje)+'"></div>'+
+        '<div><label for="ap-tipo">Tipo</label><select id="ap-tipo">'+
+          TIPOS_OP.map(t=>'<option '+(a&&a.tipo===t?"selected":"")+'>'+esc(t)+'</option>').join("")+
+        '</select></div>'+
+        '<div><label for="ap-ha">Área tratada (ha)</label>'+
+          '<input id="ap-ha" type="number" inputmode="decimal" step="0.01" value="'+(a?a.hectares:"")+'" oninput="recalcApl()"></div>'+
+      '</div>'+
+      '<div><label>Talhões</label><div class="tsel">'+
+        tals.map(t=>'<label class="tc'+(sel.has(t.id)?" on":"")+'">'+
+          '<input type="checkbox" value="'+t.id+'" '+(sel.has(t.id)?"checked":"")+' '+
+          'onchange="this.parentNode.classList.toggle(\'on\',this.checked);sugerirArea()">'+
+          esc(t.nome)+'</label>').join("")+
+      '</div><p class="dica">A área tratada pode ser menor que a soma dos talhões — é o caso de borda ou reaplicação.</p></div>'+
+      '<div><label>Produtos da calda</label><div id="ap-itens"></div>'+
+        '<button type="button" class="btn-mini" onclick="addItemApl()">+ outro produto</button></div>'+
+      '<div id="ap-calc" class="calc"></div>'+
+      '<div><label for="ap-obs">Observação</label>'+
+        '<input id="ap-obs" value="'+esc(a?a.obs:"")+'" placeholder="Borda, reaplicação, condição do tempo…"></div>'+
+    '</div>'+
+    '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
+      '<button class="btn-save" onclick="gravarAplicacao('+(a?"'"+a.id+"'":"null")+')">Salvar aplicação</button>'+
+    '</div></div></div>';
+  desenharItensApl(); recalcApl();
+}
+
+function desenharItensApl(){
+  const f=acharFazenda(App.fazendaId);
+  const prods = produtosDe(f.id).slice().sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR"));
+  document.getElementById("ap-itens").innerHTML = _itensApl.map((it,i)=>
+    '<div class="item item-p">'+
+      '<select onchange="_itensApl['+i+'].produto_id=this.value;recalcApl()">'+
+        '<option value="">— produto —</option>'+
+        prods.map(p=>'<option value="'+p.id+'" '+(it.produto_id===p.id?"selected":"")+'>'+
+          esc(p.nome)+(p.preco>0?" · "+moeda(p.preco)+"/"+esc(p.unidade):" · sem preço")+'</option>').join("")+
+      '</select>'+
+      '<input type="number" step="0.001" inputmode="decimal" placeholder="dose" value="'+(it.dose||"")+'" '+
+        'oninput="_itensApl['+i+'].dose=this.value;recalcApl()">'+
+      (_itensApl.length>1?'<button type="button" onclick="remItemApl('+i+')">✕</button>':'<span></span>')+
+    '</div>').join("");
+}
+function addItemApl(){ _itensApl.push({produto_id:"",dose:""}); desenharItensApl(); recalcApl(); }
+function remItemApl(i){ _itensApl.splice(i,1); desenharItensApl(); recalcApl(); }
+
+function sugerirArea(){
+  const f=acharFazenda(App.fazendaId);
+  const el=document.getElementById("ap-ha"); if(!el||el.value) return;
+  const ids=[...document.querySelectorAll('.tsel input:checked')].map(x=>x.value);
+  const soma=talhoesDe(f.id).filter(t=>ids.includes(t.id)).reduce((s,t)=>s+t.hectares,0);
+  if(soma>0){ el.value=soma.toFixed(2); recalcApl(); }
+}
+
+function recalcApl(){
+  const f=acharFazenda(App.fazendaId);
+  const ha=parseFloat(String((document.getElementById("ap-ha")||{}).value||"").replace(",","."))||0;
+  let total=0, n=0, sem=0;
+  _itensApl.forEach(it=>{
+    const p=acharProduto(f.id,it.produto_id); if(!p) return;
+    const dose=parseFloat(String(it.dose).replace(",","."))||0;
+    if(dose<=0) return;
+    n++;
+    if((Number(p.preco)||0)<=0){ sem++; return; }
+    total += dose*ha*Number(p.preco);
+  });
+  const box=document.getElementById("ap-calc"); if(!box) return;
+  box.innerHTML =
+    '<span><i>Produtos</i><b>'+n+'</b></span>'+
+    '<span><i>Área</i><b>'+nf(ha,2)+' ha</b></span>'+
+    '<span><i>Custo por hectare</i><b>'+(ha>0?moeda(total/ha):"—")+'</b></span>'+
+    '<span><i>Custo da aplicação</i><b class="ok">'+moeda(total)+'</b></span>'+
+    (sem?'<span class="nota">'+sem+' produto(s) sem preço — não entram no custo.</span>':'');
+}
+
+function gravarAplicacao(id){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const ha=parseFloat(String(document.getElementById("ap-ha").value).replace(",","."))||0;
+  if(ha<=0){ toast("Informe a área tratada"); return; }
+  const ids=[...document.querySelectorAll('.tsel input:checked')].map(x=>x.value);
+  if(!ids.length){ toast("Escolha ao menos um talhão"); return; }
+  const itens=_itensApl.filter(i=>i.produto_id && parseFloat(String(i.dose).replace(",","."))>0)
+    .map(i=>({produto_id:i.produto_id, dose:parseFloat(String(i.dose).replace(",","."))}));
+  if(!itens.length){ toast("Informe ao menos um produto com dose"); return; }
+  salvarAplicacao(f.id,{ data:document.getElementById("ap-data").value||new Date().toISOString().slice(0,10),
+    tipo:document.getElementById("ap-tipo").value, talhoes:ids, hectares:ha,
+    obs:document.getElementById("ap-obs").value, itens }, id);
+  fecharModal(); toast(id?"Aplicação atualizada":"Aplicação lançada"); render();
+}
+
+function removerAplicacao(id){
+  const f=acharFazenda(App.fazendaId);
+  const a=aplicacoesDe(f.id).find(x=>x.id===id); if(!a) return;
+  if(!confirm("Remover a aplicação de "+dataBR(a.data)+"?")) return;
+  apagarAplicacao(f.id,id); toast("Aplicação removida"); render();
+}
+
+/* ── Modal: produto ──────────────────────── */
+function modalProduto(id){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const p = id ? produtosDe(f.id).find(x=>x.id===id) : null;
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal">'+
+    '<h2>'+(p?"Editar produto":"Novo produto")+'</h2>'+
+    '<p class="sub">O preço é usado para calcular o custo de cada aplicação.</p>'+
+    '<div class="frm">'+
+      '<div><label for="pd-nome">Nome</label>'+
+        '<input id="pd-nome" value="'+esc(p?p.nome:"")+'" placeholder="Engeo Pleno, Ochima, Adjust…"></div>'+
+      '<div class="g2">'+
+        '<div><label for="pd-un">Unidade</label><select id="pd-un">'+
+          ["L","kg","un","sc"].map(u=>'<option '+(p&&p.unidade===u?"selected":"")+'>'+u+'</option>').join("")+
+        '</select></div>'+
+        '<div><label for="pd-preco">Preço por unidade (R$)</label>'+
+          '<input id="pd-preco" type="number" step="0.01" inputmode="decimal" value="'+(p&&p.preco?p.preco:"")+'" placeholder="0,00"></div>'+
+      '</div></div>'+
+    '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
+      '<button class="btn-save" onclick="gravarProduto('+(p?"'"+p.id+"'":"null")+')">Salvar</button>'+
+    '</div></div></div>';
+  setTimeout(()=>{const e=document.getElementById("pd-nome"); if(e) e.focus();},60);
+}
+function gravarProduto(id){
+  const f=acharFazenda(App.fazendaId);
+  const nome=document.getElementById("pd-nome").value.trim();
+  if(!nome){ toast("Informe o nome do produto"); return; }
+  const dup=produtosDe(f.id).some(p=>p.id!==id && p.nome.toLowerCase()===nome.toLowerCase());
+  if(dup){ toast("Já existe um produto com esse nome"); return; }
+  salvarProduto(f.id,{ nome, unidade:document.getElementById("pd-un").value,
+    preco:parseFloat(String(document.getElementById("pd-preco").value).replace(",","."))||0 }, id);
+  fecharModal(); toast(id?"Produto atualizado":"Produto cadastrado"); render();
+}
+function removerProduto(id){
+  const f=acharFazenda(App.fazendaId);
+  const p=produtosDe(f.id).find(x=>x.id===id); if(!p) return;
+  const uso=aplicacoesDe(f.id).filter(a=>(a.itens||[]).some(i=>i.produto_id===id)).length;
+  if(uso && !confirm('"'+p.nome+'" está em '+uso+' aplicação(ões).\nRemover mesmo assim?')) return;
+  apagarProduto(f.id,id); toast("Produto removido"); render();
+}
+
+function exportarOperacoes(){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const R=resumoOperacoes(f.id,_fTipo), tals=talhoesDe(f.id);
+  if(!R.aplicacoes.length){ toast("Nenhuma aplicação para exportar"); return; }
+  const nomeT=a=>(a.talhoes||[]).map(id=>{const t=tals.find(x=>x.id===id);return t?t.nome:"";}).join(", ");
+  const linhas=[[(_fTipo||"Operações")+" · "+f.nome+" · safra "+f.safra]];
+  linhas.push(["Data","Talhão","Tipo","Produto","Dose","Hectares","Qtd","Unidade","Valor unitário","Valor total","Obs"]);
+  let total=0;
+  R.aplicacoes.slice().sort((a,b)=>(a.data||"").localeCompare(b.data||"")).forEach(a=>{
+    linhasAplicacao(f.id,a).forEach(l=>{
+      total+=l.valor;
+      linhas.push([dataBR(a.data), nomeT(a), a.tipo, l.produto, vBR(l.dose),
+        vBR(l.hectares), vBR(l.qtd.toFixed(2)), l.unidade,
+        l.semPreco?"":vBR(l.preco.toFixed(2)), l.semPreco?"":vBR(l.valor.toFixed(2)), a.obs||""]);
+    });
+  });
+  linhas.push([]);
+  linhas.push(["Total geral","","","","","","","","",vBR(total.toFixed(2))]);
+  baixarCSV(linhas,"operacoes-"+f.nome.toLowerCase().replace(/[^a-z0-9]+/g,"-"));
 }
 
 /* ── Planilhas ───────────────────────────── */
