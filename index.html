@@ -556,6 +556,52 @@ input.lv-d{font-family:var(--mono);font-size:12.5px;min-width:130px}
 .ver-chip{font-family:var(--mono);font-size:10.5px;font-weight:700;color:#9FB09E;
   background:rgba(255,255,255,.08);padding:3px 8px;border-radius:6px;letter-spacing:.03em}
 
+.tbl tr.neg-row td{background:#FDF4F2}
+
+.mapa-wrap{background:var(--card);border:1px solid var(--line);border-radius:12px;
+  overflow:auto;padding:8px;-webkit-overflow-scrolling:touch}
+.mapa-wrap img{display:block;width:100%;height:auto;border-radius:8px;cursor:zoom-in}
+.mapa-wrap img:active{cursor:zoom-out}
+@media(max-width:640px){ .mapa-wrap img{min-width:760px;cursor:default} }
+a.btn-act{display:inline-block;text-decoration:none;line-height:1.3}
+
+/* ── Tempo ───────────────────────────────── */
+.tempo-agora{display:flex;align-items:center;gap:20px;flex-wrap:wrap;background:var(--card);
+  border:1px solid var(--line);border-top:4px solid var(--blue);border-radius:13px;padding:20px 22px}
+.ta-ico{font-size:52px;line-height:1}
+.ta-mid{display:flex;flex-direction:column;gap:2px}
+.ta-mid b{font-size:38px;font-weight:800;color:var(--green);line-height:1;letter-spacing:-.03em}
+.ta-mid span{color:var(--muted);font-size:13.5px}
+.ta-det{margin-left:auto;display:flex;gap:22px;flex-wrap:wrap}
+.ta-det span{display:flex;flex-direction:column;gap:2px;color:var(--green);
+  font-family:var(--mono);font-size:15px;font-weight:700}
+.ta-det i{font-style:normal;color:var(--muted);font-size:10.5px;font-weight:600;
+  letter-spacing:.07em;text-transform:uppercase}
+.dias7{display:grid;grid-template-columns:repeat(7,1fr);gap:10px}
+.d7{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:13px 9px;
+  display:flex;flex-direction:column;align-items:center;gap:7px;text-align:center}
+.d7.molha{border-color:#C9DCEA;background:var(--blue-soft)}
+.d7-dia{font-family:var(--mono);font-size:11.5px;font-weight:700;color:var(--green);line-height:1.3}
+.d7-dia u{display:block;text-decoration:none;font-size:10px;color:var(--muted);font-weight:600}
+.d7-ico{font-size:26px;line-height:1}
+.d7-t b{font-family:var(--mono);font-size:16px;font-weight:800;color:var(--green)}
+.d7-t i{font-style:normal;font-family:var(--mono);font-size:12px;color:var(--muted);margin-left:5px}
+.d7-ch{font-family:var(--mono);font-size:11.5px;color:var(--muted);line-height:1.3}
+.d7-ch.tem{color:var(--blue);font-weight:700}
+.d7-ch u{display:block;text-decoration:none;font-size:10px;color:var(--muted);font-weight:600}
+.d7-d{font-size:10.5px;color:var(--muted);line-height:1.25}
+.lc-lista{display:flex;flex-direction:column;gap:6px;margin-top:4px}
+.lc-op{text-align:left;background:var(--bg);border:1px solid var(--line);border-radius:8px;
+  padding:9px 12px;display:flex;flex-direction:column;gap:2px}
+.lc-op:hover{border-color:var(--gold);background:#fff}
+.lc-op b{color:var(--green);font-size:14px}
+.lc-op span{color:var(--muted);font-family:var(--mono);font-size:11px}
+@media(max-width:640px){
+  .dias7{grid-template-columns:repeat(2,1fr)}
+  .ta-det{margin-left:0;width:100%;gap:16px}
+  .ta-mid b{font-size:32px}
+}
+
 @media(max-width:640px){
   body{font-size:14.5px}
   .wrap{padding:16px 12px 34px}
@@ -586,7 +632,7 @@ input.lv-d{font-family:var(--mono);font-size:12.5px;min-width:130px}
 
 <script>
 "use strict";
-const APP_VERSION = "1.5.0";
+const APP_VERSION = "1.7.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -714,6 +760,7 @@ function criarFazenda(d){
   const f={ id:"faz_"+Date.now().toString(36), nome:d.nome.trim(),
     produtor:(d.produtor||"").trim(), municipio:(d.municipio||"").trim(),
     uf:(d.uf||"").trim().toUpperCase(), safra:d.safra||safraAtual(),
+    lat:d.lat!=null?Number(d.lat):null, lon:d.lon!=null?Number(d.lon):null,
     talhoes:0, hectares:0, criado_em:new Date().toISOString() };
   l.push(f); salvarFazendas(l); Sync.push("fazendas","upsert",f);
   return f;
@@ -1224,6 +1271,121 @@ function resumoLavoura(f){
     inicio: datas[0]||"", fim: fins[fins.length-1]||"" };
 }
 
+
+/* ═══════════════════════════════════════════════════
+   ESTOQUE
+   Entrada pela nota de compra, saída pelo que foi
+   aplicado no talhão. O saldo é a diferença.
+   ═══════════════════════════════════════════════════ */
+function kEntradas(f){ return "faz_"+f+"_entradas"; }
+function entradasDe(f){ return Store.get(kEntradas(f), []); }
+
+function salvarEntrada(f, d, id){
+  const l = entradasDe(f);
+  const dados = { data:d.data, produto_id:d.produto_id,
+                  qtd:Number(d.qtd)||0, preco:Number(d.preco)||0,
+                  nota:(d.nota||"").trim(), fornecedor:(d.fornecedor||"").trim(),
+                  obs:(d.obs||"").trim() };
+  if(id){
+    const i=l.findIndex(x=>x.id===id); if(i<0) return null;
+    l[i]=Object.assign({},l[i],dados);
+    Store.set(kEntradas(f),l); Sync.push("entradas","upsert",l[i]); return l[i];
+  }
+  const nova=Object.assign({id:"en_"+Date.now().toString(36)+Math.random().toString(36).slice(2,4),
+    fazenda_id:f, criado_em:new Date().toISOString()}, dados);
+  l.push(nova); Store.set(kEntradas(f),l); Sync.push("entradas","upsert",nova);
+  return nova;
+}
+function apagarEntrada(f,id){
+  Store.set(kEntradas(f), entradasDe(f).filter(e=>e.id!==id));
+  Sync.push("entradas","delete",{id});
+}
+
+/* Quanto saiu de cada produto nas aplicações */
+function consumoProduto(f, prodId){
+  let qtd = 0;
+  aplicacoesDe(f).forEach(a=>{
+    const ha = Number(a.hectares)||0;
+    (a.itens||[]).forEach(i=>{
+      if(i.produto_id===prodId) qtd += (Number(i.dose)||0) * ha;
+    });
+  });
+  return qtd;
+}
+
+/* Saldo por produto: entrou, saiu, sobrou — e o custo médio */
+function estoqueDe(f){
+  const prods = produtosDe(f);
+  const ents  = entradasDe(f);
+  const linhas = prods.map(p=>{
+    const es = ents.filter(e=>e.produto_id===p.id);
+    const entrou = es.reduce((s,e)=>s+e.qtd,0);
+    const gasto  = es.reduce((s,e)=>s+e.qtd*e.preco,0);
+    const saiu   = consumoProduto(f,p.id);
+    const saldo  = entrou - saiu;
+    const medio  = entrou>0 ? gasto/entrou : Number(p.preco)||0;
+    return { id:p.id, nome:p.nome, unidade:p.unidade, preco:Number(p.preco)||0,
+             entrou, saiu, saldo, gasto, medio,
+             valorSaldo: saldo>0 ? saldo*medio : 0,
+             compras: es.length,
+             negativo: saldo < -0.001, semEntrada: entrou<=0 && saiu>0 };
+  });
+  linhas.sort((a,b)=>b.valorSaldo-a.valorSaldo || a.nome.localeCompare(b.nome,"pt-BR"));
+  return { linhas,
+    totalComprado: linhas.reduce((s,l)=>s+l.gasto,0),
+    totalAplicado: linhas.reduce((s,l)=>s+l.saiu*l.medio,0),
+    valorEstoque:  linhas.reduce((s,l)=>s+l.valorSaldo,0),
+    alertas: linhas.filter(l=>l.negativo||l.semEntrada).length };
+}
+
+
+/* ═══════════════════════════════════════════════════
+   PREVISÃO DO TEMPO — Open-Meteo
+   API aberta, sem cadastro e sem custo. A última
+   consulta fica guardada para abrir sem sinal.
+   ═══════════════════════════════════════════════════ */
+const TEMPO_API = "https://api.open-meteo.com/v1/forecast";
+const GEO_API   = "https://geocoding-api.open-meteo.com/v1/search";
+
+/* Códigos WMO traduzidos */
+const WMO = {
+  0:["Céu limpo","☀️"], 1:["Predomínio de sol","🌤️"], 2:["Parcialmente nublado","⛅"],
+  3:["Nublado","☁️"], 45:["Névoa","🌫️"], 48:["Névoa com geada","🌫️"],
+  51:["Garoa fraca","🌦️"], 53:["Garoa","🌦️"], 55:["Garoa forte","🌦️"],
+  61:["Chuva fraca","🌧️"], 63:["Chuva","🌧️"], 65:["Chuva forte","🌧️"],
+  66:["Chuva congelante","🌧️"], 67:["Chuva congelante forte","🌧️"],
+  71:["Neve fraca","🌨️"], 73:["Neve","🌨️"], 75:["Neve forte","🌨️"],
+  80:["Pancadas isoladas","🌦️"], 81:["Pancadas","🌧️"], 82:["Pancadas fortes","⛈️"],
+  95:["Trovoada","⛈️"], 96:["Trovoada com granizo","⛈️"], 99:["Trovoada com granizo","⛈️"]
+};
+function descTempo(cod){ return WMO[cod] || ["—","🌡️"]; }
+
+function kTempo(f){ return "faz_"+f+"_tempo"; }
+function tempoCache(f){ return Store.get(kTempo(f), null); }
+
+async function buscarTempo(f){
+  const faz = acharFazenda(f);
+  if(!faz || faz.lat==null || faz.lon==null) return null;
+  const u = TEMPO_API+"?latitude="+faz.lat+"&longitude="+faz.lon+
+    "&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,precipitation"+
+    "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,"+
+    "precipitation_probability_max,wind_speed_10m_max"+
+    "&timezone=America%2FSao_Paulo&forecast_days=7";
+  const r = await fetch(u);
+  if(!r.ok) throw new Error("falha");
+  const d = await r.json();
+  const pacote = { buscado_em:new Date().toISOString(), atual:d.current, dias:d.daily };
+  Store.set(kTempo(f), pacote);
+  return pacote;
+}
+
+async function buscarCidade(nome){
+  const r = await fetch(GEO_API+"?name="+encodeURIComponent(nome)+"&count=8&language=pt&format=json");
+  if(!r.ok) throw new Error("falha");
+  const d = await r.json();
+  return d.results || [];
+}
+
 /* ═══════════════════════════════════════════════════
    MÓDULOS
    ═══════════════════════════════════════════════════ */
@@ -1232,8 +1394,10 @@ const MODULOS = [
     { id:"talhoes",   ic:"talhoes",   nome:"Dados da fazenda", desc:"Talhões, áreas e mapa da propriedade", pronto:true, resumo:f=>f.talhoes ? f.talhoes+" talhões · "+f.hectares.toLocaleString("pt-BR",{maximumFractionDigits:1})+" ha" : "Cadastre os talhões da fazenda" },
     { id:"lavoura",   ic:"lavoura",   nome:"Dados da lavoura", desc:"Variedade, semente e janela de plantio", pronto:true, resumo:f=>{const R=resumoLavoura(f.id); return R.plantadas.length? R.plantadas.length+" talhões · "+nf(R.areaPlantada,0)+" ha plantados" : "Lance o plantio";} },
     { id:"operacoes", ic:"operacoes", nome:"Operações no talhão", desc:"Pulverização, semeadura e adubação", pronto:true, resumo:f=>{const n=aplicacoesDe(f.id).length; return n? n+" aplicações · "+moeda(resumoOperacoes(f.id).total) : "Lance a primeira aplicação";} },
-    { id:"estoque",   ic:"estoque",   nome:"Estoque", desc:"Desconta automaticamente o que foi aplicado", pronto:false },
-    { id:"ndvi",      ic:"ndvi",      nome:"Mapa NDVI", desc:"Acompanhamento por satélite", pronto:false },
+    { id:"estoque",   ic:"estoque",   nome:"Estoque", desc:"Entra pela nota, sai pela aplicação", pronto:true, resumo:f=>{const E=estoqueDe(f.id); return E.totalComprado>0 ? moeda(E.valorEstoque)+" em estoque" : "Lance o primeiro recebimento";} },
+    { id:"ndvi",      ic:"ndvi",      nome:"Mapa", desc:"Talhões, vias e imagem de satélite", pronto:true },
+    { id:"tempo",     ic:"chuva",     nome:"Previsão do tempo", desc:"Sete dias para a sede da fazenda", pronto:true,
+      resumo:f=>{const t=tempoCache(f.id); return t? Math.round(t.atual.temperature_2m)+"° agora · "+descTempo(t.atual.weather_code)[0] : "Toque para ver a previsão";} },
     { id:"chuva",     ic:"chuva",     nome:"Pluviometria", desc:"Lançar e comparar chuvas", pronto:true, resumo:f=>{const a=acumuladoSafra(f.id,f.safra); return a.total>0 ? Math.round(a.media)+" mm na safra" : "Lance a primeira chuva";} },
     { id:"colheita",  ic:"colheita",  nome:"Colheita", desc:"Cargas, caminhões e produtividade por talhão", pronto:true, resumo:f=>{const n=cargasDe(f.id).length; return n? n+" cargas lançadas" : "Lance a primeira carga";} }
   ]},
@@ -1277,10 +1441,11 @@ function render(){
   let h = topbar();
   if(App.tela==="fazendas")      h += telaFazendas();
   else if(App.tela==="fazenda")  h += telaFazenda();
-  else if(App.tela==="modulo")   h += (App.moduloId==="talhoes" ? telaTalhoes() : App.moduloId==="colheita" ? telaColheita() : App.moduloId==="chuva" ? telaChuva() : App.moduloId==="operacoes" ? telaOperacoes() : App.moduloId==="lavoura" ? telaLavoura() : telaModulo());
+  else if(App.tela==="modulo")   h += (App.moduloId==="talhoes" ? telaTalhoes() : App.moduloId==="colheita" ? telaColheita() : App.moduloId==="chuva" ? telaChuva() : App.moduloId==="operacoes" ? telaOperacoes() : App.moduloId==="lavoura" ? telaLavoura() : App.moduloId==="estoque" ? telaEstoque() : App.moduloId==="ndvi" ? telaMapa() : App.moduloId==="tempo" ? telaTempo() : telaModulo());
   else if(App.tela==="panorama") h += telaPanorama();
   document.getElementById("root").innerHTML = h;
   Sync.render();
+  if(typeof restaurarFocoMM === "function") restaurarFocoMM();
 }
 
 function topbar(){
@@ -1836,7 +2001,8 @@ function chuvaPorDia(f,ano,mes,pts,r){
     const v = lerChuva(f.id,k,p.id);
     h += '<div class="lp"><label for="mm-'+p.id+'">'+esc(p.nome)+'</label>'+
       '<div class="lp-in"><input id="mm-'+p.id+'" type="number" inputmode="decimal" step="0.5" min="0" '+
-      'value="'+(v==null?"":v)+'" placeholder="0" '+
+      'value="'+(v==null?"":v)+'" placeholder="0" data-mm="1" '+
+      'onkeydown="proxCampoMM(event,this)" '+
       'onchange="gravarChuva(\''+f.id+'\',\''+k+'\',\''+p.id+'\',this.value);render()"><span>mm</span></div></div>';
   });
   return h+'</div>';
@@ -1897,6 +2063,25 @@ function limparDia(dia){
   if(!confirm("Apagar a chuva lançada neste dia?")) return;
   pontosDe(f.id).forEach(p=>gravarChuva(f.id,dia,p.id,""));
   toast("Dia limpo"); render();
+}
+
+/* Enter salva e pula para o talhão seguinte — lançar 36 talhões
+   sem tirar a mão do teclado. Shift+Enter volta. */
+function proxCampoMM(ev, el){
+  if(ev.key !== "Enter") return;
+  ev.preventDefault();
+  const campos = [...document.querySelectorAll('input[data-mm]')];
+  const i = campos.indexOf(el);
+  const alvo = campos[i + (ev.shiftKey ? -1 : 1)];
+  el.dispatchEvent(new Event("change"));
+  window._focoMM = alvo ? alvo.id : null;
+}
+/* Depois do render, devolve o cursor para onde estava */
+function restaurarFocoMM(){
+  if(!window._focoMM) return;
+  const el = document.getElementById(window._focoMM);
+  window._focoMM = null;
+  if(el){ el.focus(); el.select && el.select(); }
 }
 
 function selDia(ano,mes,dia){ window._diaSel={ano,mes,dia}; render(); }
@@ -2184,6 +2369,407 @@ function exportarLavoura(){
   linhas.push(["Total plantado","",vBR(R.areaPlantada.toFixed(2))]);
   R.variedades.forEach(v=>linhas.push([v.nome,"",vBR(v.area.toFixed(2))]));
   baixarCSV(linhas,"plantio-"+f.nome.toLowerCase().replace(/[^a-z0-9]+/g,"-"));
+}
+
+/* ═══════════════════════════════════════════════════
+   TELA — Estoque
+   ═══════════════════════════════════════════════════ */
+let _abaEst = "saldo";
+
+function telaEstoque(){
+  const f = acharFazenda(App.fazendaId);
+  if(!f){ App.tela="fazendas"; return telaFazendas(); }
+  const E = estoqueDe(f.id);
+
+  let h = '<div class="wrap wrap-wide">';
+  h += '<div class="farm-head">'+
+    '<button class="btn-back" onclick="irPara(\'fazenda\')">← '+esc(f.nome)+'</button>'+
+    '<div class="farm-head-mid"><h1>Estoque</h1>'+
+    '<p>Entra pela nota, sai pela aplicação no talhão · safra '+esc(f.safra)+'</p></div></div>';
+
+  if(!produtosDe(f.id).length)
+    return h+'<div class="empty"><strong>Cadastre os produtos primeiro</strong>'+
+      'O estoque é montado em cima dos produtos de Operações no talhão.'+
+      '<div style="margin-top:16px"><button class="btn-act primary" '+
+      'onclick="irPara(\'modulo\',{moduloId:\'operacoes\'})">Ir para Operações</button></div></div></div>';
+
+  h += '<div class="kpis kpis-4">'+
+    kpi("Comprado", moeda(E.totalComprado).replace("R$ ",""), "R$")+
+    kpi("Aplicado", moeda(E.totalAplicado).replace("R$ ",""), "R$")+
+    kpi("Em estoque", moeda(E.valorEstoque).replace("R$ ",""), "R$")+
+    kpi("Alertas", E.alertas, E.alertas?"saldo negativo":"tudo certo")+
+  '</div>';
+
+  h += '<div class="abas">'+
+    abaEst("saldo","Saldo", E.linhas.filter(l=>l.entrou>0||l.saiu>0).length)+
+    abaEst("entradas","Recebimentos", entradasDe(f.id).length)+
+  '</div>';
+
+  h += _abaEst==="entradas" ? abaEntradas(f) : abaSaldo(f,E);
+  return h+'</div>';
+}
+function abaEst(id,rot,n){
+  return '<button class="ab'+(_abaEst===id?' on':'')+'" onclick="_abaEst=\''+id+'\';render()">'+
+         esc(rot)+(n?'<b>'+n+'</b>':'')+'</button>';
+}
+
+function abaSaldo(f,E){
+  const ls = E.linhas.filter(l=>l.entrou>0||l.saiu>0);
+  let h = '<div class="acts">'+
+    '<button class="btn-act primary" onclick="modalEntrada()">+ Receber produto</button>'+
+    (ls.length?'<button class="btn-act" onclick="exportarEstoque()">Baixar planilha</button>':'')+'</div>';
+  if(!ls.length)
+    return h+'<div class="empty"><strong>Estoque vazio</strong>'+
+      'Lance o recebimento de um produto para começar. O que for aplicado no talhão sai daqui sozinho.</div>';
+
+  h += '<div class="tbl"><table><thead><tr><th>Produto</th>'+
+    '<th class="num">Entrou</th><th class="num">Aplicado</th><th class="num">Saldo</th>'+
+    '<th class="num hide-sm">Custo médio</th><th class="num">Valor em estoque</th></tr></thead><tbody>';
+  ls.forEach(l=>{
+    const cor = l.negativo ? " alerta" : "";
+    h += '<tr'+(l.negativo?' class="neg-row"':'')+'>'+
+      '<td class="forte">'+esc(l.nome)+
+        (l.semEntrada?'<u class="ob">aplicado sem recebimento lançado</u>':'')+
+        (l.negativo&&!l.semEntrada?'<u class="ob">aplicou mais do que entrou</u>':'')+'</td>'+
+      '<td class="num mono">'+nf(l.entrou,1)+' <i class="un">'+esc(l.unidade)+'</i></td>'+
+      '<td class="num mono">'+nf(l.saiu,1)+'</td>'+
+      '<td class="num mono forte'+cor+'">'+nf(l.saldo,1)+'</td>'+
+      '<td class="num mono hide-sm">'+(l.medio>0?moeda(l.medio):"—")+'</td>'+
+      '<td class="num mono">'+(l.valorSaldo>0?moeda(l.valorSaldo):"—")+'</td></tr>';
+  });
+  h += '</tbody><tfoot><tr><td class="fix">Total</td><td></td><td></td><td></td>'+
+    '<td class="hide-sm"></td><td class="num mono tot">'+moeda(E.valorEstoque)+'</td></tr></tfoot></table></div>';
+  if(E.alertas) h += '<p class="resumo-obs">Saldo negativo quer dizer que a aplicação foi lançada '+
+    'antes do recebimento. Lance a nota de compra para acertar.</p>';
+  return h;
+}
+
+function abaEntradas(f){
+  const l = entradasDe(f.id).slice().sort((a,b)=>(b.data||"").localeCompare(a.data||""));
+  let h = '<div class="acts">'+
+    '<button class="btn-act primary" onclick="modalEntrada()">+ Receber produto</button></div>';
+  if(!l.length)
+    return h+'<div class="empty"><strong>Nenhum recebimento lançado</strong>'+
+      'Cada nota de compra que chega na fazenda vira um recebimento.</div>';
+  h += '<div class="tbl"><table><thead><tr><th>Data</th><th>Produto</th>'+
+    '<th class="num">Quantidade</th><th class="num">Preço un.</th><th class="num">Total</th>'+
+    '<th class="hide-sm">Nota</th><th class="hide-sm">Fornecedor</th><th></th></tr></thead><tbody>';
+  l.forEach(e=>{
+    const p=acharProduto(f.id,e.produto_id);
+    h += '<tr><td class="mono">'+dataBR(e.data)+'</td>'+
+      '<td class="forte">'+esc(p?p.nome:"(removido)")+
+        (e.obs?'<u class="ob">'+esc(e.obs)+'</u>':'')+'</td>'+
+      '<td class="num mono">'+nf(e.qtd,1)+' <i class="un">'+esc(p?p.unidade:"")+'</i></td>'+
+      '<td class="num mono">'+moeda(e.preco)+'</td>'+
+      '<td class="num mono forte">'+moeda(e.qtd*e.preco)+'</td>'+
+      '<td class="hide-sm mono">'+esc(e.nota||"—")+'</td>'+
+      '<td class="hide-sm">'+esc(e.fornecedor||"—")+'</td>'+
+      '<td class="acoes"><button onclick="modalEntrada(\''+e.id+'\')">Editar</button>'+
+      '<button class="rm" onclick="removerEntrada(\''+e.id+'\')">✕</button></td></tr>';
+  });
+  const tot=l.reduce((s,e)=>s+e.qtd*e.preco,0);
+  return h+'</tbody><tfoot><tr><td class="fix" colspan="4">Total comprado</td>'+
+    '<td class="num mono tot">'+moeda(tot)+'</td><td class="hide-sm"></td>'+
+    '<td class="hide-sm"></td><td></td></tr></tfoot></table></div>';
+}
+
+/* ── Modal de recebimento ────────────────── */
+function modalEntrada(id){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const e = id ? entradasDe(f.id).find(x=>x.id===id) : null;
+  const prods = produtosDe(f.id).slice().sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR"));
+  const hoje = new Date().toISOString().slice(0,10);
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal modal-lg">'+
+    '<h2>'+(e?"Editar recebimento":"Receber produto")+'</h2>'+
+    '<p class="sub">O que entrou pela nota de compra. O preço daqui vira o custo médio do estoque.</p>'+
+    '<div class="frm">'+
+      '<div class="g3">'+
+        '<div><label for="en-data">Data</label><input type="date" id="en-data" value="'+(e?e.data:hoje)+'"></div>'+
+        '<div><label for="en-nota">Nota fiscal</label><input id="en-nota" value="'+esc(e?e.nota:"")+'" placeholder="opcional"></div>'+
+        '<div><label for="en-forn">Fornecedor</label><input id="en-forn" value="'+esc(e?e.fornecedor:"")+'" placeholder="opcional"></div>'+
+      '</div>'+
+      '<div><label for="en-prod">Produto</label><select id="en-prod" onchange="recalcEntrada()">'+
+        '<option value="">— escolha —</option>'+
+        prods.map(p=>'<option value="'+p.id+'" '+(e&&e.produto_id===p.id?"selected":"")+'>'+
+          esc(p.nome)+' · '+esc(p.unidade)+'</option>').join("")+
+      '</select></div>'+
+      '<div class="g2">'+
+        '<div><label for="en-qtd">Quantidade</label>'+
+          '<input id="en-qtd" type="number" step="0.01" inputmode="decimal" value="'+(e?e.qtd:"")+'" oninput="recalcEntrada()"></div>'+
+        '<div><label for="en-preco">Preço por unidade (R$)</label>'+
+          '<input id="en-preco" type="number" step="0.01" inputmode="decimal" value="'+(e?e.preco:"")+'" oninput="recalcEntrada()"></div>'+
+      '</div>'+
+      '<div id="en-calc" class="calc"></div>'+
+      '<div><label for="en-obs">Observação</label><input id="en-obs" value="'+esc(e?e.obs:"")+'" placeholder="opcional"></div>'+
+    '</div>'+
+    '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
+      '<button class="btn-save" onclick="gravarEntrada('+(e?"'"+e.id+"'":"null")+')">Salvar</button>'+
+    '</div></div></div>';
+  recalcEntrada();
+}
+function recalcEntrada(){
+  const f=acharFazenda(App.fazendaId);
+  const g=i=>parseFloat(String((document.getElementById(i)||{}).value||"").replace(",","."))||0;
+  const pid=(document.getElementById("en-prod")||{}).value;
+  const p=pid?acharProduto(f.id,pid):null;
+  const qtd=g("en-qtd"), preco=g("en-preco");
+  const box=document.getElementById("en-calc"); if(!box) return;
+  const E=estoqueDe(f.id);
+  const atual=p?E.linhas.find(l=>l.id===p.id):null;
+  box.innerHTML =
+    '<span><i>Total da nota</i><b class="ok">'+moeda(qtd*preco)+'</b></span>'+
+    (atual?'<span><i>Saldo atual</i><b>'+nf(atual.saldo,1)+' '+esc(p.unidade)+'</b></span>':'')+
+    (atual?'<span><i>Fica com</i><b>'+nf(atual.saldo+qtd,1)+' '+esc(p.unidade)+'</b></span>':'')+
+    (p&&p.preco>0&&preco>0&&Math.abs(preco-p.preco)/p.preco>0.15
+      ? '<span class="nota">O preço cadastrado do produto é '+moeda(p.preco)+
+        ' — diferença de '+nf(Math.abs(preco-p.preco)/p.preco*100,0)+'%.</span>' : '');
+}
+function gravarEntrada(id){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const g=i=>String((document.getElementById(i)||{}).value||"").trim();
+  const n=i=>parseFloat(g(i).replace(",","."))||0;
+  const pid=g("en-prod");
+  if(!pid){ toast("Escolha o produto"); return; }
+  if(n("en-qtd")<=0){ toast("Informe a quantidade recebida"); return; }
+  salvarEntrada(f.id,{ data:g("en-data")||new Date().toISOString().slice(0,10),
+    produto_id:pid, qtd:n("en-qtd"), preco:n("en-preco"),
+    nota:g("en-nota"), fornecedor:g("en-forn"), obs:g("en-obs") }, id);
+  fecharModal(); toast(id?"Recebimento atualizado":"Produto recebido"); render();
+}
+function removerEntrada(id){
+  const f=acharFazenda(App.fazendaId);
+  if(!confirm("Remover este recebimento?")) return;
+  apagarEntrada(f.id,id); toast("Recebimento removido"); render();
+}
+
+function exportarEstoque(){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const E=estoqueDe(f.id);
+  const linhas=[["ESTOQUE · "+f.nome.toUpperCase()+" · SAFRA "+f.safra]];
+  linhas.push(["Produto","Unidade","Entrou","Aplicado","Saldo","Custo médio","Valor em estoque","Compras"]);
+  E.linhas.filter(l=>l.entrou>0||l.saiu>0).forEach(l=>linhas.push([l.nome,l.unidade,
+    vBR(l.entrou.toFixed(2)), vBR(l.saiu.toFixed(2)), vBR(l.saldo.toFixed(2)),
+    vBR(l.medio.toFixed(2)), vBR(l.valorSaldo.toFixed(2)), l.compras]));
+  linhas.push([]);
+  linhas.push(["Total comprado","","","","","",vBR(E.totalComprado.toFixed(2))]);
+  linhas.push(["Total aplicado","","","","","",vBR(E.totalAplicado.toFixed(2))]);
+  linhas.push(["Valor em estoque","","","","","",vBR(E.valorEstoque.toFixed(2))]);
+  baixarCSV(linhas,"estoque-"+f.nome.toLowerCase().replace(/[^a-z0-9]+/g,"-"));
+}
+
+/* ═══════════════════════════════════════════════════
+   TELA — Mapa dos talhões
+   ═══════════════════════════════════════════════════ */
+function kMapa(f){ return "faz_"+f+"_mapa"; }
+function mapaDe(f){ return Store.get(kMapa(f), null); }
+
+function telaMapa(){
+  const f = acharFazenda(App.fazendaId);
+  if(!f){ App.tela="fazendas"; return telaFazendas(); }
+  const m = mapaDe(f.id) || (f.nome.toLowerCase().includes("santa angelina")
+    ? { url:"mapa-santa-angelina.jpg", titulo:"Talhões e vias · 2025" } : null);
+
+  let h = '<div class="wrap wrap-wide">';
+  h += '<div class="farm-head">'+
+    '<button class="btn-back" onclick="irPara(\'fazenda\')">← '+esc(f.nome)+'</button>'+
+    '<div class="farm-head-mid"><h1>Mapa</h1>'+
+    '<p>'+(m&&m.titulo?esc(m.titulo):"Talhões e vias da propriedade")+'</p></div></div>';
+
+  h += '<div class="acts">'+
+    '<button class="btn-act primary" onclick="modalMapa()">'+(m?"Trocar mapa":"Adicionar mapa")+'</button>'+
+    (m?'<a class="btn-act" href="'+esc(m.url)+'" target="_blank" rel="noopener">Abrir em tela cheia</a>':'')+
+  '</div>';
+
+  if(!m)
+    return h+'<div class="empty"><strong>Nenhum mapa cadastrado</strong>'+
+      'Suba a imagem do mapa junto com o app, no mesmo repositório, e informe o nome do arquivo. '+
+      'Ele fica disponível também sem internet.</div></div>';
+
+  h += '<div class="mapa-wrap"><img src="'+esc(m.url)+'" alt="Mapa de talhões da '+esc(f.nome)+'" '+
+       'onerror="this.parentNode.innerHTML=\'<p class=&quot;vazio&quot; style=&quot;padding:30px;text-align:center&quot;>'+
+       'Arquivo não encontrado. Confira se o nome bate com o do repositório.</p>\'"></div>'+
+       '<p class="resumo-obs">Toque na imagem para ampliar. O mapa fica guardado no aparelho e abre sem sinal.</p>';
+  return h+'</div>';
+}
+
+function modalMapa(){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const m=mapaDe(f.id)||{url:"",titulo:""};
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal">'+
+    '<h2>Mapa da fazenda</h2>'+
+    '<p class="sub">Coloque a imagem na mesma pasta do app e informe o nome do arquivo.</p>'+
+    '<div class="frm">'+
+      '<div><label for="mp-url">Nome do arquivo ou endereço</label>'+
+        '<input id="mp-url" value="'+esc(m.url)+'" placeholder="mapa-santa-angelina.jpg"></div>'+
+      '<div><label for="mp-tit">Descrição</label>'+
+        '<input id="mp-tit" value="'+esc(m.titulo)+'" placeholder="Talhões e vias · 2025"></div>'+
+    '</div>'+
+    '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
+      '<button class="btn-save" onclick="gravarMapa()">Salvar</button></div></div></div>';
+  setTimeout(()=>{const e=document.getElementById("mp-url"); if(e) e.focus();},60);
+}
+function gravarMapa(){
+  const f=acharFazenda(App.fazendaId);
+  const url=document.getElementById("mp-url").value.trim();
+  if(!url){ toast("Informe o nome do arquivo"); return; }
+  Store.set(kMapa(f.id),{url, titulo:document.getElementById("mp-tit").value.trim()});
+  fecharModal(); toast("Mapa salvo"); render();
+}
+
+/* ═══════════════════════════════════════════════════
+   TELA — Previsão do tempo
+   ═══════════════════════════════════════════════════ */
+function telaTempo(){
+  const f = acharFazenda(App.fazendaId);
+  if(!f){ App.tela="fazendas"; return telaFazendas(); }
+
+  let h = '<div class="wrap wrap-wide">';
+  h += '<div class="farm-head">'+
+    '<button class="btn-back" onclick="irPara(\'fazenda\')">← '+esc(f.nome)+'</button>'+
+    '<div class="farm-head-mid"><h1>Previsão do tempo</h1>'+
+    '<p>'+(f.municipio?esc(f.municipio)+(f.uf?"/"+esc(f.uf):""):"Localização da fazenda")+'</p></div></div>';
+
+  if(f.lat==null || f.lon==null)
+    return h+'<div class="empty"><strong>Informe onde fica a fazenda</strong>'+
+      'A previsão usa a coordenada da sede. Busque pelo nome do município.'+
+      '<div style="margin-top:16px"><button class="btn-act primary" onclick="modalLocal()">'+
+      'Definir localização</button></div></div></div>';
+
+  const cache = tempoCache(f.id);
+  h += '<div class="acts">'+
+    '<button class="btn-act primary" onclick="atualizarTempo()">Atualizar</button>'+
+    '<button class="btn-act" onclick="modalLocal()">Trocar localização</button>'+
+    (cache?'<span class="dica">Consultado em '+esc(quando(cache.buscado_em))+'</span>':'')+
+  '</div>';
+
+  if(!cache)
+    return h+'<div class="empty"><strong>Sem dados ainda</strong>'+
+      'Toque em Atualizar com internet. Depois a última previsão fica disponível offline.</div></div>';
+
+  const a = cache.atual, D = cache.dias;
+  const [dsc,ico] = descTempo(a.weather_code);
+  h += '<div class="tempo-agora">'+
+    '<div class="ta-ico">'+ico+'</div>'+
+    '<div class="ta-mid"><b>'+nf(a.temperature_2m,0)+'°</b><span>'+esc(dsc)+'</span></div>'+
+    '<div class="ta-det">'+
+      '<span><i>Umidade</i>'+nf(a.relative_humidity_2m,0)+'%</span>'+
+      '<span><i>Vento</i>'+nf(a.wind_speed_10m,0)+' km/h</span>'+
+      '<span><i>Chuva agora</i>'+nf(a.precipitation,1)+' mm</span>'+
+    '</div></div>';
+
+  h += '<div class="sec-head"><span>PRÓXIMOS 7 DIAS</span><i></i></div><div class="dias7">';
+  (D.time||[]).forEach((dia,i)=>{
+    const [d2,i2] = descTempo(D.weather_code[i]);
+    const mm = D.precipitation_sum[i]||0;
+    const pb = D.precipitation_probability_max[i]||0;
+    h += '<div class="d7'+(mm>=5?" molha":"")+'">'+
+      '<span class="d7-dia">'+diaSemana(dia)+'<u>'+diaCurto(dia)+'</u></span>'+
+      '<span class="d7-ico">'+i2+'</span>'+
+      '<span class="d7-t"><b>'+nf(D.temperature_2m_max[i],0)+'°</b>'+
+        '<i>'+nf(D.temperature_2m_min[i],0)+'°</i></span>'+
+      '<span class="d7-ch'+(mm>0?" tem":"")+'">'+(mm>0?nf(mm,1)+' mm':'—')+
+        '<u>'+nf(pb,0)+'%</u></span>'+
+      '<span class="d7-d">'+esc(d2)+'</span>'+
+    '</div>';
+  });
+  h += '</div>';
+
+  const somaMM = (D.precipitation_sum||[]).reduce((s,v)=>s+(v||0),0);
+  h += '<p class="resumo-obs">Previsão de '+nf(somaMM,1)+' mm na semana. '+
+    'Dados do Open-Meteo para a coordenada '+nf(f.lat,4)+', '+nf(f.lon,4)+'. '+
+    'A última consulta fica guardada e abre sem internet.</p>';
+  return h+'</div>';
+}
+
+function diaSemana(iso){
+  const d = new Date(iso+"T12:00:00");
+  return ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"][d.getDay()];
+}
+function quando(iso){
+  const d = new Date(iso), ag = new Date();
+  const min = Math.round((ag-d)/60000);
+  if(min < 2) return "agora";
+  if(min < 60) return min+" min";
+  if(min < 1440) return Math.round(min/60)+" h";
+  return dataBR(iso.slice(0,10));
+}
+
+async function atualizarTempo(){
+  const f = acharFazenda(App.fazendaId); if(!f) return;
+  if(!navigator.onLine){ toast("Sem internet — mostrando a última consulta"); return; }
+  toast("Buscando previsão…");
+  try{ await buscarTempo(f.id); toast("Previsão atualizada"); render(); }
+  catch(e){ toast("Não consegui buscar agora. Tente de novo."); }
+}
+
+/* ── Localização ─────────────────────────── */
+function modalLocal(){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal">'+
+    '<h2>Localização da fazenda</h2>'+
+    '<p class="sub">Busque o município da sede. A previsão usa essa coordenada.</p>'+
+    '<div class="frm">'+
+      '<div><label for="lc-busca">Município</label>'+
+        '<input id="lc-busca" value="'+esc(f.municipio||"")+'" placeholder="Brejinho de Nazaré" '+
+        'onkeydown="if(event.key===\'Enter\'){event.preventDefault();procurarCidade()}"></div>'+
+      '<button type="button" class="btn-act" onclick="procurarCidade()">Procurar</button>'+
+      '<div id="lc-res"></div>'+
+      '<div class="g2">'+
+        '<div><label for="lc-lat">Latitude</label>'+
+          '<input id="lc-lat" type="number" step="0.0001" value="'+(f.lat!=null?f.lat:"")+'" placeholder="-11.0031"></div>'+
+        '<div><label for="lc-lon">Longitude</label>'+
+          '<input id="lc-lon" type="number" step="0.0001" value="'+(f.lon!=null?f.lon:"")+'" placeholder="-48.5714"></div>'+
+      '</div>'+
+      '<p class="dica">Se preferir, pegue a coordenada exata da sede no Google Maps e cole aqui.</p>'+
+    '</div>'+
+    '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
+      '<button class="btn-save" onclick="gravarLocal()">Salvar</button></div></div></div>';
+  setTimeout(()=>{const e=document.getElementById("lc-busca"); if(e) e.focus();},60);
+}
+
+async function procurarCidade(){
+  const box=document.getElementById("lc-res");
+  const nome=document.getElementById("lc-busca").value.trim();
+  if(!nome){ toast("Digite o município"); return; }
+  if(!navigator.onLine){ box.innerHTML='<p class="vazio">Sem internet. Informe a coordenada à mão.</p>'; return; }
+  box.innerHTML='<p class="vazio">Procurando…</p>';
+  try{
+    const l = await buscarCidade(nome);
+    const br = l.filter(x=>x.country_code==="BR");
+    const lista = (br.length?br:l).slice(0,6);
+    if(!lista.length){ box.innerHTML='<p class="vazio">Nada encontrado. Informe a coordenada à mão.</p>'; return; }
+    box.innerHTML = '<div class="lc-lista">'+lista.map(x=>
+      '<button type="button" class="lc-op" onclick="usarCidade('+x.latitude+','+x.longitude+',\''+
+        esc(x.name).replace(/'/g,"\\'")+'\',\''+esc(x.admin1||"").replace(/'/g,"\\'")+'\')">'+
+        '<b>'+esc(x.name)+'</b><span>'+esc(x.admin1||"")+' · '+nf(x.latitude,3)+', '+nf(x.longitude,3)+'</span>'+
+      '</button>').join("")+'</div>';
+  }catch(e){ box.innerHTML='<p class="vazio">Não consegui buscar. Informe a coordenada à mão.</p>'; }
+}
+
+function usarCidade(lat,lon,nome,uf){
+  document.getElementById("lc-lat").value = lat;
+  document.getElementById("lc-lon").value = lon;
+  document.getElementById("lc-busca").value = nome;
+  const r=document.getElementById("lc-res");
+  if(r) r.innerHTML='<p class="vazio">Selecionado: '+esc(nome)+(uf?" · "+esc(uf):"")+'</p>';
+}
+
+function gravarLocal(){
+  const l=fazendas(), f=l.find(x=>x.id===App.fazendaId); if(!f) return;
+  const lat=parseFloat(String(document.getElementById("lc-lat").value).replace(",","."));
+  const lon=parseFloat(String(document.getElementById("lc-lon").value).replace(",","."));
+  if(isNaN(lat)||isNaN(lon)){ toast("Informe latitude e longitude"); return; }
+  if(lat<-90||lat>90||lon<-180||lon>180){ toast("Coordenada fora do intervalo"); return; }
+  f.lat=lat; f.lon=lon;
+  const mun=document.getElementById("lc-busca").value.trim();
+  if(mun && !f.municipio) f.municipio=mun;
+  salvarFazendas(l); Sync.push("fazendas","upsert",f);
+  Store.del(kTempo(f.id));
+  fecharModal(); toast("Localização salva"); render();
+  atualizarTempo();
 }
 
 function telaModulo(){
