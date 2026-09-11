@@ -767,7 +767,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.4.0";
+const APP_VERSION = "2.4.1";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -2082,8 +2082,14 @@ async function enviarLogin(){
     render();
   }catch(e){
     const m=String(e.message||"");
-    err.textContent = /Invalid login/i.test(m) ? "E-mail ou senha não conferem"
-      : /already registered/i.test(m) ? "Esse e-mail já tem conta. Use Entrar."
+    err.textContent =
+        /Invalid login/i.test(m) ? "E-mail ou senha não conferem"
+      : /already registered|already been registered/i.test(m) ? "Esse e-mail já tem conta. Use Entrar."
+      : /signups? (are |is )?disabled/i.test(m) ? "O cadastro está fechado. Peça ao administrador para criar sua conta."
+      : /Email not confirmed/i.test(m) ? "Confirme o e-mail que você recebeu e tente de novo."
+      : /rate limit|too many/i.test(m) ? "Muitas tentativas. Espere um minuto."
+      : /relation .* does not exist/i.test(m) ? "O banco ainda não foi preparado. Rode o schema no Supabase."
+      : /Failed to fetch|NetworkError/i.test(m) ? "Não consegui falar com o servidor. Confira a internet."
       : m;
     btn.disabled=false;
     btn.textContent=(_modoLogin==="entrar"?"Entrar":"Criar conta");
