@@ -469,6 +469,36 @@ input.gr:focus{border-color:var(--blue);background:#fff;outline:none}
   .acum{grid-template-columns:1fr 1fr}
 }
 
+.grade td.fix.dia{min-width:66px;color:var(--red);font-weight:800}
+.grade tfoot tr.med td{background:var(--bg);color:var(--muted);font-weight:700;border-top:1px solid var(--line)}
+.grade tfoot tr.med td.tot{background:var(--gold-soft);color:var(--amber)}
+
+/* ── Baixa de carga ──────────────────────── */
+.tbl tr.transito td{background:#FFFDF6}
+.sit{font-family:var(--mono);font-size:10px;font-weight:800;padding:4px 9px;
+  border-radius:6px;white-space:nowrap;letter-spacing:.04em}
+.sit.ok{background:var(--leaf-soft);color:var(--leaf-dk)}
+.sit.tr{background:var(--gold-soft);color:var(--amber)}
+.tbl i.est{font-style:normal;font-family:var(--mono);font-size:9px;color:var(--amber);
+  margin-left:4px;font-weight:700}
+.acoes .bx{background:var(--gold);border-color:var(--gold);color:#3A3117;font-weight:800}
+.acoes .bx:hover{background:var(--gold-dk);border-color:var(--gold-dk);color:#2C2611}
+.frm span.pad{display:block;color:var(--muted);font-family:var(--mono);font-size:10px;margin-top:4px}
+.rateio{display:flex;flex-direction:column;gap:6px}
+.rt{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  background:var(--bg);border-radius:8px;padding:9px 13px}
+.rt span{color:var(--green);font-size:13.5px;font-weight:600}
+.rt span u{text-decoration:none;font-family:var(--mono);font-size:11px;color:var(--muted);
+  background:var(--line-soft);padding:1px 6px;border-radius:4px;margin-left:4px}
+.rt b{color:var(--leaf-dk);font-family:var(--mono);font-size:14px;font-weight:800}
+.tbl tfoot td{background:var(--line-soft);font-weight:800;color:var(--green);
+  border-top:2px solid var(--line);padding:11px 13px}
+.tbl tfoot td.fix{font-family:var(--mono)}
+
+.tbl u.cmp{text-decoration:none;font-size:10px;font-weight:700;color:var(--muted);
+  background:var(--line-soft);padding:1px 5px;border-radius:4px;margin:0 2px}
+.tbl u.cmp.alerta{background:var(--red-soft);color:var(--red)}
+
 @media(max-width:640px){
   body{font-size:14.5px}
   .wrap{padding:16px 12px 34px}
@@ -499,7 +529,7 @@ input.gr:focus{border-color:var(--blue);background:#fff;outline:none}
 
 <script>
 "use strict";
-const APP_VERSION = "0.8.0";
+const APP_VERSION = "1.1.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -716,17 +746,13 @@ function armazensDe(f){ return Store.get(kArmaz(f), []); }
 function caminhoesDe(f){ return Store.get(kCam(f), []); }
 function siloCap(f){ return Store.get(kSiloCap(f), 3000); }
 
-/* Cadeia de cálculo — a mesma da planilha */
+/* Lançamento: só o peso da balança da fazenda.
+   A umidade daqui é referência — quem desconta é o armazém, na baixa. */
 function calcCarga(c){
   const bruto = Number(c.peso_bruto)||0;
   const tara  = Number(c.tara)||0;
-  const u     = Number(c.umidade)||0;
   const liq   = Math.max(0, bruto - tara);
-  const desc  = u > UMID_BASE ? Math.round(liq * ((u-UMID_BASE)/(100-u))) : 0;
-  const seco  = liq - desc;
-  const pf    = Number(c.peso_fazenda)||0;
-  return { liquido:liq, desconto:desc, seco:seco,
-           sacas:seco/SACA_KG, diferenca: pf ? pf-liq : 0 };
+  return { liquido:liq, sacas:liq/SACA_KG };
 }
 
 function proximoCodigo(f){
@@ -759,6 +785,79 @@ function apagarCarga(f, id){
   Sync.push("cargas","delete",{id});
 }
 
+/* ═══════════════════════════════════════════════════
+   BAIXA DA CARGA
+   A carga sai da fazenda com o peso da balança. Só vira
+   produtividade quando volta o romaneio do armazém, com
+   os descontos reais de umidade, impureza e avariados.
+   ═══════════════════════════════════════════════════ */
+const BASE_PADRAO = { umidade:14, impureza:1, avariados:6 };
+function kBases(f){ return "faz_"+f+"_bases"; }
+function basesDe(f){ return Store.get(kBases(f), BASE_PADRAO); }
+
+/* Desconto: umidade pela fórmula, impureza e avariados no excedente */
+function calcBaixa(b, bases){
+  const liq = Number(b.liquido)||0;
+  const u   = Number(b.umidade)||0;
+  const imp = Number(b.impureza)||0;
+  const av  = Number(b.avariados)||0;
+  const bu = Number(bases.umidade), bi = Number(bases.impureza), ba = Number(bases.avariados);
+
+  const dUmid = u > bu ? Math.round(liq * ((u-bu)/(100-u))) : 0;
+  const base2 = liq - dUmid;                       // impureza e avariados sobre o peso já seco
+  const dImp  = imp > bi ? Math.round(base2 * (imp-bi)/100) : 0;
+  const dAvar = av  > ba ? Math.round(base2 * (av-ba)/100)  : 0;
+  const final = Math.max(0, liq - dUmid - dImp - dAvar);
+  return { desc_umidade:dUmid, desc_impureza:dImp, desc_avariados:dAvar,
+           desc_total:dUmid+dImp+dAvar, peso_final:final, sacas_final:final/SACA_KG };
+}
+
+function cargaBaixada(c){ return !!(c.baixa && c.baixa.data); }
+function sacasValidas(c){ return cargaBaixada(c) ? c.baixa.sacas_final : 0; }
+
+function darBaixa(f, id, dados){
+  const l = cargasDe(f), i = l.findIndex(x=>x.id===id);
+  if(i<0) return null;
+  const calc = calcBaixa(dados, basesDe(f));
+  l[i].baixa = Object.assign({}, dados, calc);
+  l[i].status = "baixada";
+  Store.set(kCargas(f), l);
+  Sync.push("cargas","upsert",l[i]);
+  return l[i];
+}
+function desfazerBaixa(f, id){
+  const l = cargasDe(f), i = l.findIndex(x=>x.id===id);
+  if(i<0) return;
+  delete l[i].baixa; l[i].status = "transito";
+  Store.set(kCargas(f), l);
+  Sync.push("cargas","upsert",l[i]);
+}
+
+/* Descontos acumulados da safra, por tipo e por destino */
+function resumoDescontos(f){
+  const l = cargasDe(f).filter(cargaBaixada);
+  const tot = { umidade:0, impureza:0, avariados:0, total:0,
+                bruto:0, final:0, cargas:l.length };
+  const porDestino = {};
+  l.forEach(c=>{
+    const b=c.baixa;
+    tot.umidade   += b.desc_umidade;
+    tot.impureza  += b.desc_impureza;
+    tot.avariados += b.desc_avariados;
+    tot.total     += b.desc_total;
+    tot.bruto     += Number(b.liquido)||0;
+    tot.final     += b.peso_final;
+    const d=c.destino||"—";
+    if(!porDestino[d]) porDestino[d]={destino:d,cargas:0,bruto:0,umidade:0,impureza:0,avariados:0,total:0,final:0};
+    const p=porDestino[d];
+    p.cargas++; p.bruto+=Number(b.liquido)||0;
+    p.umidade+=b.desc_umidade; p.impureza+=b.desc_impureza;
+    p.avariados+=b.desc_avariados; p.total+=b.desc_total; p.final+=b.peso_final;
+  });
+  tot.pct = tot.bruto>0 ? tot.total/tot.bruto*100 : 0;
+  return { tot, porDestino:Object.values(porDestino).sort((a,b)=>b.total-a.total) };
+}
+
 /* Produtividade: rateia as sacas de cada carga entre os talhões dela */
 function produtividade(f){
   const tals = talhoesDe(f);
@@ -769,13 +868,15 @@ function produtividade(f){
     sacas:0, cargas:0, silos:Number(t.silo)||0
   });
 
-  cargasDe(f).forEach(c=>{
+  // Só entra na produtividade a carga já baixada no armazém.
+  cargasDe(f).filter(cargaBaixada).forEach(c=>{
     const itens = (c.talhoes||[]).filter(i=>mapa[i.talhao_id]);
     if(!itens.length) return;
     const somaKg = itens.reduce((s,i)=>s+(Number(i.kg)||0),0);
+    const sc = c.baixa.sacas_final;
     itens.forEach(i=>{
       const frac = somaKg>0 ? (Number(i.kg)||0)/somaKg : 1/itens.length;
-      mapa[i.talhao_id].sacas  += c.sacas * frac;
+      mapa[i.talhao_id].sacas  += sc * frac;
       mapa[i.talhao_id].cargas += 1;
     });
   });
@@ -834,6 +935,21 @@ function mesesDaSafra(safra){
 function diasNoMes(ano,mes){ return new Date(ano,mes+1,0).getDate(); }
 function chaveDia(ano,mes,dia){
   return ano+"-"+String(mes+1).padStart(2,"0")+"-"+String(dia).padStart(2,"0");
+}
+
+/* Dias com chuva na safra, em ordem — é assim que a fazenda registra:
+   só entra a linha do dia que choveu. */
+function diasDeChuva(f, safra){
+  const meses = mesesDaSafra(safra), todo = chuvaDe(f);
+  const ini = chaveDia(meses[0].ano, meses[0].mes, 1);
+  const ult = meses[meses.length-1];
+  const fim = chaveDia(ult.ano, ult.mes, diasNoMes(ult.ano,ult.mes));
+  return Object.keys(todo).filter(k=>k>=ini && k<=fim).sort();
+}
+const MES_ABREV = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
+function diaCurto(k){
+  const p = String(k).split("-");
+  return p[2]+"/"+MES_ABREV[parseInt(p[1],10)-1];
 }
 
 function lerChuva(f,dia,pontoId){
@@ -1205,9 +1321,10 @@ function telaColheita(){
        '<div class="farm-head-mid"><h1>Colheita</h1>'+
        '<p>Cargas, produtividade e silo bolsa · safra '+esc(f.safra)+'</p></div></div>';
 
+  const emTransito = cargas.filter(x=>!cargaBaixada(x)).length;
   h += '<div class="kpis kpis-4">'+
-    kpi("Cargas", n0(cargas.length), "") +
-    kpi("Sacas colhidas", nf(p.totalSacas,0), "sc") +
+    kpi("Cargas", n0(cargas.length), emTransito ? emTransito+" a baixar" : "todas baixadas") +
+    kpi("Sacas confirmadas", nf(p.totalSacas,0), "sc") +
     kpi("Área colhida", nf(p.haColhida,1), "ha") +
     kpi("Produtividade", nf(p.prodColhida,2), "sc/ha") +
   '</div>';
@@ -1215,11 +1332,13 @@ function telaColheita(){
   h += '<div class="abas">'+
     aba("cargas","Cargas", cargas.length)+
     aba("prod","Produtividade", p.colhidos.length)+
+    aba("desc","Descontos", cargas.filter(cargaBaixada).length)+
     aba("cad","Armazéns e caminhões", armazensDe(f.id).length+caminhoesDe(f.id).length)+
   '</div>';
 
   if(_abaColh==="cargas")    h += abaCargas(f, cargas);
   else if(_abaColh==="prod") h += abaProdutividade(f, p);
+  else if(_abaColh==="desc") h += abaDescontos(f);
   else                       h += abaCadastros(f);
 
   return h+'</div>';
@@ -1231,6 +1350,17 @@ function aba(id, rot, n){
 }
 
 /* ── Aba: cargas ─────────────────────────── */
+/* Umidade da fazenda ao lado da do armazém — o comparativo que interessa */
+function umidCompara(c){
+  const uf = Number(c.umidade)||0;
+  if(!cargaBaixada(c)) return uf ? nf(uf,1)+"%" : "—";
+  const ua = Number(c.baixa.umidade)||0;
+  const d  = ua - uf;
+  const cor = Math.abs(d) >= 1.5 ? " alerta" : "";
+  return (uf?nf(uf,1):"—")+" <u class="+JSON.stringify("cmp"+cor)+">"+
+         (d>0?"+":"")+nf(d,1)+"</u> "+nf(ua,1)+"%";
+}
+
 function abaCargas(f, cargas){
   const tals = talhoesDe(f.id);
   if(!armazensDe(f.id).length)
@@ -1275,24 +1405,31 @@ function abaCargas(f, cargas){
 
   h += '<div class="tbl"><table><thead><tr>'+
     '<th>Data</th><th>Romaneio</th><th>Destino</th><th class="hide-sm">Motorista</th>'+
-    '<th class="num">Líq. seco</th><th class="num">Sacas</th><th class="num hide-sm">Umid.</th>'+
-    '<th>Talhão</th><th></th></tr></thead><tbody>';
+    '<th class="num">Líquido</th><th class="num">Sacas</th>'+
+    '<th class="num hide-sm">Umid.</th><th>Situação</th>'+
+    '<th class="hide-sm">Talhão</th><th></th></tr></thead><tbody>';
   l.forEach(c=>{
     const nomes = (c.talhoes||[]).map(i=>{
       const t = talhoesDe(f.id).find(x=>x.id===i.talhao_id);
       return t?t.nome:"—";
     });
-    const alta = (Number(c.umidade)||0) >= 18;
-    h += '<tr>'+
+    const ok = cargaBaixada(c);
+    const sc = ok ? c.baixa.sacas_final : c.sacas;
+    h += '<tr'+(ok?'':' class="transito"')+'>'+
       '<td class="mono">'+dataBR(c.data)+'</td>'+
       '<td class="mono">'+esc(c.romaneio||c.codigo||"")+'</td>'+
       '<td><span class="tagdest">'+esc(c.destino||"—")+'</span></td>'+
       '<td class="hide-sm">'+esc(c.motorista||"—")+'</td>'+
-      '<td class="num mono">'+n0(c.seco)+'</td>'+
-      '<td class="num mono forte">'+nf(c.sacas,1)+'</td>'+
-      '<td class="num mono hide-sm'+(alta?' alerta':'')+'">'+nf(c.umidade,1)+'%</td>'+
-      '<td class="tal-col" title="'+esc(nomes.join(" + "))+'">'+esc(nomes.join(" + ")||"—")+'</td>'+
+      '<td class="num mono">'+n0(c.liquido)+'</td>'+
+      '<td class="num mono forte">'+nf(sc,1)+(ok?"":'<i class="est">est.</i>')+'</td>'+
+      '<td class="num mono hide-sm">'+umidCompara(c)+'</td>'+
+      '<td>'+(ok
+        ? '<span class="sit ok" title="Baixada em '+dataBR(c.baixa.data)+'">Baixada</span>'
+        : '<span class="sit tr">A caminho</span>')+'</td>'+
+      '<td class="tal-col hide-sm" title="'+esc(nomes.join(" + "))+'">'+esc(nomes.join(" + ")||"—")+'</td>'+
       '<td class="acoes">'+
+        (ok ? '<button onclick="modalBaixa(\''+c.id+'\')">Ver baixa</button>'
+            : '<button class="bx" onclick="modalBaixa(\''+c.id+'\')">Baixar</button>')+
         '<button onclick="modalCarga(\''+c.id+'\')">Editar</button>'+
         '<button class="rm" onclick="removerCarga(\''+c.id+'\')">✕</button></td>'+
     '</tr>';
@@ -1414,12 +1551,14 @@ function telaChuva(){
 
   // Navegação de mês
   h += '<div class="mesnav">'+
-    '<button class="mn-b" onclick="_mesIdx--;render()" '+(_mesIdx===0?'disabled':'')+'>‹</button>'+
-    '<select class="mn-s" onchange="_mesIdx=+this.value;render()">'+
-      meses.map((m,i)=>'<option value="'+i+'" '+(i===_mesIdx?'selected':'')+'>'+
-        MESES[m.mes]+' '+m.ano+'</option>').join("")+
-    '</select>'+
-    '<button class="mn-b" onclick="_mesIdx++;render()" '+(_mesIdx===meses.length-1?'disabled':'')+'>›</button>'+
+    (_modoChuva==="dia" ?
+      '<button class="mn-b" onclick="_mesIdx--;render()" '+(_mesIdx===0?'disabled':'')+'>‹</button>'+
+      '<select class="mn-s" onchange="_mesIdx=+this.value;render()">'+
+        meses.map((m,i)=>'<option value="'+i+'" '+(i===_mesIdx?'selected':'')+'>'+
+          MESES[m.mes]+' '+m.ano+'</option>').join("")+
+      '</select>'+
+      '<button class="mn-b" onclick="_mesIdx++;render()" '+(_mesIdx===meses.length-1?'disabled':'')+'>›</button>'
+      : '')+
     '<div class="mn-modo">'+
       '<button class="'+(_modoChuva==="dia"?"on":"")+'" onclick="_modoChuva=\'dia\';render()">Por dia</button>'+
       '<button class="'+(_modoChuva==="planilha"?"on":"")+'" onclick="_modoChuva=\'planilha\';render()">Planilha</button>'+
@@ -1471,27 +1610,43 @@ function chuvaPorDia(f,ano,mes,pts,r){
   return h+'</div>';
 }
 
-/* Modo planilha: o mês inteiro, igual à referência */
+/* Modo planilha: a safra inteira, só os dias que choveram —
+   igual ao controle da fazenda. */
 function chuvaPlanilha(f,ano,mes,pts,r){
-  const nd = diasNoMes(ano,mes);
+  const dias = diasDeChuva(f.id, f.safra);
+  if(!dias.length)
+    return '<div class="empty"><strong>Nenhuma chuva lançada nesta safra</strong>'+
+      'Use o modo <b>Por dia</b> para registrar. Aqui aparecem só os dias que choveram.</div>';
+
+  const tot = {}; pts.forEach(p=>tot[p.id]=0);
+  let geral = 0;
+
   let h = '<div class="tbl grade"><table><thead><tr>'+
-    '<th class="fix">'+MESES[mes]+'</th>'+
+    '<th class="fix">'+esc(String(f.safra).replace("/","/"))+'</th>'+
     pts.map(p=>'<th class="num">'+esc(p.nome)+'</th>').join("")+
     '<th class="num tot">Total</th></tr></thead><tbody>';
-  for(let d=1; d<=nd; d++){
-    const k = chaveDia(ano,mes,d), info = r.porDia[d];
-    h += '<tr'+(info.n?' class="molhado"':'')+'><td class="fix mono">'+d+'</td>';
-    pts.forEach(p=>{
+
+  dias.forEach(k=>{
+    let soma=0, n=0;
+    const cels = pts.map(p=>{
       const v = lerChuva(f.id,k,p.id);
-      h += '<td class="num"><input class="gr" type="number" inputmode="decimal" step="0.5" min="0" '+
+      if(v!=null){ soma+=v; n++; tot[p.id]+=v; }
+      return '<td class="num"><input class="gr" type="number" inputmode="decimal" step="0.5" min="0" '+
         'value="'+(v==null?"":v)+'" '+
         'onchange="gravarChuva(\''+f.id+'\',\''+k+'\',\''+p.id+'\',this.value);render()"></td>';
-    });
-    h += '<td class="num mono tot">'+(info.n?nf(info.soma,0):"")+'</td></tr>';
-  }
+    }).join("");
+    geral += soma;
+    h += '<tr class="molhado"><td class="fix mono dia">'+diaCurto(k)+'</td>'+cels+
+         '<td class="num mono tot">'+nf(soma,1)+'</td></tr>';
+  });
+
   h += '</tbody><tfoot><tr><td class="fix">Total</td>'+
-    pts.map(p=>'<td class="num mono">'+nf(r.porPonto[p.id]||0,0)+'</td>').join("")+
-    '<td class="num mono tot">'+nf(r.geral,0)+'</td></tr></tfoot></table></div>';
+    pts.map(p=>'<td class="num mono">'+nf(tot[p.id],1)+'</td>').join("")+
+    '<td class="num mono tot">'+nf(geral,1)+'</td></tr>'+
+    '<tr class="med"><td class="fix">Média</td>'+
+    pts.map(()=>'<td class="num mono">'+nf(geral/pts.length,1)+'</td>').join("")+
+    '<td class="num mono tot">'+nf(geral/pts.length,1)+'</td></tr></tfoot></table></div>'+
+    '<p class="ver">'+dias.length+' dias com chuva na safra</p>';
   return h;
 }
 
@@ -1549,22 +1704,25 @@ function removerPonto(id){
 
 function exportarChuva(){
   const f=acharFazenda(App.fazendaId); if(!f) return;
-  const pts=pontosDe(f.id);
-  const linhas=[];
-  mesesDaSafra(f.safra).forEach(({ano,mes})=>{
-    const r=resumoMes(f.id,ano,mes), nd=diasNoMes(ano,mes);
-    if(r.geral===0) return;
-    linhas.push([MESES[mes]+" "+ano].concat(pts.map(p=>p.nome)).concat(["Total"]));
-    for(let d=1;d<=nd;d++){
-      const k=chaveDia(ano,mes,d);
-      linhas.push([d].concat(pts.map(p=>{
-        const v=lerChuva(f.id,k,p.id); return v==null?"":vBR(v);
-      })).concat([r.porDia[d].n?vBR(r.porDia[d].soma):""]));
-    }
-    linhas.push(["Total ponto"].concat(pts.map(p=>vBR(r.porPonto[p.id]||0))).concat([vBR(r.geral)]));
-    linhas.push([]);
+  const pts=pontosDe(f.id), dias=diasDeChuva(f.id,f.safra);
+  if(!dias.length){ toast("Nenhuma chuva lançada ainda"); return; }
+  const tot={}; pts.forEach(p=>tot[p.id]=0);
+  const linhas=[["CONTROLE DE CHUVA - SAFRA "+f.safra+" - "+f.nome.toUpperCase()]];
+  linhas.push(["Dia"].concat(pts.map(p=>p.nome)).concat(["Total"]));
+  let geral=0;
+  dias.forEach(k=>{
+    let soma=0;
+    const cel=pts.map(p=>{
+      const v=lerChuva(f.id,k,p.id);
+      if(v!=null){ soma+=v; tot[p.id]+=v; }
+      return v==null?"":vBR(v);
+    });
+    geral+=soma;
+    linhas.push([diaCurto(k)].concat(cel).concat([vBR(soma)]));
   });
-  if(!linhas.length){ toast("Nenhuma chuva lançada ainda"); return; }
+  linhas.push(["Total"].concat(pts.map(p=>vBR(tot[p.id]))).concat([vBR(geral)]));
+  linhas.push(["Média"].concat(pts.map(()=>vBR((geral/pts.length).toFixed(1))))
+                       .concat([vBR((geral/pts.length).toFixed(1))]));
   baixarCSV(linhas,"chuvas-"+f.nome.toLowerCase().replace(/[^a-z0-9]+/g,"-"));
 }
 
@@ -1682,7 +1840,7 @@ function modalCarga(id){
   document.getElementById("modal-root").innerHTML =
   '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal modal-lg">'+
     '<h2>'+(c?"Editar carga "+esc(c.codigo||""):"Lançar carga")+'</h2>'+
-    '<p class="sub">Informe os pesos da balança. O desconto de umidade e as sacas saem sozinhos.</p>'+
+    '<p class="sub">Peso da balança da fazenda. Os descontos entram depois, quando voltar o romaneio do armazém.</p>'+
     '<div class="frm">'+
       '<div class="g3">'+
         '<div><label for="k-data">Data</label><input type="date" id="k-data" value="'+(c?c.data:hoje)+'"></div>'+
@@ -1703,16 +1861,14 @@ function modalCarga(id){
       '<div class="g3">'+
         '<div><label for="k-bruto">Peso bruto (kg)</label><input id="k-bruto" type="number" inputmode="decimal" value="'+(c?c.peso_bruto:"")+'" oninput="recalcCarga()"></div>'+
         '<div><label for="k-tara">Tara (kg)</label><input id="k-tara" type="number" inputmode="decimal" value="'+(c?c.tara:"")+'" oninput="recalcCarga()"></div>'+
-        '<div><label for="k-umid">Umidade (%)</label><input id="k-umid" type="number" step="0.1" inputmode="decimal" value="'+(c?c.umidade:"")+'" oninput="recalcCarga()"></div>'+
+        '<div><label for="k-umid">Umidade na fazenda (%)</label><input id="k-umid" type="number" step="0.1" inputmode="decimal" value="'+(c?c.umidade:"")+'" oninput="recalcCarga()">'+
+          '<span class="pad">só referência — não desconta</span></div>'+
       '</div>'+
       '<div id="calc-box" class="calc"></div>'+
       '<div><label>Talhões de origem</label><div id="itens"></div>'+
         '<button type="button" class="btn-mini" onclick="addItemCarga()">+ outro talhão</button></div>'+
-      '<div class="g2">'+
-        '<div><label for="k-pf">Peso saído da fazenda (kg)</label>'+
-          '<input id="k-pf" type="number" inputmode="decimal" value="'+(c&&c.peso_fazenda?c.peso_fazenda:"")+'" oninput="recalcCarga()" placeholder="opcional"></div>'+
-        '<div><label for="k-obs">Observação</label><input id="k-obs" value="'+esc(c?c.obs:"")+'" placeholder="opcional"></div>'+
-      '</div>'+
+      '<div><label for="k-obs">Observação</label>'+
+        '<input id="k-obs" value="'+esc(c?c.obs:"")+'" placeholder="opcional"></div>'+
     '</div>'+
     '<div class="modal-acts">'+
       '<button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
@@ -1751,19 +1907,16 @@ function preencherPlaca(){
 
 function recalcCarga(){
   const g=id=>parseFloat(String((document.getElementById(id)||{}).value||"").replace(",","."))||0;
-  const r = calcCarga({ peso_bruto:g("k-bruto"), tara:g("k-tara"),
-                        umidade:g("k-umid"), peso_fazenda:g("k-pf") });
+  const r = calcCarga({ peso_bruto:g("k-bruto"), tara:g("k-tara") });
   const box=document.getElementById("calc-box"); if(!box) return;
   const u=g("k-umid");
   box.innerHTML =
     '<span><i>Líquido</i><b>'+n0(r.liquido)+' kg</b></span>'+
-    '<span><i>Desc. umidade</i><b class="'+(r.desconto>0?"neg":"")+'">'+(r.desconto>0?"−"+n0(r.desconto):"0")+' kg</b></span>'+
-    '<span><i>Líquido seco</i><b>'+n0(r.seco)+' kg</b></span>'+
-    '<span><i>Sacas</i><b class="ok">'+nf(r.sacas,1)+' sc</b></span>'+
-    (r.diferenca ? '<span><i>Diferença</i><b class="'+(Math.abs(r.diferenca)>500?"neg":"")+'">'+
-      (r.diferenca>0?"+":"")+n0(r.diferenca)+' kg</b></span>' : '')+
-    (u>0&&u<=UMID_BASE ? '<span class="nota">Sem desconto: umidade dentro do padrão</span>' : '');
+    '<span><i>Sacas estimadas</i><b class="ok">'+nf(r.sacas,1)+' sc</b></span>'+
+    (u>0?'<span><i>Umidade fazenda</i><b>'+nf(u,1)+'%</b></span>':'')+
+    '<span class="nota">Valor de saída. As sacas confirmadas saem na baixa, com os descontos do armazém.</span>';
 }
+
 
 function gravarCarga(id){
   const f = acharFazenda(App.fazendaId); if(!f) return;
@@ -1783,8 +1936,7 @@ function gravarCarga(id){
     data:g("k-data")||new Date().toISOString().slice(0,10),
     romaneio:g("k-rom"), destino:dest,
     placa: cm?cm.placa:"", motorista:g("k-mot"),
-    peso_bruto:bruto, tara:tara, umidade:n("k-umid"),
-    peso_fazenda:n("k-pf"), obs:g("k-obs"),
+    peso_bruto:bruto, tara:tara, umidade:n("k-umid"), obs:g("k-obs"),
     talhoes: itens.map(i=>({talhao_id:i.talhao_id, kg:parseFloat(String(i.kg).replace(",","."))||0}))
   }, id);
   fecharModal(); toast(id?"Carga atualizada":"Carga lançada"); render();
@@ -1877,6 +2029,205 @@ function removerCaminhao(id){
   toast("Caminhão removido"); render();
 }
 
+/* ── Aba: descontos acumulados ───────────── */
+function abaDescontos(f){
+  const R = resumoDescontos(f.id);
+  const t = R.tot;
+  if(!t.cargas)
+    return '<div class="empty"><strong>Nenhuma carga baixada ainda</strong>'+
+      'Quando o romaneio do armazém voltar, dê baixa na carga. Os descontos aparecem aqui.</div>';
+
+  const b = basesDe(f.id);
+  let h = '<div class="acts">'+
+    '<button class="btn-act" onclick="modalBases()">Padrões: umidade '+nf(b.umidade,0)+
+    '% · impureza '+nf(b.impureza,0)+'% · avariados '+nf(b.avariados,0)+'%</button>'+
+    '<button class="btn-act" onclick="exportarDescontos()">Baixar planilha</button></div>';
+
+  h += '<div class="kpis kpis-4">'+
+    kpi("Umidade", nf(t.umidade/SACA_KG,1), "sc · "+n0(t.umidade)+" kg")+
+    kpi("Impureza", nf(t.impureza/SACA_KG,1), "sc · "+n0(t.impureza)+" kg")+
+    kpi("Avariados", nf(t.avariados/SACA_KG,1), "sc · "+n0(t.avariados)+" kg")+
+    kpi("Total descontado", nf(t.total/SACA_KG,1), "sc · "+nf(t.pct,2)+"% do bruto")+
+  '</div>';
+
+  h += '<div class="tbl"><table><thead><tr><th>Destino</th><th class="num">Cargas</th>'+
+    '<th class="num">Bruto</th><th class="num">Umidade</th><th class="num">Impureza</th>'+
+    '<th class="num">Avariados</th><th class="num">Total desc.</th>'+
+    '<th class="num">%</th><th class="num">Líquido final</th></tr></thead><tbody>';
+  R.porDestino.forEach(d=>{
+    const pct = d.bruto>0 ? d.total/d.bruto*100 : 0;
+    h += '<tr><td class="forte">'+esc(d.destino)+'</td>'+
+      '<td class="num mono">'+d.cargas+'</td>'+
+      '<td class="num mono">'+n0(d.bruto)+'</td>'+
+      '<td class="num mono">'+n0(d.umidade)+'</td>'+
+      '<td class="num mono">'+n0(d.impureza)+'</td>'+
+      '<td class="num mono">'+n0(d.avariados)+'</td>'+
+      '<td class="num mono forte">'+n0(d.total)+'</td>'+
+      '<td class="num mono'+(pct>=8?' alerta':'')+'">'+nf(pct,2)+'%</td>'+
+      '<td class="num mono">'+n0(d.final)+'</td></tr>';
+  });
+  h += '</tbody><tfoot><tr><td class="fix">Total</td><td class="num mono">'+t.cargas+'</td>'+
+    '<td class="num mono">'+n0(t.bruto)+'</td><td class="num mono">'+n0(t.umidade)+'</td>'+
+    '<td class="num mono">'+n0(t.impureza)+'</td><td class="num mono">'+n0(t.avariados)+'</td>'+
+    '<td class="num mono">'+n0(t.total)+'</td><td class="num mono">'+nf(t.pct,2)+'%</td>'+
+    '<td class="num mono">'+n0(t.final)+'</td></tr></tfoot></table></div>';
+
+  h += '<p class="resumo-obs">O desconto de umidade usa a fórmula sobre o excedente do grau padrão. '+
+    'Impureza e avariados incidem sobre o peso já seco, só na parte acima do padrão do contrato.</p>';
+  return h;
+}
+
+/* ── Modal: baixar carga ─────────────────── */
+function modalBaixa(id){
+  const f = acharFazenda(App.fazendaId); if(!f) return;
+  const c = cargasDe(f.id).find(x=>x.id===id); if(!c) return;
+  const b = basesDe(f.id);
+  const j = c.baixa || {};
+  const hoje = new Date().toISOString().slice(0,10);
+  const tals = talhoesDe(f.id);
+  const nomes = (c.talhoes||[]).map(i=>{
+    const t=tals.find(x=>x.id===i.talhao_id); return t?t.nome:"—"; });
+
+  document.getElementById("modal-root").innerHTML =
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal modal-lg">'+
+    '<h2>'+(cargaBaixada(c)?"Baixa da carga":"Baixar carga")+' '+esc(c.romaneio||c.codigo||"")+'</h2>'+
+    '<p class="sub">Informe o que veio no romaneio do armazém. Só depois disso a carga entra na produtividade.</p>'+
+    '<div class="frm">'+
+      '<div class="g3">'+
+        '<div><label for="b-data">Data da baixa</label>'+
+          '<input type="date" id="b-data" value="'+(j.data||hoje)+'"></div>'+
+        '<div><label for="b-rom">Romaneio do armazém</label>'+
+          '<input id="b-rom" value="'+esc(j.romaneio_arm||"")+'" placeholder="opcional"></div>'+
+        '<div><label for="b-liq">Peso líquido no armazém (kg)</label>'+
+          '<input id="b-liq" type="number" inputmode="decimal" value="'+(j.liquido!=null?j.liquido:(c.liquido||""))+'" oninput="recalcBaixa()"></div>'+
+      '</div>'+
+      '<div class="g3">'+
+        '<div><label for="b-umid">Umidade (%)</label>'+
+          '<input id="b-umid" type="number" step="0.1" inputmode="decimal" value="'+(j.umidade!=null?j.umidade:"")+'" oninput="recalcBaixa()">'+
+          '<span class="pad">padrão '+nf(b.umidade,0)+'%'+
+          (c.umidade?' · fazenda marcou '+nf(c.umidade,1)+'%':'')+'</span></div>'+
+        '<div><label for="b-imp">Impureza (%)</label>'+
+          '<input id="b-imp" type="number" step="0.1" inputmode="decimal" value="'+(j.impureza!=null?j.impureza:"")+'" oninput="recalcBaixa()">'+
+          '<span class="pad">padrão '+nf(b.impureza,0)+'%</span></div>'+
+        '<div><label for="b-avar">Avariados (%)</label>'+
+          '<input id="b-avar" type="number" step="0.1" inputmode="decimal" value="'+(j.avariados!=null?j.avariados:"")+'" oninput="recalcBaixa()">'+
+          '<span class="pad">padrão '+nf(b.avariados,0)+'%</span></div>'+
+      '</div>'+
+      '<div id="baixa-calc" class="calc"></div>'+
+      '<div><label>Como fica em cada talhão</label><div id="baixa-rateio" class="rateio"></div>'+
+        (nomes.length>1?'<p class="dica">O rateio segue os kg informados no lançamento da carga.</p>':'')+'</div>'+
+      '<div><label for="b-obs">Observação da baixa</label>'+
+        '<input id="b-obs" value="'+esc(j.obs||"")+'" placeholder="opcional"></div>'+
+    '</div>'+
+    '<div class="modal-acts">'+
+      (cargaBaixada(c)
+        ? '<button class="btn-cancel" onclick="reabrirCarga(\''+c.id+'\')">Reabrir carga</button>'
+        : '<button class="btn-cancel" onclick="fecharModal()">Cancelar</button>')+
+      '<button class="btn-save" onclick="gravarBaixa(\''+c.id+'\')">'+
+        (cargaBaixada(c)?"Salvar alterações":"Confirmar baixa")+'</button>'+
+    '</div></div></div>';
+  window._cargaBaixa = c;
+  recalcBaixa();
+}
+
+function recalcBaixa(){
+  const f=acharFazenda(App.fazendaId), c=window._cargaBaixa;
+  if(!f||!c) return;
+  const g=i=>parseFloat(String((document.getElementById(i)||{}).value||"").replace(",","."))||0;
+  const r = calcBaixa({liquido:g("b-liq"), umidade:g("b-umid"),
+                       impureza:g("b-imp"), avariados:g("b-avar")}, basesDe(f.id));
+  const liq=g("b-liq");
+  const box=document.getElementById("baixa-calc");
+  if(box) box.innerHTML =
+    '<span><i>Bruto armazém</i><b>'+n0(liq)+' kg</b></span>'+
+    '<span><i>Umidade</i><b class="'+(r.desc_umidade?"neg":"")+'">'+(r.desc_umidade?"−"+n0(r.desc_umidade):"0")+' kg</b></span>'+
+    '<span><i>Impureza</i><b class="'+(r.desc_impureza?"neg":"")+'">'+(r.desc_impureza?"−"+n0(r.desc_impureza):"0")+' kg</b></span>'+
+    '<span><i>Avariados</i><b class="'+(r.desc_avariados?"neg":"")+'">'+(r.desc_avariados?"−"+n0(r.desc_avariados):"0")+' kg</b></span>'+
+    '<span><i>Líquido final</i><b>'+n0(r.peso_final)+' kg</b></span>'+
+    '<span><i>Sacas</i><b class="ok">'+nf(r.sacas_final,1)+' sc</b></span>'+
+    (liq>0 ? '<span class="nota">Desconto total de '+n0(r.desc_total)+' kg ('+
+      nf(r.desc_total/liq*100,2)+'% do bruto).'+
+      ((c.umidade && g("b-umid")) ? ' A fazenda mediu '+nf(c.umidade,1)+'% de umidade e o armazém '+
+        nf(g("b-umid"),1)+'% — diferença de '+nf(Math.abs(g("b-umid")-c.umidade),1)+' ponto(s).' : '')+
+      '</span>' : '');
+
+  // rateio proporcional entre os talhões da carga
+  const tals=talhoesDe(f.id);
+  const itens=(c.talhoes||[]).filter(i=>tals.some(t=>t.id===i.talhao_id));
+  const soma=itens.reduce((s,i)=>s+(Number(i.kg)||0),0);
+  const rt=document.getElementById("baixa-rateio");
+  if(rt) rt.innerHTML = itens.map(i=>{
+    const frac = soma>0 ? (Number(i.kg)||0)/soma : 1/itens.length;
+    const t = tals.find(x=>x.id===i.talhao_id);
+    return '<div class="rt"><span>'+esc(t?t.nome:"—")+
+      (itens.length>1?' <u>'+nf(frac*100,0)+'%</u>':'')+'</span>'+
+      '<b>'+nf(r.sacas_final*frac,1)+' sc</b></div>';
+  }).join("") || '<p class="vazio">Carga sem talhão vinculado.</p>';
+}
+
+function gravarBaixa(id){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const g=i=>String((document.getElementById(i)||{}).value||"").trim();
+  const n=i=>parseFloat(g(i).replace(",","."))||0;
+  const liq=n("b-liq");
+  if(liq<=0){ toast("Informe o peso líquido do armazém"); return; }
+  const u=n("b-umid");
+  if(u<0||u>100){ toast("Umidade fora do intervalo"); return; }
+  darBaixa(f.id,id,{ data:g("b-data")||new Date().toISOString().slice(0,10),
+    romaneio_arm:g("b-rom"), liquido:liq, umidade:u,
+    impureza:n("b-imp"), avariados:n("b-avar"), obs:g("b-obs") });
+  fecharModal(); toast("Carga baixada · entrou na produtividade"); render();
+}
+
+function reabrirCarga(id){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  if(!confirm("Reabrir a carga?\n\nEla sai da produtividade e os descontos deixam de contar.")) return;
+  desfazerBaixa(f.id,id); fecharModal(); toast("Carga reaberta"); render();
+}
+
+/* ── Padrões do contrato ─────────────────── */
+function modalBases(){
+  const f=acharFazenda(App.fazendaId); const b=basesDe(f.id);
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal">'+
+    '<h2>Padrões do contrato</h2>'+
+    '<p class="sub">Só o que passa desses graus é descontado. Confira com o contrato do armazém.</p>'+
+    '<div class="frm"><div class="g3">'+
+      '<div><label for="bs-u">Umidade (%)</label><input id="bs-u" type="number" step="0.1" value="'+b.umidade+'"></div>'+
+      '<div><label for="bs-i">Impureza (%)</label><input id="bs-i" type="number" step="0.1" value="'+b.impureza+'"></div>'+
+      '<div><label for="bs-a">Avariados (%)</label><input id="bs-a" type="number" step="0.1" value="'+b.avariados+'"></div>'+
+    '</div></div>'+
+    '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
+      '<button class="btn-save" onclick="gravarBases()">Salvar</button></div></div></div>';
+}
+function gravarBases(){
+  const f=acharFazenda(App.fazendaId);
+  const n=i=>parseFloat(String(document.getElementById(i).value).replace(",","."))||0;
+  Store.set(kBases(f.id),{umidade:n("bs-u"), impureza:n("bs-i"), avariados:n("bs-a")});
+  fecharModal(); toast("Padrões salvos"); render();
+}
+
+function exportarDescontos(){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const l=cargasDe(f.id).filter(cargaBaixada);
+  if(!l.length){ toast("Nenhuma carga baixada"); return; }
+  const linhas=[["Codigo","Data carga","Data baixa","Romaneio fazenda","Romaneio armazem",
+    "Destino","Bruto_armazem_kg","Umidade_pc","Desc_umidade_kg","Impureza_pc","Desc_impureza_kg",
+    "Avariados_pc","Desc_avariados_kg","Desc_total_kg","Liquido_final_kg","Sacas"]];
+  l.sort((a,b)=>(a.baixa.data||"").localeCompare(b.baixa.data||"")).forEach(c=>{
+    const b=c.baixa;
+    linhas.push([c.codigo, dataBR(c.data), dataBR(b.data), c.romaneio, b.romaneio_arm,
+      c.destino, vBR(b.liquido), vBR(b.umidade), vBR(b.desc_umidade),
+      vBR(b.impureza), vBR(b.desc_impureza), vBR(b.avariados), vBR(b.desc_avariados),
+      vBR(b.desc_total), vBR(b.peso_final), vBR(b.sacas_final.toFixed(2))]);
+  });
+  const R=resumoDescontos(f.id).tot;
+  linhas.push([]);
+  linhas.push(["Total", "", "", "", "", "", vBR(R.bruto), "", vBR(R.umidade), "",
+    vBR(R.impureza), "", vBR(R.avariados), vBR(R.total), vBR(R.final), vBR((R.final/SACA_KG).toFixed(2))]);
+  baixarCSV(linhas,"descontos-"+f.nome.toLowerCase().replace(/[^a-z0-9]+/g,"-"));
+}
+
 /* ── Planilhas ───────────────────────────── */
 function baixarCSV(linhas, nome){
   const csv="\ufeff"+linhas.map(r=>r.map(v=>{
@@ -1895,12 +2246,15 @@ function exportarCargas(){
   const tals=talhoesDe(f.id);
   const nome=id=>{const t=tals.find(x=>x.id===id); return t?t.nome:"";};
   const l=[["Codigo","Data","Romaneio","Destino","Motorista","Placa","Bruto_kg","Tara_kg",
-            "Liquido_kg","Umidade_pc","Desconto_kg","Liquido_seco_kg","Sacas","Peso_fazenda_kg",
-            "Diferenca_kg","Talhoes","Obs"]];
+            "Liquido_kg","Umidade_fazenda_pc","Sacas_estimadas","Situacao","Data_baixa",
+            "Umidade_armazem_pc","Sacas_confirmadas","Talhoes","Obs"]];
   cargasDe(f.id).slice().sort((a,b)=>(a.data||"").localeCompare(b.data||"")).forEach(c=>{
+    const ok=cargaBaixada(c);
     l.push([c.codigo, dataBR(c.data), c.romaneio, c.destino, c.motorista, c.placa,
-      vBR(c.peso_bruto), vBR(c.tara), vBR(c.liquido), vBR(c.umidade), vBR(c.desconto),
-      vBR(c.seco), vBR(Number(c.sacas||0).toFixed(4)), vBR(c.peso_fazenda), vBR(c.diferenca),
+      vBR(c.peso_bruto), vBR(c.tara), vBR(c.liquido), vBR(c.umidade),
+      vBR(Number(c.sacas||0).toFixed(2)), ok?"Baixada":"A caminho",
+      ok?dataBR(c.baixa.data):"", ok?vBR(c.baixa.umidade):"",
+      ok?vBR(c.baixa.sacas_final.toFixed(2)):"",
       (c.talhoes||[]).map(i=>nome(i.talhao_id)).join(" + "), c.obs]);
   });
   baixarCSV(l,"cargas-"+f.nome.toLowerCase().replace(/[^a-z0-9]+/g,"-"));
@@ -1937,8 +2291,7 @@ function semearPrimeiraVez(){
   Store.set(kArmaz(f.id), SEED_ARMAZENS.slice());
   Store.set(kCam(f.id), SEED_CAMINHOES.map((r,i)=>({
     id:"cm_"+i, fazenda_id:f.id, placa:r[0], motorista:r[1] })));
-  Store.set(kPontos(f.id), ["Pivôs","Sede","Luiz","Talhões 01-08",
-    "Talhões 09-17","Paulo","Saquetin"].map((n,i)=>({
+  Store.set(kPontos(f.id), ["Pivôs", "T 01", "T 05", "T 09", "T 10", "T 11", "T 12", "T 13", "T 15", "T 16", "Sede", "Cantina", "Paulo 1", "Paulo 2", "Luiz Sede", "Luiz 01", "Luiz 02", "Luiz 03", "Luiz 04", "Luiz 05", "Luiz 06", "Luiz 09"].map((n,i)=>({
       id:"pt_"+i, fazenda_id:f.id, nome:n })));
 }
 
