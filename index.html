@@ -712,6 +712,31 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 .doc-meta u{text-decoration:none;font-family:var(--mono);font-size:10.5px;font-weight:700}
 .doc-obs{color:var(--muted);font-size:12.5px;margin-top:10px;line-height:1.5}
 
+/* ── Entrar ──────────────────────────────── */
+.login-tela{min-height:100vh;display:flex;align-items:center;justify-content:center;
+  padding:24px 16px;background:var(--bg)}
+.login-caixa{width:100%;max-width:380px;background:var(--card);border:1px solid var(--line);
+  border-top:4px solid var(--gold);border-radius:15px;padding:28px 26px}
+.login-topo{text-align:center;margin-bottom:22px}
+.login-topo svg{width:54px;height:54px;margin:0 auto 12px}
+.login-topo b{display:block;color:var(--green);font-size:17px;font-weight:800;letter-spacing:.02em}
+.login-topo span{display:block;color:var(--muted);font-family:var(--mono);font-size:10.5px;
+  letter-spacing:.13em;margin-top:3px}
+.lg-erro{color:var(--red);font-size:13px;min-height:18px;line-height:1.4}
+.lg-erro b{color:var(--red)}
+.lg-troca{width:100%;background:none;border:none;color:var(--muted);font-size:13px;
+  padding:12px 0 4px;text-decoration:underline}
+.lg-troca:hover{color:var(--green)}
+.lg-nota{color:var(--muted);font-size:11.5px;line-height:1.5;text-align:center;margin-top:6px}
+.cam u.vc{text-decoration:none;font-family:var(--mono);font-size:9.5px;font-weight:700;
+  background:var(--leaf-soft);color:var(--leaf-dk);padding:2px 6px;border-radius:4px;margin-left:5px}
+.cam.pend u.vc{background:var(--gold-soft);color:var(--amber)}
+
+.rodape{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-top:26px}
+.lnk{background:none;border:none;color:var(--muted);font-size:12.5px;text-decoration:underline;
+  padding:4px 2px}
+.lnk:hover{color:var(--green)}
+
 @media(max-width:640px){
   body{font-size:14.5px}
   .wrap{padding:16px 12px 34px}
@@ -742,7 +767,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.0.0";
+const APP_VERSION = "2.2.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -784,6 +809,14 @@ function _storageOk(kind){
 const _ls = _storageOk("localStorage") ? localStorage
           : _storageOk("sessionStorage") ? sessionStorage : null;
 
+
+/* Só os blocos da fazenda e a lista de fazendas vão para a nuvem */
+function ehBloco(k){
+  if(k === "fazendas") return true;
+  const m = String(k).match(/^faz_(.+)_([a-z]+)$/);
+  return !!(m && typeof BLOCOS !== "undefined" && BLOCOS.includes(m[2]));
+}
+
 const Store = {
   get(k,d){
     try{
@@ -791,7 +824,11 @@ const Store = {
       return (k in _mem) ? _mem[k] : d;
     }catch(e){ return d; }
   },
-  set(k,v){ _mem[k]=v; try{ if(_ls) _ls.setItem("sm_"+k, JSON.stringify(v)); }catch(e){} },
+  set(k,v){
+    _mem[k]=v;
+    try{ if(_ls) _ls.setItem("sm_"+k, JSON.stringify(v)); }catch(e){}
+    if(typeof Sync!=="undefined" && Sync.marcar && ehBloco(k)) Sync.marcar(k);
+  },
   del(k){ delete _mem[k]; try{ if(_ls) _ls.removeItem("sm_"+k); }catch(e){} },
   persistent(){ return _ls !== null; }
 };
@@ -799,45 +836,193 @@ const Store = {
 /* ═══════════════════════════════════════════════════
    SYNC — fila de pendências
    ═══════════════════════════════════════════════════ */
-const SUPABASE = { url:"", anonKey:"", enabled(){ return !!(this.url && this.anonKey); } };
+/* ═══════════════════════════════════════════════════
+   NUVEM — Supabase
+   Preencha url e anonKey depois de rodar o schema.
+   Vazio = o app roda 100% local, como antes.
+   ═══════════════════════════════════════════════════ */
+const SUPABASE = {
+  url: "",
+  anonKey: "",
+  ligado(){ return !!(this.url && this.anonKey); }
+};
 
+/* Blocos de estado que sobem para a nuvem */
+const BLOCOS = ["talhoes","cargas","armazens","caminhoes","silocap","bases","chuva",
+                "lavoura","produtos","aplicacoes","entradas","docs","mapa"];
+
+/* ── Sessão ──────────────────────────────── */
+const Auth = {
+  sessao(){ return Store.get("sb_sessao", null); },
+  usuario(){ const s=this.sessao(); return s && s.user ? s.user : null; },
+  logado(){ return !!this.sessao(); },
+  async entrar(email, senha){
+    const r = await fetch(SUPABASE.url+"/auth/v1/token?grant_type=password", {
+      method:"POST",
+      headers:{ "apikey":SUPABASE.anonKey, "Content-Type":"application/json" },
+      body: JSON.stringify({ email:email.trim(), password:senha })
+    });
+    const d = await r.json();
+    if(!r.ok) throw new Error(d.error_description || d.msg || d.message || "Não consegui entrar");
+    Store.set("sb_sessao", { token:d.access_token, refresh:d.refresh_token,
+      expira: Date.now() + (d.expires_in||3600)*1000, user:d.user });
+    return d.user;
+  },
+  async criar(email, senha){
+    const r = await fetch(SUPABASE.url+"/auth/v1/signup", {
+      method:"POST",
+      headers:{ "apikey":SUPABASE.anonKey, "Content-Type":"application/json" },
+      body: JSON.stringify({ email:email.trim(), password:senha })
+    });
+    const d = await r.json();
+    if(!r.ok) throw new Error(d.error_description || d.msg || d.message || "Não consegui criar a conta");
+    if(d.access_token)
+      Store.set("sb_sessao", { token:d.access_token, refresh:d.refresh_token,
+        expira: Date.now() + (d.expires_in||3600)*1000, user:d.user });
+    return d;
+  },
+  async renovar(){
+    const s = this.sessao(); if(!s || !s.refresh) return false;
+    try{
+      const r = await fetch(SUPABASE.url+"/auth/v1/token?grant_type=refresh_token", {
+        method:"POST",
+        headers:{ "apikey":SUPABASE.anonKey, "Content-Type":"application/json" },
+        body: JSON.stringify({ refresh_token:s.refresh })
+      });
+      const d = await r.json();
+      if(!r.ok) return false;
+      Store.set("sb_sessao", { token:d.access_token, refresh:d.refresh_token,
+        expira: Date.now() + (d.expires_in||3600)*1000, user:d.user||s.user });
+      return true;
+    }catch(e){ return false; }
+  },
+  sair(){
+    Store.del("sb_sessao");
+    Store.del("sync_fila"); Store.del("sync_sujo"); Store.del("sync_ultimo");
+  },
+  async token(){
+    const s = this.sessao(); if(!s) return null;
+    if(Date.now() > s.expira - 60000){ await this.renovar(); }
+    const n = this.sessao();
+    return n ? n.token : null;
+  }
+};
+
+/* ── Chamada à API ───────────────────────── */
+async function api(caminho, opcoes){
+  const t = await Auth.token();
+  if(!t) throw new Error("sem sessão");
+  const o = opcoes || {};
+  const r = await fetch(SUPABASE.url+"/rest/v1/"+caminho, {
+    method: o.method || "GET",
+    headers: Object.assign({
+      "apikey": SUPABASE.anonKey,
+      "Authorization": "Bearer "+t,
+      "Content-Type": "application/json",
+      "Prefer": o.prefer || "return=representation"
+    }, o.headers||{}),
+    body: o.body ? JSON.stringify(o.body) : undefined
+  });
+  if(r.status === 204) return null;
+  const d = await r.json().catch(()=>null);
+  if(!r.ok) throw new Error((d && (d.message||d.hint)) || "erro "+r.status);
+  return d;
+}
+
+/* ── Sincronização ───────────────────────── */
 const Sync = {
-  queue(){ return Store.get("sync_queue", []); },
-  pending(){ return this.queue().length; },
-  push(table, op, payload){
-    const q = this.queue();
-    q.push({ id:"op_"+Date.now()+"_"+Math.random().toString(36).slice(2,7),
-             ts:new Date().toISOString(), table, op, payload });
-    Store.set("sync_queue", q);
+  sujos(){ return Store.get("sync_sujo", []); },
+  marcar(chave){
+    if(!SUPABASE.ligado()) return;
+    const l = this.sujos();
+    if(!l.includes(chave)){ l.push(chave); Store.set("sync_sujo", l); }
     this.render();
-    if(navigator.onLine) this.flush();
   },
-  async flush(){
-    if(!navigator.onLine) return;
-    const q = this.queue();
-    if(!q.length){ this.render(); return; }
-    if(!SUPABASE.enabled()){ this.render(); return; }
-    const restantes = [];
-    for(const item of q){
+  pending(){ return this.sujos().length; },
+  push(){ /* mantido por compatibilidade: o que conta é marcar() */ },
+
+  async subir(){
+    const sujos = this.sujos();
+    if(!sujos.length) return 0;
+    const restam = [];
+    for(const chave of sujos){
       try{
-        const method = item.op === "delete" ? "DELETE" : "POST";
-        const r = await fetch(SUPABASE.url+"/rest/v1/"+item.table, {
-          method,
-          headers:{ "apikey":SUPABASE.anonKey, "Authorization":"Bearer "+SUPABASE.anonKey,
-                    "Content-Type":"application/json", "Prefer":"resolution=merge-duplicates" },
-          body: method==="DELETE" ? undefined : JSON.stringify(item.payload)
-        });
-        if(!r.ok) restantes.push(item);
-      }catch(e){ restantes.push(item); }
+        if(chave === "fazendas"){
+          const l = fazendas();
+          for(const f of l){
+            await api("fazendas", { method:"POST",
+              prefer:"resolution=merge-duplicates,return=minimal",
+              body:{ id:f.id, nome:f.nome, produtor:f.produtor||null,
+                     municipio:f.municipio||null, uf:f.uf||null, safra:f.safra||null,
+                     lat:f.lat??null, lon:f.lon??null } });
+          }
+        }else{
+          const [_, fid, bloco] = chave.match(/^faz_(.+)_([a-z]+)$/) || [];
+          if(!fid) continue;
+          await api("estado", { method:"POST",
+            prefer:"resolution=merge-duplicates,return=minimal",
+            headers:{ "Prefer":"resolution=merge-duplicates,return=minimal" },
+            body:{ fazenda_id:fid, chave:bloco, dados: Store.get(chave, null) } });
+        }
+      }catch(e){ restam.push(chave); }
     }
-    Store.set("sync_queue", restantes);
+    Store.set("sync_sujo", restam);
     this.render();
-    if(!restantes.length && q.length) toast("Tudo sincronizado na nuvem");
+    return sujos.length - restam.length;
   },
+
+  async baixar(){
+    const fz = await api("fazendas?select=*");
+    const locais = fazendas();
+    const mapa = {}; locais.forEach(f=>mapa[f.id]=f);
+    (fz||[]).forEach(r=>{
+      const atual = mapa[r.id] || {};
+      mapa[r.id] = Object.assign({}, atual, {
+        id:r.id, nome:r.nome, produtor:r.produtor||"", municipio:r.municipio||"",
+        uf:r.uf||"", safra:r.safra||atual.safra||safraAtual(),
+        lat:r.lat??null, lon:r.lon??null,
+        talhoes:atual.talhoes||0, hectares:atual.hectares||0 });
+    });
+    Store.set("fazendas", Object.values(mapa));
+
+    const est = await api("estado?select=fazenda_id,chave,dados,atualizado_em");
+    const sujos = this.sujos();
+    (est||[]).forEach(r=>{
+      const chave = "faz_"+r.fazenda_id+"_"+r.chave;
+      if(sujos.includes(chave)) return;   // mudança local ainda não enviada tem prioridade
+      if(r.dados != null) Store.set(chave, r.dados);
+    });
+    (fz||[]).forEach(r=>recontarFazenda(r.id));
+    Store.set("sync_ultimo", new Date().toISOString());
+    return (fz||[]).length;
+  },
+
+  async rodar(){
+    if(!SUPABASE.ligado() || !Auth.logado() || !navigator.onLine) { this.render(); return; }
+    if(this._rodando) return;
+    this._rodando = true;
+    try{
+      await this.subir();
+      await this.baixar();
+      this.render();
+    }catch(e){ this.render(); }
+    finally{ this._rodando = false; }
+  },
+
+  async flush(){ return this.rodar(); },
+
   render(){
     const el = document.getElementById("sync-chip");
     if(!el) return;
     const n = this.pending(), on = navigator.onLine;
+    if(!SUPABASE.ligado()){
+      el.className="sync-chip off";
+      el.innerHTML='<span class="sync-dot"></span> Só neste aparelho'; return;
+    }
+    if(!Auth.logado()){
+      el.className="sync-chip off";
+      el.innerHTML='<span class="sync-dot"></span> Fora da conta'; return;
+    }
     if(on && !n){ el.className="sync-chip";
       el.innerHTML='<span class="sync-dot"></span> Sincronizado na nuvem'; }
     else if(!on){ el.className="sync-chip off";
@@ -846,6 +1031,7 @@ const Sync = {
       el.innerHTML='<span class="sync-dot"></span> '+n+" a enviar"; }
   }
 };
+
 window.addEventListener("online",  ()=>{ Sync.flush(); render(); });
 window.addEventListener("offline", ()=>{ render(); });
 
@@ -1777,7 +1963,226 @@ function fecharModal(){ document.getElementById("modal-root").innerHTML=""; }
 const App = { tela:"fazendas", fazendaId:null, moduloId:null };
 function irPara(tela, o){ Object.assign(App,{tela},o||{}); window.scrollTo(0,0); render(); }
 
+/* ═══════════════════════════════════════════════════
+   CÓPIA DE SEGURANÇA
+   Tudo que está neste aparelho num arquivo só.
+   Vale antes de ligar a nuvem ou trocar de máquina.
+   ═══════════════════════════════════════════════════ */
+function chavesLocais(){
+  const out = [];
+  try{
+    if(_ls){
+      for(let i=0;i<_ls.length;i++){
+        const k=_ls.key(i);
+        if(k && k.startsWith("sm_") && k!=="sm_sb_sessao") out.push(k.slice(3));
+      }
+    }
+  }catch(e){}
+  Object.keys(_mem).forEach(k=>{ if(k!=="sb_sessao" && !out.includes(k)) out.push(k); });
+  return out;
+}
+
+function exportarTudo(){
+  const dados = {};
+  chavesLocais().forEach(k=>{ dados[k] = Store.get(k, null); });
+  const pacote = { app:"safra-nas-maos", versao:APP_VERSION,
+                   gerado_em:new Date().toISOString(),
+                   fazendas:(dados.fazendas||[]).length, dados };
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(pacote,null,1)],
+    {type:"application/json"}));
+  a.download="safra-backup-"+new Date().toISOString().slice(0,10)+".json";
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+  toast("Cópia baixada · "+Object.keys(dados).length+" registros");
+}
+
+function importarTudo(){
+  const inp=document.createElement("input");
+  inp.type="file"; inp.accept=".json,application/json";
+  inp.onchange=()=>{
+    const arq=inp.files && inp.files[0]; if(!arq) return;
+    const fr=new FileReader();
+    fr.onload=()=>{
+      try{
+        const p=JSON.parse(String(fr.result));
+        if(!p || !p.dados || p.app!=="safra-nas-maos")
+          throw new Error("Não é um arquivo de cópia do Safra");
+        const qtd=Object.keys(p.dados).length;
+        if(!confirm("Restaurar a cópia de "+(p.gerado_em||"").slice(0,10)+"?\n\n"+
+          p.fazendas+" fazenda(s) · "+qtd+" registros.\n"+
+          "O que está neste aparelho será substituído.")) return;
+        Object.entries(p.dados).forEach(([k,v])=>{ if(v!==null) Store.set(k,v); });
+        toast("Cópia restaurada");
+        setTimeout(()=>location.reload(), 800);
+      }catch(e){ alert(e.message||"Arquivo inválido"); }
+    };
+    fr.readAsText(arq);
+  };
+  inp.click();
+}
+
+/* ═══════════════════════════════════════════════════
+   ENTRAR NA CONTA
+   ═══════════════════════════════════════════════════ */
+let _modoLogin = "entrar";
+
+function telaLogin(){
+  return '<div class="login-tela"><div class="login-caixa">'+
+    '<div class="login-topo">'+ICON.folha+
+      '<b>SAFRA NAS MÃOS</b><span>GRUPO FOCO</span></div>'+
+    '<div class="frm">'+
+      '<div><label for="lg-email">E-mail</label>'+
+        '<input id="lg-email" type="email" inputmode="email" autocomplete="username" '+
+        'value="'+esc(Store.get("ult_email",""))+'" placeholder="voce@exemplo.com" '+
+        'onkeydown="if(event.key===\'Enter\')document.getElementById(\'lg-senha\').focus()"></div>'+
+      '<div><label for="lg-senha">Senha</label>'+
+        '<input id="lg-senha" type="password" autocomplete="current-password" '+
+        'placeholder="mínimo 6 caracteres" onkeydown="if(event.key===\'Enter\')enviarLogin()"></div>'+
+      '<div id="lg-erro" class="lg-erro"></div>'+
+    '</div>'+
+    '<button class="btn-primary" id="lg-btn" onclick="enviarLogin()">'+
+      (_modoLogin==="entrar"?"Entrar":"Criar conta")+'</button>'+
+    '<button class="lg-troca" onclick="_modoLogin=(_modoLogin===\'entrar\'?\'criar\':\'entrar\');render()">'+
+      (_modoLogin==="entrar"?"Ainda não tenho conta":"Já tenho conta")+'</button>'+
+    '<p class="lg-nota">Os dados da fazenda ficam no aparelho e sobem quando há internet. '+
+      'Quem já usa o app sem conta não perde nada — continua tudo aqui.</p>'+
+    '<div class="rodape">'+
+      '<button class="lnk" onclick="exportarTudo()">Baixar cópia deste aparelho</button>'+
+    '</div>'+
+    '<p class="ver">versão '+APP_VERSION+'</p>'+
+  '</div></div>';
+}
+
+async function enviarLogin(){
+  const email=(document.getElementById("lg-email").value||"").trim();
+  const senha=document.getElementById("lg-senha").value||"";
+  const err=document.getElementById("lg-erro");
+  const btn=document.getElementById("lg-btn");
+  err.textContent="";
+  if(!email || !email.includes("@")){ err.textContent="Informe um e-mail válido"; return; }
+  if(senha.length<6){ err.textContent="A senha precisa de pelo menos 6 caracteres"; return; }
+  if(!navigator.onLine){ err.textContent="Sem internet. Conecte para entrar na conta."; return; }
+  btn.disabled=true; btn.textContent="Aguarde…";
+  try{
+    if(_modoLogin==="criar"){
+      const d = await Auth.criar(email,senha);
+      if(!Auth.logado()){
+        err.innerHTML='Conta criada. <b>Confirme o e-mail</b> e volte para entrar.';
+        _modoLogin="entrar"; btn.disabled=false; render(); return;
+      }
+    }else{
+      await Auth.entrar(email,senha);
+    }
+    Store.set("ult_email", email);
+    Store.set("perfil", { nome: email.split("@")[0] });
+    try{ await api("rpc/aceitar_convites", {method:"POST", body:{}}); }catch(e){}
+    toast("Bem-vindo");
+    await primeiraSincronizacao();
+    render();
+  }catch(e){
+    const m=String(e.message||"");
+    err.textContent = /Invalid login/i.test(m) ? "E-mail ou senha não conferem"
+      : /already registered/i.test(m) ? "Esse e-mail já tem conta. Use Entrar."
+      : m;
+    btn.disabled=false;
+    btn.textContent=(_modoLogin==="entrar"?"Entrar":"Criar conta");
+  }
+}
+
+/* Na primeira entrada, manda o que já existe no aparelho */
+async function primeiraSincronizacao(){
+  try{
+    if(fazendas().length){
+      const sujos=new Set(Sync.sujos());
+      sujos.add("fazendas");
+      fazendas().forEach(f=>BLOCOS.forEach(b=>{
+        const k="faz_"+f.id+"_"+b;
+        if(Store.get(k,null)!==null) sujos.add(k);
+      }));
+      Store.set("sync_sujo",[...sujos]);
+    }
+    await Sync.rodar();
+  }catch(e){}
+}
+
+function sairDaConta(){
+  if(!confirm("Sair da conta?\n\nOs dados continuam neste aparelho.")) return;
+  Auth.sair(); toast("Você saiu"); render();
+}
+
+/* ── Convidar alguém para a fazenda ──────── */
+function modalEquipe(){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal">'+
+    '<h2>Quem acessa esta fazenda</h2>'+
+    '<p class="sub">A pessoa entra com o e-mail convidado e passa a ver os mesmos dados.</p>'+
+    '<div id="eq-lista"><p class="vazio">Carregando…</p></div>'+
+    '<div class="frm" style="margin-top:14px">'+
+      '<div><label for="eq-email">Convidar por e-mail</label>'+
+        '<input id="eq-email" type="email" inputmode="email" placeholder="pessoa@exemplo.com"></div>'+
+      '<div><label for="eq-papel">Permissão</label><select id="eq-papel">'+
+        '<option value="operador">Operador · lança e edita</option>'+
+        '<option value="leitura">Leitura · só consulta</option>'+
+        '<option value="admin">Administrador</option>'+
+      '</select></div>'+
+    '</div>'+
+    '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Fechar</button>'+
+      '<button class="btn-save" onclick="convidar()">Convidar</button></div>'+
+  '</div></div>';
+  carregarEquipe();
+}
+
+async function carregarEquipe(){
+  const f=acharFazenda(App.fazendaId);
+  const box=document.getElementById("eq-lista"); if(!box) return;
+  try{
+    const m = await api("membros?fazenda_id=eq."+encodeURIComponent(f.id)+"&select=email,papel,user_id");
+    const c = await api("convites?fazenda_id=eq."+encodeURIComponent(f.id)+"&select=id,email,papel");
+    const eu = Auth.usuario();
+    let h = '<div class="lista-cam">';
+    (m||[]).forEach(x=>{
+      h += '<div class="cam"><span class="mono">'+esc(x.email||"—")+
+        (eu && x.user_id===eu.id?' <u class="vc">você</u>':'')+'</span>'+
+        '<span>'+esc(x.papel)+'</span><span></span></div>';
+    });
+    (c||[]).forEach(x=>{
+      h += '<div class="cam pend"><span class="mono">'+esc(x.email)+' <u class="vc">convidado</u></span>'+
+        '<span>'+esc(x.papel)+'</span>'+
+        '<button onclick="cancelarConvite(\''+x.id+'\')">✕</button></div>';
+    });
+    h += '</div>';
+    box.innerHTML = (m&&m.length)||(c&&c.length) ? h : '<p class="vazio">Só você por enquanto.</p>';
+  }catch(e){ box.innerHTML='<p class="vazio">Não consegui carregar agora.</p>'; }
+}
+
+async function convidar(){
+  const f=acharFazenda(App.fazendaId);
+  const email=(document.getElementById("eq-email").value||"").trim();
+  if(!email || !email.includes("@")){ toast("Informe um e-mail válido"); return; }
+  try{
+    await api("convites", { method:"POST",
+      prefer:"resolution=merge-duplicates,return=minimal",
+      body:{ fazenda_id:f.id, email:email.toLowerCase(),
+             papel:document.getElementById("eq-papel").value } });
+    document.getElementById("eq-email").value="";
+    toast("Convite registrado");
+    carregarEquipe();
+  }catch(e){ toast("Não consegui convidar agora"); }
+}
+
+async function cancelarConvite(id){
+  try{ await api("convites?id=eq."+id, {method:"DELETE", prefer:"return=minimal"});
+    toast("Convite cancelado"); carregarEquipe(); }
+  catch(e){ toast("Não consegui cancelar"); }
+}
+
 function render(){
+  if(SUPABASE.ligado() && !Auth.logado()){
+    document.getElementById("root").innerHTML = telaLogin();
+    return;
+  }
   let h = topbar();
   if(App.tela==="fazendas")      h += telaFazendas();
   else if(App.tela==="fazenda")  h += telaFazenda();
@@ -1798,7 +2203,9 @@ function topbar(){
       '<span id="sync-chip" class="sync-chip"><span class="sync-dot"></span> —</span>'+
       '<span class="user-nome">'+esc(p.nome)+'</span>'+
       '<span class="ver-chip" title="Versão publicada">v'+APP_VERSION+'</span>'+
-      '<button class="btn-ghost" onclick="abrirPerfil()">Trocar perfil</button>'+
+      (SUPABASE.ligado() && Auth.logado()
+        ? '<button class="btn-ghost" onclick="sairDaConta()">Sair</button>'
+        : '<button class="btn-ghost" onclick="abrirPerfil()">Trocar perfil</button>')+
     '</div></div>'+banners();
 }
 
@@ -1838,7 +2245,11 @@ function telaFazendas(){
          '<span class="chev" onclick="irPara(\'fazenda\',{fazendaId:\''+f.id+'\'})">›</span></div>';
     });
   }
-  h+='<p class="ver">versão '+APP_VERSION+(Store.persistent()?"":" · modo temporário")+'</p></div>';
+  h+='<div class="rodape">'+
+      '<button class="lnk" onclick="exportarTudo()">Baixar cópia de segurança</button>'+
+      '<button class="lnk" onclick="importarTudo()">Restaurar cópia</button>'+
+    '</div>'+
+    '<p class="ver">versão '+APP_VERSION+(Store.persistent()?"":" · modo temporário")+'</p></div>';
   return h;
 }
 
@@ -1852,6 +2263,8 @@ function telaFazenda(){
   h+='<div class="farm-head">'+
        '<button class="btn-back" onclick="irPara(\'fazendas\')">← Fazendas</button>'+
        '<div class="farm-head-mid"><h1>'+esc(f.nome)+'</h1><p>'+esc(loc)+'</p></div>'+
+       (SUPABASE.ligado() && Auth.logado()
+         ? '<button class="btn-back" onclick="modalEquipe()">Equipe</button>' : '')+
        '<div class="safra-box"><label for="sel-safra">SAFRA</label>'+
          '<select id="sel-safra" onchange="trocarSafra(this.value)">'+
            safrasDisponiveis().map(s=>'<option '+(s===f.safra?"selected":"")+'>'+s+'</option>').join("")+
@@ -4295,8 +4708,10 @@ function semearPrimeiraVez(){
 
 semearPrimeiraVez();
 render();
-Sync.flush();
-setInterval(()=>{ if(navigator.onLine && Sync.pending()) Sync.flush(); }, 30000);
+if(SUPABASE.ligado() && Auth.logado()) Sync.rodar();
+setInterval(()=>{ if(navigator.onLine && Auth.logado()) Sync.rodar(); }, 60000);
+window.addEventListener("online", ()=>{ Sync.rodar(); render(); });
+window.addEventListener("offline", ()=>{ render(); });
 /* Atualização automática: o navegador nunca serve o sw.js do
    cache, procura versão nova ao abrir e a cada minuto, e recarrega
    sozinho quando a nova assume. */
