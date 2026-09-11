@@ -737,6 +737,20 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
   padding:4px 2px}
 .lnk:hover{color:var(--green)}
 
+.banner-btn{background:rgba(0,0,0,.08);border:none;border-radius:6px;padding:3px 10px;
+  font-family:var(--mono);font-size:11.5px;font-weight:700;color:inherit;margin-left:6px}
+.banner-btn:hover{background:rgba(0,0,0,.16)}
+.dg{display:flex;flex-direction:column;gap:7px;margin-top:6px}
+.dg-l{display:grid;grid-template-columns:22px 1fr;gap:8px;align-items:baseline;
+  background:var(--bg);border-radius:8px;padding:9px 12px;font-size:13.5px}
+.dg-l span{font-weight:800;text-align:center}
+.dg-l.ok span{color:var(--leaf-dk)}
+.dg-l.nao{background:var(--red-soft)}
+.dg-l.nao span{color:var(--red)}
+.dg-l b{color:var(--green);font-weight:700}
+.dg-l u{grid-column:2;text-decoration:none;color:var(--muted);font-family:var(--mono);
+  font-size:11.5px;display:block;margin-top:2px}
+
 @media(max-width:640px){
   body{font-size:14.5px}
   .wrap{padding:16px 12px 34px}
@@ -767,7 +781,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.5.0";
+const APP_VERSION = "2.6.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -948,7 +962,7 @@ const Sync = {
     // é o vínculo de membro que libera a gravação do resto.
     sujos = sujos.slice().sort((a,b)=>
       (a==="fazendas"?0:1) - (b==="fazendas"?0:1));
-    const restam = [];
+    const restam = []; let erro = null;
     for(const chave of sujos){
       try{
         if(chave === "fazendas"){
@@ -968,8 +982,10 @@ const Sync = {
             headers:{ "Prefer":"resolution=merge-duplicates,return=minimal" },
             body:{ fazenda_id:fid, chave:bloco, dados: Store.get(chave, null) } });
         }
-      }catch(e){ restam.push(chave); }
+      }catch(e){ restam.push(chave); erro = e; }
     }
+    if(erro) Store.set("sync_erro", String(erro.message||erro));
+    else Store.del("sync_erro");
     Store.set("sync_sujo", restam);
     this.render();
     return sujos.length - restam.length;
@@ -1011,8 +1027,9 @@ const Sync = {
     try{
       await this.subir();
       await this.baixar();
+      if(!this.pending()) Store.del("sync_erro");
       this.render();
-    }catch(e){ this.render(); }
+    }catch(e){ Store.set("sync_erro", String(e.message||e)); this.render(); }
     finally{ this._rodando = false; }
   },
 
@@ -2029,6 +2046,92 @@ function importarTudo(){
   inp.click();
 }
 
+/* Traduz o que o servidor devolveu para algo acionável */
+function explicaErro(m){
+  const s = String(m||"");
+  if(/does not exist|42P01|Could not find the table|schema cache/i.test(s))
+    return "As tabelas ainda não existem no Supabase — rode o supabase-schema.sql.";
+  if(/row-level security|violates row-level|42501/i.test(s))
+    return "O banco recusou a gravação (permissão). Confira se o schema foi aplicado inteiro.";
+  if(/JWT|token|401|Unauthorized/i.test(s))
+    return "Sua sessão expirou. Saia e entre de novo.";
+  if(/Failed to fetch|NetworkError|Load failed/i.test(s))
+    return "Não consegui falar com o servidor.";
+  if(/foreign key|23503/i.test(s))
+    return "A fazenda ainda não chegou na nuvem. Tente de novo em instantes.";
+  return s;
+}
+
+async function tentarSync(){
+  if(!navigator.onLine){ toast("Sem internet agora"); return; }
+  toast("Enviando…");
+  await Sync.rodar();
+  const n = Sync.pending();
+  toast(n ? n+" ainda pendente(s)" : "Tudo sincronizado");
+  render();
+}
+
+/* Testa cada peça e diz onde travou */
+async function modalDiagnostico(){
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal modal-lg">'+
+    '<h2>Diagnóstico da nuvem</h2>'+
+    '<p class="sub">Testando cada parte da ligação com o Supabase.</p>'+
+    '<div id="dg-res"><p class="vazio">Testando…</p></div>'+
+    '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Fechar</button>'+
+      '<button class="btn-save" onclick="modalDiagnostico()">Testar de novo</button></div>'+
+  '</div></div>';
+
+  const passos = [];
+  const anota = (nome, ok, detalhe) => passos.push({nome, ok, detalhe:detalhe||""});
+
+  anota("Endereço e chave preenchidos", SUPABASE.ligado(), SUPABASE.url||"vazio");
+  anota("Conectado à internet", navigator.onLine);
+  anota("Sessão aberta", Auth.logado(), Auth.usuario()?Auth.usuario().email:"sem sessão");
+
+  try{
+    await api("safra_fazendas?select=id&limit=1");
+    anota("Tabela safra_fazendas", true);
+  }catch(e){ anota("Tabela safra_fazendas", false, explicaErro(e.message)); }
+
+  try{
+    await api("safra_estado?select=chave&limit=1");
+    anota("Tabela safra_estado", true);
+  }catch(e){ anota("Tabela safra_estado", false, explicaErro(e.message)); }
+
+  try{
+    const m = await api("safra_membros?select=fazenda_id,papel");
+    anota("Suas fazendas na nuvem", true, (m||[]).length+" vínculo(s)");
+  }catch(e){ anota("Suas fazendas na nuvem", false, explicaErro(e.message)); }
+
+  const f = fazendas()[0];
+  if(f){
+    try{
+      await api("safra_fazendas", { method:"POST",
+        prefer:"resolution=merge-duplicates,return=minimal",
+        body:{ id:f.id, nome:f.nome, safra:f.safra||null } });
+      anota("Gravar uma fazenda", true);
+    }catch(e){ anota("Gravar uma fazenda", false, explicaErro(e.message)); }
+
+    try{
+      await api("safra_estado", { method:"POST",
+        prefer:"resolution=merge-duplicates,return=minimal",
+        body:{ fazenda_id:f.id, chave:"teste", dados:{ok:true} } });
+      anota("Gravar um bloco", true);
+      try{ await api("safra_estado?fazenda_id=eq."+encodeURIComponent(f.id)+"&chave=eq.teste",
+        {method:"DELETE", prefer:"return=minimal"}); }catch(e){}
+    }catch(e){ anota("Gravar um bloco", false, explicaErro(e.message)); }
+  }
+
+  const falhou = passos.find(p=>!p.ok);
+  document.getElementById("dg-res").innerHTML =
+    '<div class="dg">'+passos.map(p=>
+      '<div class="dg-l '+(p.ok?"ok":"nao")+'"><span>'+(p.ok?"✓":"✕")+'</span>'+
+      '<b>'+esc(p.nome)+'</b>'+(p.detalhe?'<u>'+esc(p.detalhe)+'</u>':'')+'</div>').join("")+'</div>'+
+    (falhou ? '<p class="resumo-obs"><b>Travou em:</b> '+esc(falhou.nome)+'. '+esc(falhou.detalhe)+'</p>'
+            : '<p class="resumo-obs">Tudo respondeu. Toque em <b>Tentar agora</b> no aviso amarelo.</p>');
+}
+
 /* ═══════════════════════════════════════════════════
    ENTRAR NA CONTA
    ═══════════════════════════════════════════════════ */
@@ -2226,8 +2329,15 @@ function banners(){
   let h="";
   if(!navigator.onLine)
     h+='<div class="banner err">Sem internet agora. Pode continuar lançando — tudo sobe sozinho quando o sinal voltar.</div>';
-  else if(Sync.pending())
-    h+='<div class="banner warn">'+Sync.pending()+' lançamento(s) aguardando envio para a nuvem.</div>';
+  else if(Sync.pending()){
+    const e = Store.get("sync_erro", "");
+    h+='<div class="banner '+(e?"err":"warn")+'">'+
+      Sync.pending()+' lançamento(s) aguardando envio.'+
+      (e?' <b>'+esc(explicaErro(e))+'</b>':'')+
+      ' <button class="banner-btn" onclick="tentarSync()">Tentar agora</button>'+
+      (e?' <button class="banner-btn" onclick="modalDiagnostico()">Diagnóstico</button>':'')+
+    '</div>';
+  }
   if(!Store.persistent())
     h+='<div class="banner err">Este navegador não está guardando dados. Adicione o app à tela de início.</div>';
   return h;
