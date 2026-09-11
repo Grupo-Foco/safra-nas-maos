@@ -602,6 +602,60 @@ a.btn-act{display:inline-block;text-decoration:none;line-height:1.3}
   .ta-mid b{font-size:32px}
 }
 
+/* ── Cotações ────────────────────────────── */
+.cot-card{background:var(--card);border:1px solid var(--line);border-top:4px solid var(--gold);
+  border-radius:13px;padding:20px 22px 6px;margin-bottom:16px;overflow:hidden}
+.cot-top{display:flex;align-items:flex-start;gap:24px;flex-wrap:wrap;margin-bottom:6px}
+.cot-rot{display:block;color:var(--muted);font-family:var(--mono);font-size:10.5px;
+  font-weight:700;letter-spacing:.09em;margin-bottom:5px}
+.cot-val b{display:block;font-size:36px;font-weight:800;color:var(--green);
+  letter-spacing:-.03em;line-height:1;font-variant-numeric:tabular-nums}
+.cot-val u{display:inline-block;text-decoration:none;margin-top:7px;font-family:var(--mono);
+  font-size:12.5px;font-weight:700;padding:3px 9px;border-radius:6px}
+.cot-val u.sobe{background:var(--leaf-soft);color:var(--leaf-dk)}
+.cot-val u.desce{background:var(--red-soft);color:var(--red)}
+.cot-lados{margin-left:auto;display:flex;gap:20px;flex-wrap:wrap}
+.cot-lados span{display:flex;flex-direction:column;gap:2px;font-family:var(--mono);
+  font-size:14px;font-weight:700;color:var(--green)}
+.cot-lados i,.cot-pe i{font-style:normal;color:var(--muted);font-size:10px;font-weight:600;
+  letter-spacing:.07em;text-transform:uppercase}
+.spark{display:block;width:100%;height:110px;margin:4px 0}
+.cot-pe{display:flex;gap:24px;flex-wrap:wrap;border-top:1px solid var(--line-soft);
+  padding:12px 0;margin-top:2px}
+.cot-pe span{display:flex;flex-direction:column;gap:2px;font-family:var(--mono);
+  font-size:13.5px;font-weight:700;color:var(--green)}
+.ptax{display:flex;align-items:center;gap:18px;flex-wrap:wrap;background:var(--card);
+  border:1px solid var(--line);border-left:4px solid var(--green);border-radius:11px;
+  padding:15px 18px;margin-bottom:16px}
+.ptax b{display:block;color:var(--green);font-size:14.5px;font-weight:800}
+.ptax span{color:var(--muted);font-size:12px}
+.ptax-v{margin-left:auto;display:flex;gap:20px}
+.ptax-v span{display:flex;flex-direction:column;gap:2px;font-family:var(--mono);
+  font-size:14px;font-weight:700;color:var(--green)}
+.ptax-v i{font-style:normal;color:var(--muted);font-size:10px;letter-spacing:.07em;text-transform:uppercase}
+.cot-up{color:var(--leaf-dk);font-weight:700}
+.cot-down{color:var(--red);font-weight:700}
+.fontes{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
+.fonte{display:flex;flex-direction:column;gap:3px;background:var(--card);border:1px solid var(--line);
+  border-radius:11px;padding:15px 17px;text-decoration:none}
+.fonte:hover{border-color:var(--gold);box-shadow:0 2px 10px rgba(34,57,43,.07)}
+.fonte b{color:var(--green);font-size:15px;font-weight:800}
+.fonte span{color:var(--muted);font-size:12.5px}
+.fonte u{text-decoration:none;color:var(--gold-dk);font-family:var(--mono);
+  font-size:11px;font-weight:700;margin-top:4px}
+@media(max-width:640px){
+  .cot-val b{font-size:30px}
+  .cot-lados,.ptax-v{margin-left:0;width:100%;gap:16px}
+  .cot-pe{gap:16px}
+}
+
+input.auto{background:var(--leaf-soft)!important;border-color:var(--leaf)!important;
+  color:var(--leaf-dk)!important;font-family:var(--mono);font-weight:800;text-align:right;
+  cursor:default}
+input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!important;
+  color:var(--red)!important}
+.dica b.erro{color:var(--red)}
+
 @media(max-width:640px){
   body{font-size:14.5px}
   .wrap{padding:16px 12px 34px}
@@ -632,7 +686,7 @@ a.btn-act{display:inline-block;text-decoration:none;line-height:1.3}
 
 <script>
 "use strict";
-const APP_VERSION = "1.7.0";
+const APP_VERSION = "1.9.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -1386,6 +1440,87 @@ async function buscarCidade(nome){
   return d.results || [];
 }
 
+
+/* ═══════════════════════════════════════════════════
+   COTAÇÃO DO DÓLAR
+   Comercial: AwesomeAPI (aberta, 100 mil consultas/mês).
+   Oficial: PTAX do Banco Central (aberta, sem chave).
+   A última consulta fica guardada para abrir sem sinal.
+   ═══════════════════════════════════════════════════ */
+const API_USD  = "https://economia.awesomeapi.com.br/json/daily/USD-BRL/";
+const API_PTAX = "https://olinda.bcb.gov.br/olinda/servico/PTAX/versao/v1/odata/"+
+                 "CotacaoDolarPeriodo(dataInicial=@di,dataFinalCotacao=@df)";
+
+function kDolar(){ return "cotacao_usd"; }
+function dolarCache(){ return Store.get(kDolar(), null); }
+
+function ddmmaaaaUS(d){
+  return String(d.getMonth()+1).padStart(2,"0")+"-"+
+         String(d.getDate()).padStart(2,"0")+"-"+d.getFullYear();
+}
+
+async function buscarDolar(dias){
+  const n = dias || 30;
+  const r = await fetch(API_USD + n);
+  if(!r.ok) throw new Error("falha");
+  const bruto = await r.json();
+  if(!Array.isArray(bruto) || !bruto.length) throw new Error("vazio");
+  const serie = bruto.map(x=>({
+    ts: Number(x.timestamp)*1000,
+    venda: Number(x.bid), compra: Number(x.ask),
+    alta: Number(x.high), baixa: Number(x.low),
+    var_abs: Number(x.varBid), var_pct: Number(x.pctChange)
+  })).sort((a,b)=>a.ts-b.ts);
+
+  let ptax = null;
+  try{
+    const hoje=new Date(), ini=new Date(hoje.getTime()-12*86400000);
+    const u = API_PTAX+"?@di='"+ddmmaaaaUS(ini)+"'&@df='"+ddmmaaaaUS(hoje)+
+              "'&$orderby=dataHoraCotacao%20desc&$top=1&$format=json";
+    const rp = await fetch(u);
+    if(rp.ok){
+      const dp = await rp.json();
+      const v = dp && dp.value && dp.value[0];
+      if(v) ptax = { compra:Number(v.cotacaoCompra), venda:Number(v.cotacaoVenda),
+                     data:String(v.dataHoraCotacao||"").slice(0,10) };
+    }
+  }catch(e){ /* PTAX é complemento: se falhar, segue com o comercial */ }
+
+  const pacote = { buscado_em:new Date().toISOString(), serie, ptax };
+  Store.set(kDolar(), pacote);
+  return pacote;
+}
+
+/* Estatísticas da série para o painel */
+function resumoDolar(p){
+  if(!p || !p.serie || !p.serie.length) return null;
+  const s = p.serie, ult = s[s.length-1], pri = s[0];
+  const vals = s.map(x=>x.venda);
+  const max = Math.max(...vals), min = Math.min(...vals);
+  const media = vals.reduce((a,b)=>a+b,0)/vals.length;
+  const varPeriodo = pri.venda>0 ? (ult.venda-pri.venda)/pri.venda*100 : 0;
+  return { atual:ult, primeiro:pri, max, min, media, varPeriodo, dias:s.length };
+}
+
+/* Mini gráfico em SVG, sem biblioteca */
+function sparkDolar(serie, larg, alt){
+  const W=larg||640, H=alt||120, P=6;
+  const v=serie.map(x=>x.venda);
+  const mx=Math.max(...v), mn=Math.min(...v), amp=(mx-mn)||1;
+  const px=i=>P+(i/(v.length-1||1))*(W-2*P);
+  const py=x=>P+(1-(x-mn)/amp)*(H-2*P);
+  const linha=v.map((x,i)=>(i?"L":"M")+px(i).toFixed(1)+","+py(x).toFixed(1)).join(" ");
+  const area=linha+" L"+px(v.length-1).toFixed(1)+","+(H-P)+" L"+px(0).toFixed(1)+","+(H-P)+" Z";
+  const sobe=v[v.length-1]>=v[0];
+  const cor=sobe?"var(--leaf-dk)":"var(--red)";
+  return '<svg class="spark" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" aria-hidden="true">'+
+    '<path d="'+area+'" fill="'+cor+'" opacity=".10"/>'+
+    '<path d="'+linha+'" fill="none" stroke="'+cor+'" stroke-width="2" '+
+      'stroke-linejoin="round" stroke-linecap="round"/>'+
+    '<circle cx="'+px(v.length-1).toFixed(1)+'" cy="'+py(v[v.length-1]).toFixed(1)+
+      '" r="3.5" fill="'+cor+'"/></svg>';
+}
+
 /* ═══════════════════════════════════════════════════
    MÓDULOS
    ═══════════════════════════════════════════════════ */
@@ -1402,7 +1537,8 @@ const MODULOS = [
     { id:"colheita",  ic:"colheita",  nome:"Colheita", desc:"Cargas, caminhões e produtividade por talhão", pronto:true, resumo:f=>{const n=cargasDe(f.id).length; return n? n+" cargas lançadas" : "Lance a primeira carga";} }
   ]},
   { grupo:"Dinheiro e máquinas", itens:[
-    { id:"cotacoes",   ic:"cotacoes",   nome:"Cotações", desc:"Dólar, mercado e preços da região", pronto:false },
+    { id:"cotacoes",   ic:"cotacoes",   nome:"Cotações", desc:"Dólar automático e atalhos de mercado", pronto:true,
+      resumo:()=>{const R=resumoDolar(dolarCache()); return R? "R$ "+nf(R.atual.venda,4)+" · "+(R.atual.var_pct>=0?"+":"")+nf(R.atual.var_pct,2)+"%" : "Toque para ver o dólar";} },
     { id:"financeiro", ic:"financeiro", nome:"Financeiro", desc:"Custos, planejamento, vendas e compras", pronto:false },
     { id:"diesel",     ic:"diesel",     nome:"Diesel e manutenção", desc:"Abastecimento e trocas de óleo", pronto:false }
   ]},
@@ -1441,7 +1577,7 @@ function render(){
   let h = topbar();
   if(App.tela==="fazendas")      h += telaFazendas();
   else if(App.tela==="fazenda")  h += telaFazenda();
-  else if(App.tela==="modulo")   h += (App.moduloId==="talhoes" ? telaTalhoes() : App.moduloId==="colheita" ? telaColheita() : App.moduloId==="chuva" ? telaChuva() : App.moduloId==="operacoes" ? telaOperacoes() : App.moduloId==="lavoura" ? telaLavoura() : App.moduloId==="estoque" ? telaEstoque() : App.moduloId==="ndvi" ? telaMapa() : App.moduloId==="tempo" ? telaTempo() : telaModulo());
+  else if(App.tela==="modulo")   h += (App.moduloId==="talhoes" ? telaTalhoes() : App.moduloId==="colheita" ? telaColheita() : App.moduloId==="chuva" ? telaChuva() : App.moduloId==="operacoes" ? telaOperacoes() : App.moduloId==="lavoura" ? telaLavoura() : App.moduloId==="estoque" ? telaEstoque() : App.moduloId==="ndvi" ? telaMapa() : App.moduloId==="tempo" ? telaTempo() : App.moduloId==="cotacoes" ? telaCotacoes() : telaModulo());
   else if(App.tela==="panorama") h += telaPanorama();
   document.getElementById("root").innerHTML = h;
   Sync.render();
@@ -2772,6 +2908,94 @@ function gravarLocal(){
   atualizarTempo();
 }
 
+/* ═══════════════════════════════════════════════════
+   TELA — Cotações
+   ═══════════════════════════════════════════════════ */
+const FONTES_COT = [
+  ["Valor Data","https://valor.globo.com/valor-data/","Dólar, juros e índices"],
+  ["Notícias Agrícolas","https://www.noticiasagricolas.com.br/cotacoes/soja","Soja, milho e boi · CEPEA"],
+  ["Agrolink","https://www.agrolink.com.br/cotacoes/","Preço ao produtor por praça"]
+];
+
+function telaCotacoes(){
+  const f = acharFazenda(App.fazendaId);
+  if(!f){ App.tela="fazendas"; return telaFazendas(); }
+  const p = dolarCache(), R = resumoDolar(p);
+
+  let h = '<div class="wrap wrap-wide">';
+  h += '<div class="farm-head">'+
+    '<button class="btn-back" onclick="irPara(\'fazenda\')">← '+esc(f.nome)+'</button>'+
+    '<div class="farm-head-mid"><h1>Cotações</h1>'+
+    '<p>Dólar comercial e PTAX oficial do Banco Central</p></div></div>';
+
+  h += '<div class="acts">'+
+    '<button class="btn-act primary" onclick="atualizarDolar()">Atualizar</button>'+
+    (p?'<span class="dica">Consultado em '+esc(quando(p.buscado_em))+'</span>':'')+'</div>';
+
+  if(!R){
+    h += '<div class="empty"><strong>Sem cotação ainda</strong>'+
+      'Toque em Atualizar com internet. Depois o último valor fica disponível offline.</div>';
+  }else{
+    const a = R.atual;
+    const sobe = a.var_pct >= 0;
+    h += '<div class="cot-card">'+
+      '<div class="cot-top">'+
+        '<div class="cot-val"><span class="cot-rot">DÓLAR COMERCIAL · VENDA</span>'+
+          '<b>R$ '+nf(a.venda,4)+'</b>'+
+          '<u class="'+(sobe?"sobe":"desce")+'">'+(sobe?"▲":"▼")+' '+
+            nf(Math.abs(a.var_pct),2)+'% · '+(sobe?"+":"−")+nf(Math.abs(a.var_abs),4)+'</u></div>'+
+        '<div class="cot-lados">'+
+          '<span><i>Compra</i>R$ '+nf(a.compra,4)+'</span>'+
+          '<span><i>Máxima</i>R$ '+nf(a.alta,4)+'</span>'+
+          '<span><i>Mínima</i>R$ '+nf(a.baixa,4)+'</span>'+
+        '</div></div>'+
+      sparkDolar(p.serie)+
+      '<div class="cot-pe">'+
+        '<span><i>'+R.dias+' dias</i>'+(R.varPeriodo>=0?"+":"")+nf(R.varPeriodo,2)+'%</span>'+
+        '<span><i>Média</i>R$ '+nf(R.media,4)+'</span>'+
+        '<span><i>Menor</i>R$ '+nf(R.min,4)+'</span>'+
+        '<span><i>Maior</i>R$ '+nf(R.max,4)+'</span>'+
+      '</div></div>';
+
+    if(p.ptax)
+      h += '<div class="ptax"><div><b>PTAX · Banco Central</b>'+
+        '<span>Fechamento de '+dataBR(p.ptax.data)+' · usado como referência em contrato</span></div>'+
+        '<div class="ptax-v"><span><i>Compra</i>R$ '+nf(p.ptax.compra,4)+'</span>'+
+        '<span><i>Venda</i>R$ '+nf(p.ptax.venda,4)+'</span></div></div>';
+
+    h += '<div class="sec-head"><span>ÚLTIMOS DIAS</span><i></i></div>'+
+      '<div class="tbl"><table><thead><tr><th>Data</th><th class="num">Venda</th>'+
+      '<th class="num">Compra</th><th class="num hide-sm">Mínima</th>'+
+      '<th class="num hide-sm">Máxima</th><th class="num">Variação</th></tr></thead><tbody>';
+    p.serie.slice().reverse().slice(0,15).forEach(x=>{
+      const s = x.var_pct>=0;
+      h += '<tr><td class="mono">'+new Date(x.ts).toLocaleDateString("pt-BR")+'</td>'+
+        '<td class="num mono forte">'+nf(x.venda,4)+'</td>'+
+        '<td class="num mono">'+nf(x.compra,4)+'</td>'+
+        '<td class="num mono hide-sm">'+nf(x.baixa,4)+'</td>'+
+        '<td class="num mono hide-sm">'+nf(x.alta,4)+'</td>'+
+        '<td class="num mono '+(s?"cot-up":"cot-down")+'">'+(s?"+":"")+nf(x.var_pct,2)+'%</td></tr>';
+    });
+    h += '</tbody></table></div>';
+  }
+
+  h += '<div class="sec-head"><span>SOJA, MILHO E MERCADO</span><i></i></div>'+
+    '<div class="fontes">'+FONTES_COT.map(([n,u,d])=>
+      '<a class="fonte" href="'+u+'" target="_blank" rel="noopener">'+
+      '<b>'+esc(n)+'</b><span>'+esc(d)+'</span><u>abrir ↗</u></a>').join("")+'</div>'+
+    '<p class="resumo-obs">O dólar vem automático e sem custo. Soja e milho ficam nos atalhos porque '+
+    'o indicador CEPEA/ESALQ é licenciado para uso não comercial — trazer para dentro do app exige '+
+    'contrato com Agrolink, Cedro ou o próprio CEPEA.</p>';
+  return h+'</div>';
+}
+
+async function atualizarDolar(){
+  if(!navigator.onLine){ toast("Sem internet — mostrando a última consulta"); return; }
+  toast("Buscando cotação…");
+  try{ await buscarDolar(30); toast("Cotação atualizada"); render(); }
+  catch(e){ toast("Não consegui buscar agora. Tente de novo."); }
+}
+
 function telaModulo(){
   const f=acharFazenda(App.fazendaId), m=acharModulo(App.moduloId);
   const nome = m ? m.nome
@@ -2927,20 +3151,63 @@ function modalCarga(id){
 function desenharItens(){
   const f = acharFazenda(App.fazendaId);
   const tals = talhoesDe(f.id).slice().sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR",{numeric:true}));
-  document.getElementById("itens").innerHTML = _itensCarga.map((it,i)=>
-    '<div class="item">'+
+  const ult = _itensCarga.length - 1;
+  document.getElementById("itens").innerHTML = _itensCarga.map((it,i)=>{
+    const auto = i === ult;
+    return '<div class="item">'+
       '<select onchange="_itensCarga['+i+'].talhao_id=this.value">'+
         tals.map(t=>'<option value="'+t.id+'" '+(it.talhao_id===t.id?"selected":"")+'>'+esc(t.nome)+'</option>').join("")+
       '</select>'+
-      '<input type="number" inputmode="decimal" placeholder="kg (opcional)" value="'+(it.kg||"")+'" '+
-        'oninput="_itensCarga['+i+'].kg=this.value">'+
+      (auto
+        ? '<input id="it-resto" class="auto" type="text" readonly tabindex="-1" '+
+          'title="Calculado: o que sobra da carga" value="">'
+        : '<input type="number" inputmode="decimal" placeholder="kg" value="'+(it.kg||"")+'" '+
+          'oninput="_itensCarga['+i+'].kg=this.value;atualizarRateio()">')+
       (_itensCarga.length>1?'<button type="button" onclick="remItemCarga('+i+')">✕</button>':'<span></span>')+
-    '</div>').join("") +
-    (_itensCarga.length>1?'<p class="dica">Sem os kg, a carga é dividida em partes iguais entre os talhões.</p>':"");
+    '</div>';
+  }).join("") +
+    '<p class="dica" id="dica-rateio"></p>';
+  atualizarRateio();
 }
+
+/* O último talhão recebe o que sobrou da carga — nunca dá para
+   somar mais ou menos que o peso líquido. */
+function restanteCarga(){
+  const g=id=>parseFloat(String((document.getElementById(id)||{}).value||"").replace(",","."))||0;
+  const liq = Math.max(0, g("k-bruto") - g("k-tara"));
+  const usado = _itensCarga.slice(0,-1)
+    .reduce((s,i)=>s+(parseFloat(String(i.kg).replace(",","."))||0), 0);
+  return { liq, usado, resto: liq - usado };
+}
+
+function atualizarRateio(){
+  const r = restanteCarga();
+  const el = document.getElementById("it-resto");
+  const dica = document.getElementById("dica-rateio");
+  if(el){
+    el.value = r.liq > 0 ? n0(r.resto) + " kg" : "—";
+    el.classList.toggle("estouro", r.resto < 0);
+  }
+  if(_itensCarga.length) _itensCarga[_itensCarga.length-1].kg = r.resto > 0 ? r.resto : 0;
+  if(dica){
+    if(r.liq <= 0)
+      dica.innerHTML = 'Informe o peso bruto e a tara para dividir a carga.';
+    else if(r.resto < 0)
+      dica.innerHTML = '<b class="erro">Passou '+n0(-r.resto)+' kg do peso da carga.</b> '+
+        'Ajuste os valores acima — a soma não pode ultrapassar '+n0(r.liq)+' kg.';
+    else if(_itensCarga.length === 1)
+      dica.innerHTML = 'A carga inteira ('+n0(r.liq)+' kg) fica neste talhão.';
+    else
+      dica.innerHTML = 'O último talhão recebe o que sobrou: '+n0(r.resto)+' de '+n0(r.liq)+' kg.';
+  }
+}
+
 function addItemCarga(){
   const f=acharFazenda(App.fazendaId), t=talhoesDe(f.id);
-  _itensCarga.push({talhao_id:t[0]?t[0].id:"", kg:""}); desenharItens();
+  const usados = _itensCarga.map(x=>x.talhao_id);
+  const livre = t.find(x=>!usados.includes(x.id)) || t[0];
+  _itensCarga.push({talhao_id:livre?livre.id:"", kg:""});
+  desenharItens();
 }
 function remItemCarga(i){ _itensCarga.splice(i,1); desenharItens(); }
 
@@ -2961,6 +3228,7 @@ function recalcCarga(){
     '<span><i>Sacas estimadas</i><b class="ok">'+nf(r.sacas,1)+' sc</b></span>'+
     (u>0?'<span><i>Umidade fazenda</i><b>'+nf(u,1)+'%</b></span>':'')+
     '<span class="nota">Valor de saída. As sacas confirmadas saem na baixa, com os descontos do armazém.</span>';
+  atualizarRateio();
 }
 
 
@@ -2974,6 +3242,10 @@ function gravarCarga(id){
   if(tara>=bruto){ toast("A tara precisa ser menor que o peso bruto"); return; }
   const itens=_itensCarga.filter(i=>i.talhao_id);
   if(!itens.length){ toast("Escolha o talhão de origem"); return; }
+  const r=restanteCarga();
+  if(r.resto < 0){ toast("A divisão passa "+n0(-r.resto)+" kg do peso da carga"); return; }
+  const dup=itens.map(i=>i.talhao_id);
+  if(new Set(dup).size !== dup.length){ toast("O mesmo talhão está repetido"); return; }
   const dest=g("k-dest");
   if(!dest){ toast("Escolha o destino da carga"); return; }
 
@@ -2983,7 +3255,9 @@ function gravarCarga(id){
     romaneio:g("k-rom"), destino:dest,
     placa: cm?cm.placa:"", motorista:g("k-mot"),
     peso_bruto:bruto, tara:tara, umidade:n("k-umid"), obs:g("k-obs"),
-    talhoes: itens.map(i=>({talhao_id:i.talhao_id, kg:parseFloat(String(i.kg).replace(",","."))||0}))
+    talhoes: itens.map((i,k)=>({ talhao_id:i.talhao_id,
+      kg: k===itens.length-1 ? Math.max(0,r.resto)
+                             : (parseFloat(String(i.kg).replace(",","."))||0) }))
   }, id);
   fecharModal(); toast(id?"Carga atualizada":"Carga lançada"); render();
 }
