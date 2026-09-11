@@ -1,13 +1,15 @@
 /* Safra nas Mãos — service worker
    Guarda o app no aparelho para abrir sem internet.
-   Troque CACHE ao publicar uma versão nova. */
+   CACHE muda a cada publicação: é o que dispara a atualização. */
 
-const CACHE = "safra-v1.3.0";
+const CACHE = "safra-v1.5.0";
 const SHELL = ["./", "./index.html", "./manifest.json", "./icone.svg", "./icone-maskable.svg"];
 
 self.addEventListener("install", e => {
   e.waitUntil(
-    caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())
+    caches.open(CACHE)
+      .then(c => c.addAll(SHELL.map(u => new Request(u, {cache:"reload"}))))
+      .then(() => self.skipWaiting())
   );
 });
 
@@ -19,18 +21,25 @@ self.addEventListener("activate", e => {
   );
 });
 
+self.addEventListener("message", e => {
+  if (e.data === "pular-espera") self.skipWaiting();
+});
+
 self.addEventListener("fetch", e => {
   const req = e.request;
-
-  // Chamadas ao Supabase nunca vêm do cache — a fila local cuida do offline.
   if (req.method !== "GET" || req.url.includes("/rest/v1/")) return;
 
-  // Rede primeiro, cache como reserva: abre sempre a versão mais nova quando há sinal.
+  // O HTML e o próprio app nunca saem do cache do navegador:
+  // sem isso, o GitHub Pages devolve a versão antiga por até 10 minutos.
+  const ehApp = req.mode === "navigate" ||
+                /\.(html|js|json|svg)$/.test(new URL(req.url).pathname) ||
+                new URL(req.url).pathname.endsWith("/");
+
   e.respondWith(
-    fetch(req)
+    fetch(ehApp ? new Request(req, {cache:"no-store"}) : req)
       .then(res => {
-        const copy = res.clone();
-        caches.open(CACHE).then(c => c.put(req, copy)).catch(() => {});
+        const copia = res.clone();
+        caches.open(CACHE).then(c => c.put(req, copia)).catch(() => {});
         return res;
       })
       .catch(() => caches.match(req).then(r => r || caches.match("./index.html")))
