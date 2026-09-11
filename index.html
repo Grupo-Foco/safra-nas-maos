@@ -767,7 +767,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.2.0";
+const APP_VERSION = "2.4.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -842,8 +842,8 @@ const Store = {
    Vazio = o app roda 100% local, como antes.
    ═══════════════════════════════════════════════════ */
 const SUPABASE = {
-  url: "",
-  anonKey: "",
+  url: "https://zdckrfthpfpnzcxzaghd.supabase.co",
+  anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkY2tyZnRocGZwbnpjeHphZ2hkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzNDIzOTksImV4cCI6MjA4ODkxODM5OX0.940y3Nhso4mHjSr8L1D_eRoQUH6Yg5uiqZ6sg4qRD7Y",
   ligado(){ return !!(this.url && this.anonKey); }
 };
 
@@ -950,7 +950,7 @@ const Sync = {
         if(chave === "fazendas"){
           const l = fazendas();
           for(const f of l){
-            await api("fazendas", { method:"POST",
+            await api("safra_fazendas", { method:"POST",
               prefer:"resolution=merge-duplicates,return=minimal",
               body:{ id:f.id, nome:f.nome, produtor:f.produtor||null,
                      municipio:f.municipio||null, uf:f.uf||null, safra:f.safra||null,
@@ -959,7 +959,7 @@ const Sync = {
         }else{
           const [_, fid, bloco] = chave.match(/^faz_(.+)_([a-z]+)$/) || [];
           if(!fid) continue;
-          await api("estado", { method:"POST",
+          await api("safra_estado", { method:"POST",
             prefer:"resolution=merge-duplicates,return=minimal",
             headers:{ "Prefer":"resolution=merge-duplicates,return=minimal" },
             body:{ fazenda_id:fid, chave:bloco, dados: Store.get(chave, null) } });
@@ -972,7 +972,7 @@ const Sync = {
   },
 
   async baixar(){
-    const fz = await api("fazendas?select=*");
+    const fz = await api("safra_fazendas?select=*");
     const locais = fazendas();
     const mapa = {}; locais.forEach(f=>mapa[f.id]=f);
     (fz||[]).forEach(r=>{
@@ -985,7 +985,7 @@ const Sync = {
     });
     Store.set("fazendas", Object.values(mapa));
 
-    const est = await api("estado?select=fazenda_id,chave,dados,atualizado_em");
+    const est = await api("safra_estado?select=fazenda_id,chave,dados,atualizado_em");
     const sujos = this.sujos();
     (est||[]).forEach(r=>{
       const chave = "faz_"+r.fazenda_id+"_"+r.chave;
@@ -2076,7 +2076,7 @@ async function enviarLogin(){
     }
     Store.set("ult_email", email);
     Store.set("perfil", { nome: email.split("@")[0] });
-    try{ await api("rpc/aceitar_convites", {method:"POST", body:{}}); }catch(e){}
+    try{ await api("rpc/safra_aceitar_convites", {method:"POST", body:{}}); }catch(e){}
     toast("Bem-vindo");
     await primeiraSincronizacao();
     render();
@@ -2138,8 +2138,8 @@ async function carregarEquipe(){
   const f=acharFazenda(App.fazendaId);
   const box=document.getElementById("eq-lista"); if(!box) return;
   try{
-    const m = await api("membros?fazenda_id=eq."+encodeURIComponent(f.id)+"&select=email,papel,user_id");
-    const c = await api("convites?fazenda_id=eq."+encodeURIComponent(f.id)+"&select=id,email,papel");
+    const m = await api("safra_membros?fazenda_id=eq."+encodeURIComponent(f.id)+"&select=email,papel,user_id");
+    const c = await api("safra_convites?fazenda_id=eq."+encodeURIComponent(f.id)+"&select=id,email,papel");
     const eu = Auth.usuario();
     let h = '<div class="lista-cam">';
     (m||[]).forEach(x=>{
@@ -2162,7 +2162,7 @@ async function convidar(){
   const email=(document.getElementById("eq-email").value||"").trim();
   if(!email || !email.includes("@")){ toast("Informe um e-mail válido"); return; }
   try{
-    await api("convites", { method:"POST",
+    await api("safra_convites", { method:"POST",
       prefer:"resolution=merge-duplicates,return=minimal",
       body:{ fazenda_id:f.id, email:email.toLowerCase(),
              papel:document.getElementById("eq-papel").value } });
@@ -2173,7 +2173,7 @@ async function convidar(){
 }
 
 async function cancelarConvite(id){
-  try{ await api("convites?id=eq."+id, {method:"DELETE", prefer:"return=minimal"});
+  try{ await api("safra_convites?id=eq."+id, {method:"DELETE", prefer:"return=minimal"});
     toast("Convite cancelado"); carregarEquipe(); }
   catch(e){ toast("Não consegui cancelar"); }
 }
