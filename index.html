@@ -7,240 +7,219 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Safra">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#123a63">
+<meta name="theme-color" content="#4E4034">
 <link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='42' fill='%23123a63'/%3E%3Ctext x='96' y='130' font-size='104' text-anchor='middle'%3E%F0%9F%8C%B1%3C/text%3E%3C/svg%3E">
-<title>Safra nas Mãos</title>
+<link rel="icon" href="icone.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icone.svg">
+<title>Safra nas Mãos · FOCO Agropecuária</title>
 <style>
 :root{
-  --navy:#123a63;
-  --navy-deep:#0d2b49;
-  --title:#16365c;
-  --green:#4a9c3d;
-  --green-dark:#3d8b35;
-  --green-soft:#eef7ec;
-  --bg:#f2f6f1;
-  --card:#ffffff;
-  --line:#dfe6dd;
-  --text:#203040;
-  --muted:#6b7b88;
-  --red:#c0392b;
-  --red-soft:#fdeced;
-  --amber:#b8860b;
-  --amber-soft:#fdf6e3;
+  /* Marca FOCO */
+  --brown:#4E4034;
+  --brown-deep:#3A3028;
+  --brown-soft:#F0EDE7;
+  --leaf:#7FA646;
+  --leaf-lt:#A3C169;
+  --leaf-dk:#4A7C2F;
+  --leaf-soft:#EFF4E6;
+
+  --bg:#F4F6F0;
+  --card:#FFFFFF;
+  --line:#E2E0D6;
+  --text:#3B352E;
+  --muted:#7C766C;
+  --red:#B24634;
+  --red-soft:#FBEDEA;
+  --amber:#9A7226;
+  --amber-soft:#FBF3E2;
   --r:10px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html{-webkit-text-size-adjust:100%}
 body{
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
-  background:var(--bg);color:var(--text);
-  font-size:15px;line-height:1.5;
-  -webkit-font-smoothing:antialiased;
-  padding-bottom:env(safe-area-inset-bottom);
+  background:var(--bg);color:var(--text);font-size:15px;line-height:1.5;
+  -webkit-font-smoothing:antialiased;padding-bottom:env(safe-area-inset-bottom);
 }
-button,input,select,textarea{font-family:inherit;font-size:inherit}
+button,input,select{font-family:inherit;font-size:inherit}
 button{cursor:pointer}
-:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+:focus-visible{outline:2px solid var(--leaf);outline-offset:2px}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+svg{display:block}
 
-/* ── Top bar ─────────────────────────────────────── */
+/* ── Top bar ─────────────────────────────── */
 .topbar{
-  background:var(--navy);color:#fff;
-  padding:calc(10px + env(safe-area-inset-top)) 16px 10px;
+  background:var(--brown);color:#fff;
+  padding:calc(9px + env(safe-area-inset-top)) 16px 9px;
   display:flex;align-items:center;gap:12px;flex-wrap:wrap;
-  border-bottom:3px solid var(--green);
+  border-bottom:3px solid var(--leaf);
 }
-.brand{display:flex;align-items:center;gap:8px;font-weight:700;font-size:16px;letter-spacing:-.01em}
-.brand .mark{
-  width:26px;height:26px;border-radius:6px;background:var(--green);
-  display:grid;place-items:center;font-size:15px
-}
+.brand{display:flex;align-items:center;gap:9px}
+.brand svg{width:30px;height:30px;flex:none}
+.brand-txt{line-height:1.1}
+.brand-txt b{display:block;font-size:15.5px;font-weight:800;letter-spacing:-.01em}
+.brand-txt span{display:block;font-size:10.5px;color:var(--leaf-lt);letter-spacing:.1em;font-weight:600}
 .topbar-right{margin-left:auto;display:flex;align-items:center;gap:10px;font-size:13px}
 .sync-chip{
-  display:flex;align-items:center;gap:6px;
-  padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;
-  background:rgba(255,255,255,.12)
+  display:flex;align-items:center;gap:6px;padding:4px 11px;border-radius:20px;
+  font-size:12px;font-weight:600;background:rgba(255,255,255,.13)
 }
-.sync-dot{width:7px;height:7px;border-radius:50%;background:var(--green)}
-.sync-chip.off{background:rgba(255,190,60,.22)}
-.sync-chip.off .sync-dot{background:#ffbe3c}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:var(--leaf-lt)}
+.sync-chip.off{background:rgba(240,190,90,.2)}
+.sync-chip.off .sync-dot{background:#E8B455}
 .btn-ghost{
-  background:transparent;border:1px solid rgba(255,255,255,.45);color:#fff;
+  background:transparent;border:1px solid rgba(255,255,255,.4);color:#fff;
   padding:5px 12px;border-radius:6px;font-size:13px;font-weight:600
 }
 .btn-ghost:hover{background:rgba(255,255,255,.12)}
 
-/* ── Banners ─────────────────────────────────────── */
+/* ── Banners ─────────────────────────────── */
 .banner{padding:11px 16px;font-size:14px;text-align:center}
 .banner.err{background:var(--red-soft);color:var(--red)}
-.banner.ok{background:var(--green-soft);color:var(--green-dark);font-weight:600}
 .banner.warn{background:var(--amber-soft);color:var(--amber)}
 
-/* ── Layout ──────────────────────────────────────── */
+/* ── Layout ──────────────────────────────── */
 .wrap{max-width:900px;margin:0 auto;padding:20px 16px 40px}
 .wrap-wide{max-width:1100px}
 
-/* ── Farm screen ─────────────────────────────────── */
+/* ── Tela fazendas ───────────────────────── */
+.lbl{display:block;color:var(--brown);font-size:13px;font-weight:700;margin-bottom:6px}
 .field-lg{
   width:100%;padding:14px 16px;border:1px solid var(--line);
   border-radius:var(--r);background:#fff;font-size:16px;color:var(--text)
 }
-.field-lg::placeholder{color:#9aa7b0}
+.field-lg::placeholder{color:#A9A69C}
+.field-lg:focus{border-color:var(--leaf);outline:none}
 .btn-primary{
-  width:100%;background:var(--green);color:#fff;border:none;
-  padding:15px;border-radius:var(--r);font-size:17px;font-weight:700;
-  margin-top:12px
+  width:100%;background:var(--leaf-dk);color:#fff;border:none;
+  padding:15px;border-radius:var(--r);font-size:17px;font-weight:700;margin-top:12px
 }
-.btn-primary:hover{background:var(--green-dark)}
-.btn-primary:disabled{background:#aebfa9;cursor:not-allowed}
+.btn-primary:hover{background:#3E6B27}
 
 .panorama{
-  display:block;width:100%;text-align:left;margin-top:16px;
-  background:var(--green-soft);border:1.5px solid var(--green);
-  border-radius:var(--r);padding:14px 16px;color:var(--green-dark);
-  font-size:14px;line-height:1.55
+  display:flex;gap:12px;align-items:flex-start;width:100%;text-align:left;margin-top:16px;
+  background:var(--leaf-soft);border:1.5px solid var(--leaf);border-radius:var(--r);
+  padding:14px 16px;color:var(--leaf-dk);font-size:14px;line-height:1.5
 }
-.panorama b{color:var(--green-dark);font-size:15px}
-.panorama:hover{background:#e4f2e1}
+.panorama b{font-size:15px;display:block;margin-bottom:2px}
+.panorama:hover{background:#E7F0D9}
+.panorama svg{width:24px;height:24px;flex:none;margin-top:2px}
 
 .farm-card{
-  display:flex;align-items:center;gap:12px;width:100%;text-align:left;
-  background:var(--card);border:1px solid var(--line);border-left:5px solid var(--green);
+  display:flex;align-items:center;gap:12px;width:100%;
+  background:var(--card);border:1px solid var(--line);border-left:5px solid var(--leaf);
   border-radius:var(--r);padding:14px 16px;margin-top:10px
 }
-.farm-card:hover{border-color:var(--green);box-shadow:0 1px 6px rgba(18,58,99,.08)}
-.farm-card h3{color:var(--title);font-size:17px;font-weight:700;margin-bottom:2px}
+.farm-card:hover{border-color:var(--leaf);box-shadow:0 1px 7px rgba(78,64,52,.09)}
+.farm-card h3{color:var(--brown);font-size:17px;font-weight:700;margin-bottom:2px}
 .farm-card p{color:var(--muted);font-size:13px}
-.farm-card .chev{margin-left:auto;color:var(--green);font-size:22px;font-weight:700}
-.farm-card .del{
-  margin-left:8px;background:none;border:none;color:#c8d0d6;font-size:17px;padding:4px 6px
-}
+.farm-card .chev{margin-left:auto;color:var(--leaf-dk);font-size:23px;font-weight:700;cursor:pointer}
+.farm-card .del{margin-left:8px;background:none;border:none;color:#CDC9BE;font-size:17px;padding:4px 6px}
 .farm-card .del:hover{color:var(--red)}
 
 .empty{
   text-align:center;padding:36px 20px;color:var(--muted);
   background:var(--card);border:1px dashed var(--line);border-radius:var(--r);margin-top:16px
 }
-.empty strong{display:block;color:var(--title);font-size:16px;margin-bottom:6px}
+.empty strong{display:block;color:var(--brown);font-size:16px;margin-bottom:6px}
+.ver{text-align:center;color:#ADA89D;font-size:12px;margin-top:28px}
 
-.ver{text-align:center;color:#a3b0b8;font-size:12px;margin-top:28px}
-
-/* ── Farm header (screen 2) ──────────────────────── */
-.farm-head{
-  display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap;
-  padding:18px 0 20px
-}
+/* ── Cabeçalho da fazenda ────────────────── */
+.farm-head{display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap;padding:18px 0 20px}
 .btn-back{
   background:var(--card);border:1px solid var(--line);border-radius:8px;
-  padding:8px 14px;font-size:14px;font-weight:600;color:var(--title)
+  padding:8px 14px;font-size:14px;font-weight:600;color:var(--brown)
 }
-.btn-back:hover{border-color:var(--green);color:var(--green-dark)}
-.farm-head-mid h1{color:var(--title);font-size:24px;font-weight:800;letter-spacing:-.02em;line-height:1.15}
+.btn-back:hover{border-color:var(--leaf);color:var(--leaf-dk)}
+.farm-head-mid h1{color:var(--brown);font-size:24px;font-weight:800;letter-spacing:-.02em;line-height:1.15}
 .farm-head-mid p{color:var(--muted);font-size:14px;margin-top:3px}
 .safra-box{margin-left:auto;text-align:right}
 .safra-box label{display:block;color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.06em;margin-bottom:2px}
 .safra-box select{
   border:1px solid var(--line);background:var(--card);border-radius:8px;
-  padding:6px 10px;font-size:18px;font-weight:800;color:var(--title)
+  padding:6px 10px;font-size:18px;font-weight:800;color:var(--brown)
 }
 
-/* ── Hero cards ──────────────────────────────────── */
-.heroes{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:26px}
-.hero{
-  text-align:left;border-radius:14px;padding:20px;border:2px solid;background:var(--card)
-}
-.hero .ic{font-size:30px;display:block;margin-bottom:10px}
-.hero h2{font-size:19px;font-weight:800;color:var(--title);margin-bottom:5px;letter-spacing:-.01em}
+/* ── Cards de destaque ───────────────────── */
+.heroes{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:24px}
+.hero{text-align:left;border-radius:14px;padding:20px;border:2px solid;background:var(--card)}
+.hero .ic{display:block;margin-bottom:11px}
+.hero .ic svg{width:30px;height:30px}
+.hero h2{font-size:19px;font-weight:800;color:var(--brown);margin-bottom:5px;letter-spacing:-.01em}
 .hero p{font-size:13.5px;line-height:1.45}
-.hero-green{border-color:var(--green);background:var(--green-soft)}
-.hero-green p{color:var(--green-dark)}
-.hero-green:hover{background:#e4f2e1}
-.hero-blue{border-color:var(--navy);background:#eef2f8}
-.hero-blue p{color:#3d5f85}
-.hero-blue:hover{background:#e3eaf4}
+.hero-leaf{border-color:var(--leaf);background:var(--leaf-soft);color:var(--leaf-dk)}
+.hero-leaf:hover{background:#E7F0D9}
+.hero-earth{border-color:var(--brown);background:var(--brown-soft);color:#6B5B4A}
+.hero-earth:hover{background:#E8E3DA}
 
-/* ── Sections + module grid ──────────────────────── */
+/* ── Seções e módulos ────────────────────── */
 .sec-head{display:flex;align-items:center;gap:14px;margin:26px 0 14px}
-.sec-head span{
-  color:var(--green-dark);font-size:12.5px;font-weight:800;
-  letter-spacing:.08em;white-space:nowrap
-}
-.sec-head i{flex:1;height:2px;background:var(--green);border-radius:2px;opacity:.7}
+.sec-head span{color:var(--leaf-dk);font-size:12.5px;font-weight:800;letter-spacing:.07em;white-space:nowrap}
+.sec-head i{flex:1;height:2px;background:var(--leaf);border-radius:2px;opacity:.55}
 
 .mods{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .mod{
   text-align:left;background:var(--card);border:1px solid var(--line);
-  border-radius:12px;padding:18px;position:relative
+  border-radius:12px;padding:17px;position:relative
 }
-.mod:hover{border-color:var(--green);box-shadow:0 2px 10px rgba(18,58,99,.07)}
-.mod .ic{font-size:26px;display:block;margin-bottom:10px}
-.mod h3{color:var(--title);font-size:16.5px;font-weight:700;margin-bottom:3px}
+.mod:hover{border-color:var(--leaf);box-shadow:0 2px 11px rgba(78,64,52,.08)}
+.mod .ic{
+  width:42px;height:42px;border-radius:10px;background:var(--leaf-soft);
+  display:grid;place-items:center;margin-bottom:12px;color:var(--leaf-dk)
+}
+.mod .ic svg{width:23px;height:23px}
+.mod h3{color:var(--brown);font-size:16.5px;font-weight:700;margin-bottom:3px}
 .mod p{color:var(--muted);font-size:13px;line-height:1.4}
 .mod .tag{
   position:absolute;top:14px;right:14px;font-size:10px;font-weight:800;
   padding:3px 7px;border-radius:5px;letter-spacing:.03em
 }
-.tag-soon{background:#f0f3f5;color:#8b98a3}
-.tag-ready{background:var(--green-soft);color:var(--green-dark)}
+.tag-soon{background:#F2F1EC;color:#9B958A}
+.tag-ready{background:var(--leaf-soft);color:var(--leaf-dk)}
 
-/* ── Modal ───────────────────────────────────────── */
-.overlay{
-  position:fixed;inset:0;background:rgba(15,35,55,.55);
-  display:flex;align-items:center;justify-content:center;padding:16px;z-index:200
-}
-.modal{
-  background:var(--card);border-radius:14px;padding:22px;
-  width:100%;max-width:440px;max-height:88vh;overflow-y:auto
-}
-.modal h2{color:var(--title);font-size:19px;font-weight:800;margin-bottom:4px}
+/* ── Modal ───────────────────────────────── */
+.overlay{position:fixed;inset:0;background:rgba(45,38,30,.55);display:flex;
+  align-items:center;justify-content:center;padding:16px;z-index:200}
+.modal{background:var(--card);border-radius:14px;padding:22px;width:100%;max-width:440px;
+  max-height:88vh;overflow-y:auto}
+.modal h2{color:var(--brown);font-size:19px;font-weight:800;margin-bottom:4px}
 .modal .sub{color:var(--muted);font-size:13.5px;margin-bottom:18px}
 .frm{display:flex;flex-direction:column;gap:13px}
-.frm label{display:block;color:var(--title);font-size:13px;font-weight:700;margin-bottom:5px}
-.frm input,.frm select{
-  width:100%;padding:11px 13px;border:1px solid var(--line);
-  border-radius:8px;background:#fff;color:var(--text);font-size:15px
-}
-.frm input:focus,.frm select:focus{border-color:var(--green);outline:none}
+.frm label{display:block;color:var(--brown);font-size:13px;font-weight:700;margin-bottom:5px}
+.frm input,.frm select{width:100%;padding:11px 13px;border:1px solid var(--line);
+  border-radius:8px;background:#fff;color:var(--text);font-size:15px}
+.frm input:focus,.frm select:focus{border-color:var(--leaf);outline:none}
 .modal-acts{display:flex;gap:10px;margin-top:20px}
 .modal-acts button{flex:1;padding:12px;border-radius:9px;font-size:15px;font-weight:700;border:none}
-.btn-cancel{background:#eef1f3;color:var(--muted)}
-.btn-cancel:hover{background:#e3e8eb}
-.btn-save{background:var(--green);color:#fff}
-.btn-save:hover{background:var(--green-dark)}
+.btn-cancel{background:#EFEDE7;color:var(--muted)}
+.btn-cancel:hover{background:#E5E2DA}
+.btn-save{background:var(--leaf-dk);color:#fff}
+.btn-save:hover{background:#3E6B27}
 
-/* ── Toast ───────────────────────────────────────── */
-#toast{
-  position:fixed;left:50%;transform:translateX(-50%);
-  bottom:calc(20px + env(safe-area-inset-bottom));
-  background:var(--navy-deep);color:#fff;padding:11px 20px;border-radius:9px;
-  font-size:14px;font-weight:600;z-index:300;display:none;max-width:90vw;text-align:center;
-  box-shadow:0 4px 16px rgba(0,0,0,.25)
-}
+#toast{position:fixed;left:50%;transform:translateX(-50%);
+  bottom:calc(20px + env(safe-area-inset-bottom));background:var(--brown-deep);color:#fff;
+  padding:11px 20px;border-radius:9px;font-size:14px;font-weight:600;z-index:300;
+  display:none;max-width:90vw;text-align:center;box-shadow:0 4px 16px rgba(0,0,0,.22)}
 
-/* ── Stub screen ─────────────────────────────────── */
-.stub{
-  background:var(--card);border:1px solid var(--line);border-radius:14px;
-  padding:40px 24px;text-align:center;margin-top:20px
-}
-.stub .ic{font-size:44px;display:block;margin-bottom:14px}
-.stub h2{color:var(--title);font-size:21px;font-weight:800;margin-bottom:8px}
-.stub p{color:var(--muted);font-size:14.5px;max-width:420px;margin:0 auto 20px;line-height:1.55}
+.stub{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:40px 24px;text-align:center;margin-top:20px}
+.stub .ic{display:inline-grid;place-items:center;width:64px;height:64px;border-radius:16px;
+  background:var(--leaf-soft);color:var(--leaf-dk);margin-bottom:16px}
+.stub .ic svg{width:32px;height:32px}
+.stub h2{color:var(--brown);font-size:21px;font-weight:800;margin-bottom:8px}
+.stub p{color:var(--muted);font-size:14.5px;max-width:430px;margin:0 auto 20px;line-height:1.55}
 
-/* ── Responsive ──────────────────────────────────── */
 @media(max-width:640px){
   body{font-size:14.5px}
   .wrap{padding:16px 12px 32px}
-  .heroes{grid-template-columns:1fr;gap:12px}
-  .mods{grid-template-columns:1fr;gap:12px}
+  .heroes,.mods{grid-template-columns:1fr;gap:12px}
   .farm-head{padding:14px 0 16px}
   .farm-head-mid h1{font-size:20px}
   .safra-box{margin-left:0;text-align:left;width:100%}
   .topbar{padding-left:12px;padding-right:12px;gap:8px}
   .topbar-right{font-size:12px;gap:7px;width:100%;margin-left:0;justify-content:space-between}
-  .brand{font-size:15px}
   .hero{padding:17px}
-  .mod{padding:16px}
+  .mod{padding:15px}
 }
 </style>
 </head>
@@ -252,11 +231,39 @@ button{cursor:pointer}
 
 <script>
 "use strict";
-const APP_VERSION = "0.3.0";
+const APP_VERSION = "0.4.0";
 
 /* ═══════════════════════════════════════════════════
-   STORAGE — offline-first, iOS safe
-   localStorage quando disponível, memória como reserva
+   ÍCONES — traço próprio, herdam a cor do contexto
+   ═══════════════════════════════════════════════════ */
+const S = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">';
+const ICON = {
+  folha:'<svg viewBox="0 0 100 100"><defs><linearGradient id="g1" x1="20%" y1="90%" x2="85%" y2="10%"><stop offset="0" stop-color="#7FA646"/><stop offset="1" stop-color="#A3C169"/></linearGradient><linearGradient id="g2" x1="15%" y1="95%" x2="70%" y2="25%"><stop offset="0" stop-color="#3E6B27"/><stop offset="1" stop-color="#568F35"/></linearGradient></defs><path d="M15,84 C12,58 27,35 54,23 C42,40 31,54 25,67 C21,74 17,79 15,84 Z" fill="url(#g2)"/><path d="M15,84 C21,55 45,27 89,9 C69,31 49,49 33,63 C25,70 19,77 15,84 Z" fill="url(#g1)"/></svg>',
+
+  talhoes: S+'<path d="M3 6.5 9 4l6 2.5L21 4v13.5L15 20l-6-2.5L3 20z"/><path d="M9 4v13.5M15 6.5V20"/></svg>',
+  lavoura: S+'<path d="M12 21v-7.5"/><path d="M12 13.5c0-3.3 2.2-5.5 5.5-5.5 0 3.3-2.2 5.5-5.5 5.5z"/><path d="M12 16c0-2.8-2-4.8-4.8-4.8 0 2.8 2 4.8 4.8 4.8z"/><path d="M4 21h16"/></svg>',
+  operacoes: S+'<circle cx="7" cy="17" r="3.2"/><circle cx="17.5" cy="18" r="2.2"/><path d="M4.2 14.2V9h4.6l2.2 5"/><path d="M11 14.2h6.5V16"/><path d="M17.5 14.2V9.5h2.8"/></svg>',
+  estoque: S+'<path d="M3 8.2 12 4l9 4.2v7.6L12 20l-9-4.2z"/><path d="M3 8.2 12 12.4l9-4.2M12 12.4V20"/></svg>',
+  ndvi: S+'<path d="M9 4 3 6.4v13.2L9 17l6 2.6 6-2.4V4l-6 2.4z"/><path d="M9 4v13M15 6.4V19.6"/></svg>',
+  chuva: S+'<path d="M6.5 13.5a3.8 3.8 0 0 1 .8-7.5 5 5 0 0 1 9.4 1.3 3.3 3.3 0 0 1 .3 6.2"/><path d="M8.5 17v2.5M12 16.5v3.5M15.5 17v2.5"/></svg>',
+  colheita: S+'<path d="M12 21v-8"/><path d="M12 13c0-2.2 1.4-3.6 3.6-3.6C15.6 11.6 14.2 13 12 13z"/><path d="M12 13c0-2.2-1.4-3.6-3.6-3.6C8.4 11.6 9.8 13 12 13z"/><path d="M12 9.4c0-2.2 1.4-3.6 3.6-3.6C15.6 8 14.2 9.4 12 9.4z"/><path d="M12 9.4C12 7.2 10.6 5.8 8.4 5.8 8.4 8 9.8 9.4 12 9.4z"/></svg>',
+
+  cotacoes: S+'<path d="M3 20h18"/><path d="M5.5 15.5 10 11l3 2.8 5.5-6.3"/><path d="M15.5 7.5h3.2v3.2"/></svg>',
+  financeiro: S+'<circle cx="12" cy="12" r="8.3"/><path d="M12 7.2v9.6"/><path d="M14.4 9.6c0-1-1-1.6-2.4-1.6s-2.5.7-2.5 1.7c0 2.4 5 1.4 5 3.8 0 1-1.1 1.7-2.5 1.7s-2.5-.6-2.5-1.6"/></svg>',
+  diesel: S+'<path d="M4.5 20.5V5.2c0-.7.5-1.2 1.2-1.2h5.6c.7 0 1.2.5 1.2 1.2v15.3"/><path d="M3 20.5h11.8"/><path d="M7 8.5h4"/><path d="M13 10.5h2.8c1.1 0 2 .9 2 2v4.8a1.6 1.6 0 0 0 3.2 0V9.2l-2.6-2.6"/></svg>',
+
+  visitas: S+'<path d="M9.5 4.5H7.2c-1 0-1.7.8-1.7 1.7v13.1c0 1 .8 1.7 1.7 1.7h9.6c1 0 1.7-.8 1.7-1.7V6.2c0-1-.8-1.7-1.7-1.7h-2.3"/><rect x="9.5" y="2.8" width="5" height="3.4" rx="1"/><path d="M9 13.8l2 2 4-4.2"/></svg>',
+  relatorios: S+'<path d="M14 3.2H7.4c-1 0-1.9.8-1.9 1.9v13.8c0 1 .8 1.9 1.9 1.9h9.2c1 0 1.9-.8 1.9-1.9V7.7z"/><path d="M14 3.2v4.5h4.5"/><path d="M9 17.5v-3M12 17.5v-5.2M15 17.5v-2"/></svg>',
+  documentos: S+'<path d="M3.2 7.2c0-1 .8-1.9 1.9-1.9h3.7l2 2h8c1 0 1.9.8 1.9 1.9v8.7c0 1-.8 1.9-1.9 1.9H5.1c-1 0-1.9-.8-1.9-1.9z"/></svg>',
+  safras: S+'<rect x="3.2" y="4" width="17.6" height="4" rx="1.2"/><path d="M5.2 8v10.8c0 .7.5 1.2 1.2 1.2h11.2c.7 0 1.2-.5 1.2-1.2V8"/><path d="M10 12h4"/></svg>',
+  suporte: S+'<circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.6a2.5 2.5 0 1 1 3.3 2.4c-.6.2-.9.7-.9 1.3v.4"/><circle cx="12" cy="16.6" r=".7" fill="currentColor" stroke="none"/></svg>',
+
+  panorama: S+'<path d="M20.5 4.5c0 8.5-4.5 13-11 13"/><path d="M20.5 4.5C12.5 5 8 8 7 13.5"/><path d="M3.5 20.5c.8-3.5 2-6 4-8.5"/></svg>',
+  resumo: S+'<ellipse cx="12" cy="6.8" rx="7.5" ry="2.8"/><path d="M4.5 6.8v4.4c0 1.5 3.4 2.8 7.5 2.8s7.5-1.3 7.5-2.8V6.8"/><path d="M4.5 11.2v4.4c0 1.5 3.4 2.8 7.5 2.8s7.5-1.3 7.5-2.8v-4.4"/></svg>'
+};
+
+/* ═══════════════════════════════════════════════════
+   STORAGE — offline-first, seguro no iOS
    ═══════════════════════════════════════════════════ */
 const _mem = {};
 function _storageOk(kind){
@@ -267,530 +274,351 @@ const _ls = _storageOk("localStorage") ? localStorage
           : _storageOk("sessionStorage") ? sessionStorage : null;
 
 const Store = {
-  get(k, d){
+  get(k,d){
     try{
-      if(_ls){ const v = _ls.getItem("sm_"+k); if(v != null) return JSON.parse(v); }
+      if(_ls){ const v=_ls.getItem("sm_"+k); if(v!=null) return JSON.parse(v); }
       return (k in _mem) ? _mem[k] : d;
     }catch(e){ return d; }
   },
-  set(k, v){
-    _mem[k] = v;
-    try{ if(_ls) _ls.setItem("sm_"+k, JSON.stringify(v)); }catch(e){}
-  },
-  del(k){
-    delete _mem[k];
-    try{ if(_ls) _ls.removeItem("sm_"+k); }catch(e){}
-  },
+  set(k,v){ _mem[k]=v; try{ if(_ls) _ls.setItem("sm_"+k, JSON.stringify(v)); }catch(e){} },
+  del(k){ delete _mem[k]; try{ if(_ls) _ls.removeItem("sm_"+k); }catch(e){} },
   persistent(){ return _ls !== null; }
 };
 
 /* ═══════════════════════════════════════════════════
-   SYNC — fila de operações pendentes
-   Tudo grava local primeiro. Quando há internet,
-   a fila sobe. Nada se perde no campo.
+   SYNC — fila de pendências
    ═══════════════════════════════════════════════════ */
-const SUPABASE = {
-  url: "",        // preencher ao conectar
-  anonKey: "",
-  enabled(){ return !!(this.url && this.anonKey); }
-};
+const SUPABASE = { url:"", anonKey:"", enabled(){ return !!(this.url && this.anonKey); } };
 
 const Sync = {
   queue(){ return Store.get("sync_queue", []); },
-
+  pending(){ return this.queue().length; },
   push(table, op, payload){
     const q = this.queue();
-    q.push({
-      id: "op_" + Date.now() + "_" + Math.random().toString(36).slice(2,7),
-      ts: new Date().toISOString(),
-      table, op, payload
-    });
+    q.push({ id:"op_"+Date.now()+"_"+Math.random().toString(36).slice(2,7),
+             ts:new Date().toISOString(), table, op, payload });
     Store.set("sync_queue", q);
     this.render();
     if(navigator.onLine) this.flush();
   },
-
-  pending(){ return this.queue().length; },
-
   async flush(){
     if(!navigator.onLine) return;
     const q = this.queue();
     if(!q.length){ this.render(); return; }
-
-    if(!SUPABASE.enabled()){
-      // Ainda sem backend: mantém a fila intacta para subir depois.
-      this.render();
-      return;
-    }
-
+    if(!SUPABASE.enabled()){ this.render(); return; }
     const restantes = [];
     for(const item of q){
       try{
         const method = item.op === "delete" ? "DELETE" : "POST";
-        const r = await fetch(SUPABASE.url + "/rest/v1/" + item.table, {
+        const r = await fetch(SUPABASE.url+"/rest/v1/"+item.table, {
           method,
-          headers: {
-            "apikey": SUPABASE.anonKey,
-            "Authorization": "Bearer " + SUPABASE.anonKey,
-            "Content-Type": "application/json",
-            "Prefer": "resolution=merge-duplicates"
-          },
-          body: method === "DELETE" ? undefined : JSON.stringify(item.payload)
+          headers:{ "apikey":SUPABASE.anonKey, "Authorization":"Bearer "+SUPABASE.anonKey,
+                    "Content-Type":"application/json", "Prefer":"resolution=merge-duplicates" },
+          body: method==="DELETE" ? undefined : JSON.stringify(item.payload)
         });
         if(!r.ok) restantes.push(item);
-      }catch(e){
-        restantes.push(item);
-      }
+      }catch(e){ restantes.push(item); }
     }
     Store.set("sync_queue", restantes);
     this.render();
-    if(restantes.length === 0 && q.length > 0) toast("Tudo sincronizado na nuvem");
+    if(!restantes.length && q.length) toast("Tudo sincronizado na nuvem");
   },
-
   render(){
     const el = document.getElementById("sync-chip");
     if(!el) return;
-    const n = this.pending();
-    const online = navigator.onLine;
-    if(online && n === 0){
-      el.className = "sync-chip";
-      el.innerHTML = '<span class="sync-dot"></span> Sincronizado na nuvem';
-    }else if(!online){
-      el.className = "sync-chip off";
-      el.innerHTML = '<span class="sync-dot"></span> Sem sinal' + (n ? " · " + n + " a enviar" : "");
-    }else{
-      el.className = "sync-chip off";
-      el.innerHTML = '<span class="sync-dot"></span> ' + n + " a enviar";
-    }
+    const n = this.pending(), on = navigator.onLine;
+    if(on && !n){ el.className="sync-chip";
+      el.innerHTML='<span class="sync-dot"></span> Sincronizado na nuvem'; }
+    else if(!on){ el.className="sync-chip off";
+      el.innerHTML='<span class="sync-dot"></span> Sem sinal'+(n?" · "+n+" a enviar":""); }
+    else { el.className="sync-chip off";
+      el.innerHTML='<span class="sync-dot"></span> '+n+" a enviar"; }
   }
 };
-
-window.addEventListener("online",  () => { Sync.flush(); renderBanners(); });
-window.addEventListener("offline", () => { Sync.render(); renderBanners(); });
+window.addEventListener("online",  ()=>{ Sync.flush(); render(); });
+window.addEventListener("offline", ()=>{ render(); });
 
 /* ═══════════════════════════════════════════════════
    MODELO
    ═══════════════════════════════════════════════════ */
 function safraAtual(){
-  const hoje = new Date();
-  const a = hoje.getMonth() >= 6 ? hoje.getFullYear() : hoje.getFullYear() - 1;
-  return a + "/" + (a + 1);
+  const h=new Date(), a = h.getMonth()>=6 ? h.getFullYear() : h.getFullYear()-1;
+  return a+"/"+(a+1);
 }
 function safrasDisponiveis(){
-  const base = parseInt(safraAtual().slice(0,4), 10);
-  const out = [];
-  for(let a = base + 1; a >= base - 4; a--) out.push(a + "/" + (a + 1));
-  return out;
+  const b=parseInt(safraAtual().slice(0,4),10), o=[];
+  for(let a=b+1;a>=b-4;a--) o.push(a+"/"+(a+1));
+  return o;
 }
-
 function fazendas(){ return Store.get("fazendas", []); }
 function salvarFazendas(l){ Store.set("fazendas", l); }
-function acharFazenda(id){ return fazendas().find(f => f.id === id) || null; }
+function acharFazenda(id){ return fazendas().find(f=>f.id===id) || null; }
 
-function criarFazenda(dados){
-  const l = fazendas();
-  const f = {
-    id: "faz_" + Date.now().toString(36),
-    nome: dados.nome.trim(),
-    produtor: (dados.produtor || "").trim(),
-    municipio: (dados.municipio || "").trim(),
-    uf: (dados.uf || "").trim().toUpperCase(),
-    safra: dados.safra || safraAtual(),
-    talhoes: 0,
-    hectares: 0,
-    criado_em: new Date().toISOString()
-  };
-  l.push(f);
-  salvarFazendas(l);
-  Sync.push("fazendas", "upsert", f);
+function criarFazenda(d){
+  const l=fazendas();
+  const f={ id:"faz_"+Date.now().toString(36), nome:d.nome.trim(),
+    produtor:(d.produtor||"").trim(), municipio:(d.municipio||"").trim(),
+    uf:(d.uf||"").trim().toUpperCase(), safra:d.safra||safraAtual(),
+    talhoes:0, hectares:0, criado_em:new Date().toISOString() };
+  l.push(f); salvarFazendas(l); Sync.push("fazendas","upsert",f);
   return f;
 }
-
 function removerFazenda(id){
-  salvarFazendas(fazendas().filter(f => f.id !== id));
-  Sync.push("fazendas", "delete", { id });
+  salvarFazendas(fazendas().filter(f=>f.id!==id));
+  Sync.push("fazendas","delete",{id});
 }
 
 /* ═══════════════════════════════════════════════════
-   MÓDULOS — espelham as telas de referência
+   MÓDULOS
    ═══════════════════════════════════════════════════ */
 const MODULOS = [
-  { grupo: "Fazenda e lavoura", itens: [
-    { id:"dados-fazenda", ic:"📋", nome:"Dados da fazenda", desc:"Talhões, áreas e mapa da propriedade", pronto:false, resumo:f => f.talhoes + " talhões · " + f.hectares.toFixed(1) + " ha" },
-    { id:"lavoura",       ic:"🌿", nome:"Dados da lavoura",  desc:"Cultura, plantio e emergência", pronto:false },
-    { id:"operacoes",     ic:"🚜", nome:"Operações no talhão", desc:"Pulverização, semeadura e adubação", pronto:false },
-    { id:"estoque",       ic:"📦", nome:"Estoque",            desc:"Desconta automaticamente o que foi aplicado", pronto:false },
-    { id:"ndvi",          ic:"🛰️", nome:"Mapa NDVI",          desc:"Acompanhamento por satélite", pronto:false },
-    { id:"chuva",         ic:"🌧️", nome:"Pluviometria",       desc:"Lançar e comparar chuvas", pronto:false },
-    { id:"colheita",      ic:"🌾", nome:"Colheita",           desc:"Cargas, caminhões e produtividade por talhão", pronto:true }
+  { grupo:"Fazenda e lavoura", itens:[
+    { id:"talhoes",   ic:"talhoes",   nome:"Dados da fazenda", desc:"Talhões, áreas e mapa da propriedade", pronto:false, resumo:f=>f.talhoes+" talhões · "+f.hectares.toFixed(1)+" ha" },
+    { id:"lavoura",   ic:"lavoura",   nome:"Dados da lavoura", desc:"Cultura, plantio e emergência", pronto:false },
+    { id:"operacoes", ic:"operacoes", nome:"Operações no talhão", desc:"Pulverização, semeadura e adubação", pronto:false },
+    { id:"estoque",   ic:"estoque",   nome:"Estoque", desc:"Desconta automaticamente o que foi aplicado", pronto:false },
+    { id:"ndvi",      ic:"ndvi",      nome:"Mapa NDVI", desc:"Acompanhamento por satélite", pronto:false },
+    { id:"chuva",     ic:"chuva",     nome:"Pluviometria", desc:"Lançar e comparar chuvas", pronto:false },
+    { id:"colheita",  ic:"colheita",  nome:"Colheita", desc:"Cargas, caminhões e produtividade por talhão", pronto:false }
   ]},
-  { grupo: "Dinheiro e máquinas", itens: [
-    { id:"cotacoes",  ic:"📈", nome:"Cotações",  desc:"Dólar, mercado e preços da região", pronto:false },
-    { id:"financeiro",ic:"💰", nome:"Financeiro", desc:"Custos, planejamento, vendas e compras", pronto:false },
-    { id:"diesel",    ic:"⛽", nome:"Diesel e manutenção", desc:"Abastecimento e trocas de óleo", pronto:false }
+  { grupo:"Dinheiro e máquinas", itens:[
+    { id:"cotacoes",   ic:"cotacoes",   nome:"Cotações", desc:"Dólar, mercado e preços da região", pronto:false },
+    { id:"financeiro", ic:"financeiro", nome:"Financeiro", desc:"Custos, planejamento, vendas e compras", pronto:false },
+    { id:"diesel",     ic:"diesel",     nome:"Diesel e manutenção", desc:"Abastecimento e trocas de óleo", pronto:false }
   ]},
-  { grupo: "Acompanhamento", itens: [
-    { id:"visitas",   ic:"👨‍🌾", nome:"Visitas técnicas", desc:"Registro de visitas e recomendações", pronto:false, resumo:() => "0 visitas" },
-    { id:"relatorios",ic:"📊", nome:"Relatórios",       desc:"Geral, por operação, chuva e mapa", pronto:false },
-    { id:"documentos",ic:"📁", nome:"Documentos",       desc:"Mapas, pedidos e contratos", pronto:false },
-    { id:"safras",    ic:"🗄️", nome:"Histórico de safras", desc:"Comparar safras anteriores", pronto:false, resumo:f => "atual " + f.safra },
-    { id:"suporte",   ic:"🆘", nome:"Suporte",           desc:"Dúvidas, vídeos e WhatsApp da equipe", pronto:false }
+  { grupo:"Acompanhamento", itens:[
+    { id:"visitas",    ic:"visitas",    nome:"Visitas técnicas", desc:"Registro de visitas e recomendações", pronto:false, resumo:()=>"0 visitas" },
+    { id:"relatorios", ic:"relatorios", nome:"Relatórios", desc:"Geral, por operação, chuva e mapa", pronto:false },
+    { id:"documentos", ic:"documentos", nome:"Documentos", desc:"Mapas, pedidos e contratos", pronto:false },
+    { id:"safras",     ic:"safras",     nome:"Histórico de safras", desc:"Comparar safras anteriores", pronto:false, resumo:f=>"atual "+f.safra },
+    { id:"suporte",    ic:"suporte",    nome:"Suporte", desc:"Dúvidas, vídeos e WhatsApp da equipe", pronto:false }
   ]}
 ];
-
 function acharModulo(id){
-  for(const g of MODULOS){ const m = g.itens.find(i => i.id === id); if(m) return m; }
+  for(const g of MODULOS){ const m=g.itens.find(i=>i.id===id); if(m) return m; }
   return null;
 }
 
 /* ═══════════════════════════════════════════════════
-   UI helpers
+   UI
    ═══════════════════════════════════════════════════ */
 function esc(s){
-  return String(s == null ? "" : s)
-    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
-    .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+  return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
 }
-let _toastT;
-function toast(msg){
-  const t = document.getElementById("toast");
-  t.textContent = msg;
-  t.style.display = "block";
-  clearTimeout(_toastT);
-  _toastT = setTimeout(() => { t.style.display = "none"; }, 2600);
+let _tt;
+function toast(m){
+  const t=document.getElementById("toast");
+  t.textContent=m; t.style.display="block";
+  clearTimeout(_tt); _tt=setTimeout(()=>{t.style.display="none";},2600);
 }
-function fecharModal(){ document.getElementById("modal-root").innerHTML = ""; }
+function fecharModal(){ document.getElementById("modal-root").innerHTML=""; }
 
-/* ═══════════════════════════════════════════════════
-   ROTEADOR
-   ═══════════════════════════════════════════════════ */
-const App = {
-  tela: "fazendas",   // fazendas | fazenda | modulo | panorama
-  fazendaId: null,
-  moduloId: null
-};
+const App = { tela:"fazendas", fazendaId:null, moduloId:null };
+function irPara(tela, o){ Object.assign(App,{tela},o||{}); window.scrollTo(0,0); render(); }
 
-function irPara(tela, opts){
-  Object.assign(App, { tela }, opts || {});
-  window.scrollTo(0, 0);
-  render();
-}
-
-/* ═══════════════════════════════════════════════════
-   RENDER
-   ═══════════════════════════════════════════════════ */
 function render(){
-  const root = document.getElementById("root");
-  let html = topbar();
-
-  if(App.tela === "fazendas")      html += telaFazendas();
-  else if(App.tela === "fazenda")  html += telaFazenda();
-  else if(App.tela === "modulo")   html += telaModulo();
-  else if(App.tela === "panorama") html += telaPanorama();
-
-  root.innerHTML = html;
+  let h = topbar();
+  if(App.tela==="fazendas")      h += telaFazendas();
+  else if(App.tela==="fazenda")  h += telaFazenda();
+  else if(App.tela==="modulo")   h += telaModulo();
+  else if(App.tela==="panorama") h += telaPanorama();
+  document.getElementById("root").innerHTML = h;
   Sync.render();
 }
 
-function renderBanners(){ render(); }
-
 function topbar(){
-  const perfil = Store.get("perfil", { nome: "Você" });
-  return '' +
-  '<div class="topbar">' +
-    '<div class="brand"><span class="mark">🌱</span> Safra nas Mãos</div>' +
-    '<div class="topbar-right">' +
-      '<span id="sync-chip" class="sync-chip"><span class="sync-dot"></span> —</span>' +
-      '<span>👤 ' + esc(perfil.nome) + '</span>' +
-      '<button class="btn-ghost" onclick="abrirPerfil()">Trocar perfil</button>' +
-    '</div>' +
-  '</div>' + bannersHTML();
+  const p = Store.get("perfil",{nome:"Você"});
+  return '<div class="topbar">'+
+    '<div class="brand">'+ICON.folha+
+      '<span class="brand-txt"><b>Safra nas Mãos</b><span>FOCO AGROPECUÁRIA</span></span>'+
+    '</div>'+
+    '<div class="topbar-right">'+
+      '<span id="sync-chip" class="sync-chip"><span class="sync-dot"></span> —</span>'+
+      '<span>'+esc(p.nome)+'</span>'+
+      '<button class="btn-ghost" onclick="abrirPerfil()">Trocar perfil</button>'+
+    '</div></div>'+banners();
 }
 
-function bannersHTML(){
-  let h = "";
-  if(!navigator.onLine){
-    h += '<div class="banner err">Sem internet agora. Pode continuar lançando — tudo sobe sozinho quando o sinal voltar.</div>';
-  }else if(Sync.pending() > 0){
-    h += '<div class="banner warn">' + Sync.pending() + ' lançamento(s) aguardando envio para a nuvem.</div>';
-  }
-  if(!Store.persistent()){
-    h += '<div class="banner err">Este navegador não está guardando dados. Abra pelo site (https) ou adicione à tela de início.</div>';
-  }
+function banners(){
+  let h="";
+  if(!navigator.onLine)
+    h+='<div class="banner err">Sem internet agora. Pode continuar lançando — tudo sobe sozinho quando o sinal voltar.</div>';
+  else if(Sync.pending())
+    h+='<div class="banner warn">'+Sync.pending()+' lançamento(s) aguardando envio para a nuvem.</div>';
+  if(!Store.persistent())
+    h+='<div class="banner err">Este navegador não está guardando dados. Adicione o app à tela de início.</div>';
   return h;
 }
 
-/* ── Tela 1: fazendas ────────────────────────────── */
 function telaFazendas(){
-  const lista = fazendas();
-  let h = '<div class="wrap">';
+  const l = fazendas();
+  let h='<div class="wrap">';
+  h+='<label class="lbl" for="nova-faz">Nome da fazenda</label>';
+  h+='<input id="nova-faz" class="field-lg" placeholder="Ex: Fazenda Santa Angelina" onkeydown="if(event.key===\'Enter\')cadastrarRapido()">';
+  h+='<button class="btn-primary" onclick="cadastrarRapido()">Cadastrar nova fazenda</button>';
 
-  h += '<label for="nova-faz" style="display:block;color:var(--title);font-size:13px;font-weight:700;margin-bottom:6px">Nome da fazenda</label>';
-  h += '<input id="nova-faz" class="field-lg" placeholder="Ex: Fazenda Santa Angelina" ' +
-       'onkeydown="if(event.key===\'Enter\')cadastrarRapido()">';
-  h += '<button class="btn-primary" onclick="cadastrarRapido()">Cadastrar nova fazenda</button>';
+  if(l.length>1)
+    h+='<button class="panorama" onclick="irPara(\'panorama\')">'+ICON.panorama+
+       '<span><b>Panorama geral</b>A situação técnica de todas as fazendas numa tela só: culturas, chuva, colheita e pendências.</span></button>';
 
-  if(lista.length > 1){
-    h += '<button class="panorama" onclick="irPara(\'panorama\')">' +
-           '<b>🌱 Panorama geral</b><br>' +
-           'A situação técnica de todas as fazendas numa tela só: culturas, chuva, colheita e pendências.' +
-         '</button>';
-  }
-
-  if(!lista.length){
-    h += '<div class="empty"><strong>Nenhuma fazenda cadastrada</strong>' +
-         'Digite o nome acima para criar a primeira. Depois você completa produtor, município e talhões.</div>';
+  if(!l.length){
+    h+='<div class="empty"><strong>Nenhuma fazenda cadastrada</strong>'+
+       'Digite o nome acima para criar a primeira. Depois você completa produtor, município e talhões.</div>';
   }else{
-    lista.forEach(f => {
-      const loc = [f.produtor, f.municipio && (f.municipio + (f.uf ? "/" + f.uf : ""))]
-                    .filter(Boolean).join(" · ");
-      h += '<div class="farm-card">' +
-             '<div style="flex:1;cursor:pointer" onclick="irPara(\'fazenda\',{fazendaId:\'' + f.id + '\'})">' +
-               '<h3>' + esc(f.nome) + '</h3>' +
-               '<p>' + (loc ? esc(loc) + " · " : "") +
-                 f.talhoes + ' talhões · ' + f.hectares.toFixed(1) + ' ha · safra ' + esc(f.safra) +
-               '</p>' +
-             '</div>' +
-             '<button class="del" title="Remover" onclick="confirmarRemover(\'' + f.id + '\')">✕</button>' +
-             '<span class="chev" onclick="irPara(\'fazenda\',{fazendaId:\'' + f.id + '\'})">›</span>' +
-           '</div>';
+    l.forEach(f=>{
+      const loc=[f.produtor, f.municipio&&(f.municipio+(f.uf?"/"+f.uf:""))].filter(Boolean).join(" · ");
+      h+='<div class="farm-card">'+
+         '<div style="flex:1;cursor:pointer" onclick="irPara(\'fazenda\',{fazendaId:\''+f.id+'\'})">'+
+           '<h3>'+esc(f.nome)+'</h3><p>'+(loc?esc(loc)+" · ":"")+
+           f.talhoes+' talhões · '+f.hectares.toFixed(1)+' ha · safra '+esc(f.safra)+'</p></div>'+
+         '<button class="del" title="Remover" onclick="confirmarRemover(\''+f.id+'\')">✕</button>'+
+         '<span class="chev" onclick="irPara(\'fazenda\',{fazendaId:\''+f.id+'\'})">›</span></div>';
     });
   }
-
-  h += '<p class="ver">versão ' + APP_VERSION + (Store.persistent() ? "" : " · modo temporário") + '</p>';
-  h += '</div>';
+  h+='<p class="ver">versão '+APP_VERSION+(Store.persistent()?"":" · modo temporário")+'</p></div>';
   return h;
 }
 
-/* ── Tela 2: funcionalidades da fazenda ──────────── */
 function telaFazenda(){
-  const f = acharFazenda(App.fazendaId);
-  if(!f){ App.tela = "fazendas"; return telaFazendas(); }
+  const f=acharFazenda(App.fazendaId);
+  if(!f){ App.tela="fazendas"; return telaFazendas(); }
+  const loc=[f.produtor,f.municipio&&(f.municipio+(f.uf?"/"+f.uf:""))].filter(Boolean).join(" · ")
+            || "Complete os dados da fazenda";
 
-  const loc = [f.produtor, f.municipio && (f.municipio + (f.uf ? "/" + f.uf : ""))]
-                .filter(Boolean).join(" · ") || "Complete os dados da fazenda";
+  let h='<div class="wrap wrap-wide">';
+  h+='<div class="farm-head">'+
+       '<button class="btn-back" onclick="irPara(\'fazendas\')">← Fazendas</button>'+
+       '<div class="farm-head-mid"><h1>'+esc(f.nome)+'</h1><p>'+esc(loc)+'</p></div>'+
+       '<div class="safra-box"><label for="sel-safra">SAFRA</label>'+
+         '<select id="sel-safra" onchange="trocarSafra(this.value)">'+
+           safrasDisponiveis().map(s=>'<option '+(s===f.safra?"selected":"")+'>'+s+'</option>').join("")+
+         '</select></div></div>';
 
-  let h = '<div class="wrap wrap-wide">';
+  h+='<div class="heroes">'+
+       '<button class="hero hero-leaf" onclick="irPara(\'modulo\',{moduloId:\'panorama-fazenda\'})">'+
+         '<span class="ic">'+ICON.panorama+'</span><h2>Panorama da fazenda</h2>'+
+         '<p>Lavoura, colheita, chuva e pendências num olhar</p></button>'+
+       '<button class="hero hero-earth" onclick="irPara(\'modulo\',{moduloId:\'resumo-fazenda\'})">'+
+         '<span class="ic">'+ICON.resumo+'</span><h2>Resumo financeiro</h2>'+
+         '<p>Custo por hectare, estoque, colheita e diesel</p></button></div>';
 
-  h += '<div class="farm-head">' +
-         '<button class="btn-back" onclick="irPara(\'fazendas\')">← Fazendas</button>' +
-         '<div class="farm-head-mid">' +
-           '<h1>' + esc(f.nome) + '</h1><p>' + esc(loc) + '</p>' +
-         '</div>' +
-         '<div class="safra-box">' +
-           '<label for="sel-safra">SAFRA</label>' +
-           '<select id="sel-safra" onchange="trocarSafra(this.value)">' +
-             safrasDisponiveis().map(s =>
-               '<option ' + (s === f.safra ? "selected" : "") + '>' + s + '</option>').join("") +
-           '</select>' +
-         '</div>' +
-       '</div>';
-
-  h += '<div class="heroes">' +
-         '<button class="hero hero-green" onclick="abrirModulo(\'panorama-fazenda\')">' +
-           '<span class="ic">🌱</span>' +
-           '<h2>Panorama da fazenda</h2>' +
-           '<p>Lavoura, colheita, chuva e pendências num olhar</p>' +
-         '</button>' +
-         '<button class="hero hero-blue" onclick="abrirModulo(\'resumo-fazenda\')">' +
-           '<span class="ic">💰</span>' +
-           '<h2>Resumo financeiro</h2>' +
-           '<p>Custo por hectare, estoque, colheita e diesel</p>' +
-         '</button>' +
-       '</div>';
-
-  MODULOS.forEach(g => {
-    h += '<div class="sec-head"><span>' + esc(g.grupo.toUpperCase()) + '</span><i></i></div>';
-    h += '<div class="mods">';
-    g.itens.forEach(m => {
-      const extra = m.resumo ? m.resumo(f) : m.desc;
-      h += '<button class="mod" onclick="abrirModulo(\'' + m.id + '\')">' +
-             '<span class="tag ' + (m.pronto ? "tag-ready" : "tag-soon") + '">' +
-               (m.pronto ? "PRONTO" : "EM BREVE") + '</span>' +
-             '<span class="ic">' + m.ic + '</span>' +
-             '<h3>' + esc(m.nome) + '</h3>' +
-             '<p>' + esc(extra) + '</p>' +
-           '</button>';
+  MODULOS.forEach(g=>{
+    h+='<div class="sec-head"><span>'+esc(g.grupo.toUpperCase())+'</span><i></i></div><div class="mods">';
+    g.itens.forEach(m=>{
+      h+='<button class="mod" onclick="irPara(\'modulo\',{moduloId:\''+m.id+'\'})">'+
+         '<span class="tag '+(m.pronto?"tag-ready":"tag-soon")+'">'+(m.pronto?"PRONTO":"EM BREVE")+'</span>'+
+         '<span class="ic">'+(ICON[m.ic]||ICON.talhoes)+'</span>'+
+         '<h3>'+esc(m.nome)+'</h3><p>'+esc(m.resumo?m.resumo(f):m.desc)+'</p></button>';
     });
-    h += '</div>';
+    h+='</div>';
   });
-
-  h += '</div>';
-  return h;
+  return h+'</div>';
 }
 
-/* ── Tela de módulo (provisória) ─────────────────── */
 function telaModulo(){
-  const f = acharFazenda(App.fazendaId);
-  const m = acharModulo(App.moduloId);
+  const f=acharFazenda(App.fazendaId), m=acharModulo(App.moduloId);
   const nome = m ? m.nome
-             : App.moduloId === "panorama-fazenda" ? "Panorama da fazenda"
-             : App.moduloId === "resumo-fazenda"   ? "Resumo financeiro"
-             : "Módulo";
-  const ic = m ? m.ic : (App.moduloId === "resumo-fazenda" ? "💰" : "🌱");
+    : App.moduloId==="panorama-fazenda" ? "Panorama da fazenda"
+    : App.moduloId==="resumo-fazenda"   ? "Resumo financeiro" : "Módulo";
+  const ic = m ? (ICON[m.ic]||ICON.talhoes)
+    : (App.moduloId==="resumo-fazenda" ? ICON.resumo : ICON.panorama);
 
-  let h = '<div class="wrap wrap-wide">';
-  h += '<div class="farm-head">' +
-         '<button class="btn-back" onclick="irPara(\'fazenda\')">← ' + esc(f ? f.nome : "Voltar") + '</button>' +
-         '<div class="farm-head-mid"><h1>' + esc(nome) + '</h1>' +
-         '<p>Safra ' + esc(f ? f.safra : "") + '</p></div>' +
-       '</div>';
-
-  h += '<div class="stub">' +
-         '<span class="ic">' + ic + '</span>' +
-         '<h2>' + esc(nome) + '</h2>' +
-         '<p>Este módulo entra na próxima etapa. A estrutura da fazenda, o seletor de safra e a ' +
-         'sincronização offline já estão prontos para receber ele.</p>' +
-         '<button class="btn-back" onclick="irPara(\'fazenda\')">Voltar aos módulos</button>' +
-       '</div>';
-  h += '</div>';
-  return h;
+  return '<div class="wrap wrap-wide">'+
+    '<div class="farm-head">'+
+      '<button class="btn-back" onclick="irPara(\'fazenda\')">← '+esc(f?f.nome:"Voltar")+'</button>'+
+      '<div class="farm-head-mid"><h1>'+esc(nome)+'</h1><p>Safra '+esc(f?f.safra:"")+'</p></div>'+
+    '</div>'+
+    '<div class="stub"><span class="ic">'+ic+'</span><h2>'+esc(nome)+'</h2>'+
+      '<p>Este módulo entra na próxima etapa. A estrutura da fazenda, o seletor de safra e a '+
+      'sincronização offline já estão prontos para receber ele.</p>'+
+      '<button class="btn-back" onclick="irPara(\'fazenda\')">Voltar aos módulos</button></div></div>';
 }
 
-/* ── Panorama de todas as fazendas ───────────────── */
 function telaPanorama(){
-  const lista = fazendas();
-  const totalHa = lista.reduce((s,f) => s + f.hectares, 0);
-  const totalTal = lista.reduce((s,f) => s + f.talhoes, 0);
-
-  let h = '<div class="wrap wrap-wide">';
-  h += '<div class="farm-head">' +
-         '<button class="btn-back" onclick="irPara(\'fazendas\')">← Fazendas</button>' +
-         '<div class="farm-head-mid"><h1>Panorama geral</h1>' +
-         '<p>' + lista.length + ' fazendas · ' + totalTal + ' talhões · ' + totalHa.toFixed(1) + ' ha</p></div>' +
-       '</div>';
-  h += '<div class="stub"><span class="ic">🌱</span><h2>Visão consolidada</h2>' +
-       '<p>Quando os módulos de lavoura e colheita estiverem ligados, esta tela junta ' +
-       'cultura, chuva, colheita e pendências de todas as fazendas.</p>' +
-       '<button class="btn-back" onclick="irPara(\'fazendas\')">Voltar</button></div>';
-  h += '</div>';
-  return h;
+  const l=fazendas();
+  const ha=l.reduce((s,f)=>s+f.hectares,0), tl=l.reduce((s,f)=>s+f.talhoes,0);
+  return '<div class="wrap wrap-wide">'+
+    '<div class="farm-head"><button class="btn-back" onclick="irPara(\'fazendas\')">← Fazendas</button>'+
+      '<div class="farm-head-mid"><h1>Panorama geral</h1><p>'+l.length+' fazendas · '+tl+
+      ' talhões · '+ha.toFixed(1)+' ha</p></div></div>'+
+    '<div class="stub"><span class="ic">'+ICON.panorama+'</span><h2>Visão consolidada</h2>'+
+      '<p>Quando os módulos de lavoura e colheita estiverem ligados, esta tela junta cultura, '+
+      'chuva, colheita e pendências de todas as fazendas.</p>'+
+      '<button class="btn-back" onclick="irPara(\'fazendas\')">Voltar</button></div></div>';
 }
 
 /* ═══════════════════════════════════════════════════
    AÇÕES
    ═══════════════════════════════════════════════════ */
 function cadastrarRapido(){
-  const inp = document.getElementById("nova-faz");
-  const nome = (inp.value || "").trim();
-  if(!nome){ inp.focus(); toast("Digite o nome da fazenda"); return; }
-  abrirCadastro(nome);
+  const i=document.getElementById("nova-faz"), n=(i.value||"").trim();
+  if(!n){ i.focus(); toast("Digite o nome da fazenda"); return; }
+  abrirCadastro(n);
 }
-
-function abrirCadastro(nomePre){
-  document.getElementById("modal-root").innerHTML =
-  '<div class="overlay" onclick="if(event.target===this)fecharModal()">' +
-    '<div class="modal">' +
-      '<h2>Nova fazenda</h2>' +
-      '<p class="sub">Só o nome é obrigatório. O resto dá para completar depois.</p>' +
-      '<div class="frm">' +
-        '<div><label for="c-nome">Nome da fazenda</label>' +
-          '<input id="c-nome" value="' + esc(nomePre || "") + '" placeholder="Fazenda Santa Angelina"></div>' +
-        '<div><label for="c-prod">Produtor</label>' +
-          '<input id="c-prod" placeholder="Ivan Alves da Silva"></div>' +
-        '<div style="display:flex;gap:10px">' +
-          '<div style="flex:1"><label for="c-mun">Município</label>' +
-            '<input id="c-mun" placeholder="Brejinho de Nazaré"></div>' +
-          '<div style="width:80px"><label for="c-uf">UF</label>' +
-            '<input id="c-uf" maxlength="2" placeholder="TO"></div>' +
-        '</div>' +
-        '<div><label for="c-safra">Safra</label><select id="c-safra">' +
-          safrasDisponiveis().map(s =>
-            '<option ' + (s === safraAtual() ? "selected" : "") + '>' + s + '</option>').join("") +
-        '</select></div>' +
-      '</div>' +
-      '<div class="modal-acts">' +
-        '<button class="btn-cancel" onclick="fecharModal()">Cancelar</button>' +
-        '<button class="btn-save" onclick="salvarCadastro()">Cadastrar fazenda</button>' +
-      '</div>' +
-    '</div>' +
-  '</div>';
-  setTimeout(() => { const e = document.getElementById("c-nome"); if(e) e.focus(); }, 60);
+function abrirCadastro(pre){
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal">'+
+    '<h2>Nova fazenda</h2><p class="sub">Só o nome é obrigatório. O resto dá para completar depois.</p>'+
+    '<div class="frm">'+
+      '<div><label for="c-nome">Nome da fazenda</label><input id="c-nome" value="'+esc(pre||"")+'" placeholder="Fazenda Santa Angelina"></div>'+
+      '<div><label for="c-prod">Produtor</label><input id="c-prod" placeholder="Ivan Alves da Silva"></div>'+
+      '<div style="display:flex;gap:10px">'+
+        '<div style="flex:1"><label for="c-mun">Município</label><input id="c-mun" placeholder="Brejinho de Nazaré"></div>'+
+        '<div style="width:82px"><label for="c-uf">UF</label><input id="c-uf" maxlength="2" placeholder="TO"></div></div>'+
+      '<div><label for="c-safra">Safra</label><select id="c-safra">'+
+        safrasDisponiveis().map(s=>'<option '+(s===safraAtual()?"selected":"")+'>'+s+'</option>').join("")+
+      '</select></div></div>'+
+    '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
+      '<button class="btn-save" onclick="salvarCadastro()">Cadastrar fazenda</button></div>'+
+  '</div></div>';
+  setTimeout(()=>{const e=document.getElementById("c-nome"); if(e) e.focus();},60);
 }
-
 function salvarCadastro(){
-  const nome = document.getElementById("c-nome").value.trim();
-  if(!nome){ toast("O nome da fazenda é obrigatório"); return; }
-  const f = criarFazenda({
-    nome,
-    produtor:  document.getElementById("c-prod").value,
-    municipio: document.getElementById("c-mun").value,
-    uf:        document.getElementById("c-uf").value,
-    safra:     document.getElementById("c-safra").value
-  });
-  fecharModal();
-  toast("Fazenda cadastrada");
-  irPara("fazenda", { fazendaId: f.id });
+  const n=document.getElementById("c-nome").value.trim();
+  if(!n){ toast("O nome da fazenda é obrigatório"); return; }
+  const f=criarFazenda({ nome:n,
+    produtor:document.getElementById("c-prod").value,
+    municipio:document.getElementById("c-mun").value,
+    uf:document.getElementById("c-uf").value,
+    safra:document.getElementById("c-safra").value });
+  fecharModal(); toast("Fazenda cadastrada");
+  irPara("fazenda",{fazendaId:f.id});
 }
-
 function confirmarRemover(id){
-  const f = acharFazenda(id);
-  if(!f) return;
-  if(confirm('Remover "' + f.nome + '"?\n\nOs lançamentos dessa fazenda também saem da lista.')){
-    removerFazenda(id);
-    toast("Fazenda removida");
-    render();
+  const f=acharFazenda(id); if(!f) return;
+  if(confirm('Remover "'+f.nome+'"?\n\nOs lançamentos dessa fazenda também saem da lista.')){
+    removerFazenda(id); toast("Fazenda removida"); render();
   }
 }
-
 function trocarSafra(s){
-  const l = fazendas();
-  const f = l.find(x => x.id === App.fazendaId);
+  const l=fazendas(), f=l.find(x=>x.id===App.fazendaId);
   if(!f) return;
-  f.safra = s;
-  salvarFazendas(l);
-  Sync.push("fazendas", "upsert", f);
-  toast("Safra " + s);
-  render();
+  f.safra=s; salvarFazendas(l); Sync.push("fazendas","upsert",f);
+  toast("Safra "+s); render();
 }
-
-function abrirModulo(id){
-  const m = acharModulo(id);
-  if(m && m.pronto && id === "colheita"){
-    // O módulo de colheita já existe e será acoplado aqui.
-    irPara("modulo", { moduloId: id });
-    return;
-  }
-  irPara("modulo", { moduloId: id });
-}
-
 function abrirPerfil(){
-  const p = Store.get("perfil", { nome: "" });
-  document.getElementById("modal-root").innerHTML =
-  '<div class="overlay" onclick="if(event.target===this)fecharModal()">' +
-    '<div class="modal">' +
-      '<h2>Seu perfil</h2>' +
-      '<p class="sub">Usado para identificar quem lançou cada informação no campo.</p>' +
-      '<div class="frm"><div><label for="p-nome">Seu nome</label>' +
-        '<input id="p-nome" value="' + esc(p.nome) + '" placeholder="Ivan"></div></div>' +
-      '<div class="modal-acts">' +
-        '<button class="btn-cancel" onclick="fecharModal()">Cancelar</button>' +
-        '<button class="btn-save" onclick="salvarPerfil()">Salvar</button>' +
-      '</div>' +
-    '</div>' +
-  '</div>';
-  setTimeout(() => { const e = document.getElementById("p-nome"); if(e) e.focus(); }, 60);
+  const p=Store.get("perfil",{nome:""});
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal">'+
+    '<h2>Seu perfil</h2><p class="sub">Usado para identificar quem lançou cada informação no campo.</p>'+
+    '<div class="frm"><div><label for="p-nome">Seu nome</label>'+
+      '<input id="p-nome" value="'+esc(p.nome)+'" placeholder="Ivan"></div></div>'+
+    '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
+      '<button class="btn-save" onclick="salvarPerfil()">Salvar</button></div></div></div>';
+  setTimeout(()=>{const e=document.getElementById("p-nome"); if(e) e.focus();},60);
 }
-
 function salvarPerfil(){
-  const nome = document.getElementById("p-nome").value.trim() || "Você";
-  Store.set("perfil", { nome });
-  fecharModal();
-  toast("Perfil salvo");
-  render();
+  Store.set("perfil",{nome:document.getElementById("p-nome").value.trim()||"Você"});
+  fecharModal(); toast("Perfil salvo"); render();
 }
 
-/* ═══════════════════════════════════════════════════
-   BOOT
-   ═══════════════════════════════════════════════════ */
+/* ── Boot ───────────────────────────────── */
 render();
 Sync.flush();
-setInterval(() => { if(navigator.onLine && Sync.pending()) Sync.flush(); }, 30000);
-
-/* Service worker: mantém o app aberto sem internet */
-if("serviceWorker" in navigator && location.protocol.startsWith("http")){
-  navigator.serviceWorker.register("sw.js").catch(() => {});
-}
+setInterval(()=>{ if(navigator.onLine && Sync.pending()) Sync.flush(); }, 30000);
+if("serviceWorker" in navigator && location.protocol.startsWith("http"))
+  navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>
 </body>
 </html>
