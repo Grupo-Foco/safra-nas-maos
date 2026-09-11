@@ -656,6 +656,62 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
   color:var(--red)!important}
 .dica b.erro{color:var(--red)}
 
+/* ── Importar XML ────────────────────────── */
+.drop{display:flex;flex-direction:column;align-items:center;gap:4px;border:2px dashed var(--line);
+  border-radius:11px;padding:24px 18px;text-align:center;cursor:pointer;background:var(--bg)}
+.drop:hover{border-color:var(--gold);background:#fff}
+.drop b{color:var(--green);font-size:15px}
+.drop span{color:var(--muted);font-size:12.5px}
+.drop input{display:none}
+.nfe-cab{display:flex;gap:22px;flex-wrap:wrap;background:var(--leaf-soft);border-radius:10px;
+  padding:13px 16px;margin-top:14px}
+.nfe-cab i{display:block;font-style:normal;color:var(--muted);font-size:10px;font-weight:700;
+  letter-spacing:.08em;text-transform:uppercase;margin-bottom:2px}
+.nfe-cab b{color:var(--green);font-size:14px}
+.nfe-itens{display:flex;flex-direction:column;gap:8px;margin-top:12px;max-height:280px;overflow-y:auto}
+.nfe-it{display:grid;grid-template-columns:26px 1fr 170px;gap:10px;align-items:center;
+  background:var(--bg);border-radius:9px;padding:10px 12px}
+.nfe-it.fora{opacity:.45}
+.nfe-ck input{width:16px;height:16px}
+.nfe-nome b{display:block;color:var(--green);font-size:13.5px;line-height:1.3}
+.nfe-nome span{color:var(--muted);font-family:var(--mono);font-size:11.5px}
+.nfe-sel{padding:8px 9px;border:1px solid var(--line);border-radius:7px;background:#fff;
+  font-size:12.5px;color:var(--text);width:100%}
+.nfe-sel:focus{border-color:var(--gold);outline:none}
+.nfe-tot{text-align:right;font-family:var(--mono);font-size:14px;font-weight:800;
+  color:var(--green);padding:10px 2px 0}
+@media(max-width:640px){ .nfe-it{grid-template-columns:26px 1fr;row-gap:7px}
+  .nfe-sel{grid-column:2/-1} }
+
+/* ── Documentos ──────────────────────────── */
+.docs{display:flex;flex-direction:column;gap:12px}
+.doc{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--green);
+  border-radius:11px;padding:15px 17px}
+.doc.perto{border-left-color:var(--gold)}
+.doc.venc{border-left-color:var(--red)}
+.doc-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.doc-top b{display:block;color:var(--green);font-size:15.5px;font-weight:800}
+.doc-tipo{display:inline-block;margin-top:4px;background:var(--leaf-soft);color:var(--green);
+  font-family:var(--mono);font-size:10px;font-weight:700;padding:3px 8px;border-radius:5px;
+  letter-spacing:.04em}
+.doc-acts{display:flex;gap:6px}
+.doc-acts button{background:none;border:1px solid var(--line);border-radius:7px;padding:6px 11px;
+  font-family:var(--mono);font-size:11.5px;font-weight:600;color:var(--muted)}
+.doc-acts button:hover{border-color:var(--gold);color:var(--green)}
+.doc-acts .bx{background:var(--gold);border-color:var(--gold);color:#3A3117;font-weight:800}
+.doc-acts .bx:hover{background:var(--gold-dk);border-color:var(--gold-dk)}
+.doc-acts .rm:hover{border-color:var(--red);color:var(--red)}
+.doc-meta{display:flex;gap:20px;flex-wrap:wrap;margin-top:12px;padding-top:12px;
+  border-top:1px solid var(--line-soft)}
+.doc-meta span{display:flex;flex-direction:column;gap:2px;font-size:13px;color:var(--green)}
+.doc-meta i{font-style:normal;color:var(--muted);font-size:10px;font-weight:700;
+  letter-spacing:.07em;text-transform:uppercase}
+.doc-meta span.sem{color:var(--muted)}
+.doc-meta span.perto{color:var(--amber)}
+.doc-meta span.venc{color:var(--red)}
+.doc-meta u{text-decoration:none;font-family:var(--mono);font-size:10.5px;font-weight:700}
+.doc-obs{color:var(--muted);font-size:12.5px;margin-top:10px;line-height:1.5}
+
 @media(max-width:640px){
   body{font-size:14.5px}
   .wrap{padding:16px 12px 34px}
@@ -686,7 +742,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "1.9.0";
+const APP_VERSION = "2.0.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -1521,6 +1577,153 @@ function sparkDolar(serie, larg, alt){
       '" r="3.5" fill="'+cor+'"/></svg>';
 }
 
+
+/* ═══════════════════════════════════════════════════
+   IMPORTAR XML DA NOTA FISCAL
+   Lê o XML da NF-e e traz fornecedor, número da nota
+   e os itens com quantidade e preço.
+   ═══════════════════════════════════════════════════ */
+const UNID_NFE = { LT:"L", L:"L", LTS:"L", LITRO:"L", LI:"L",
+  KG:"kg", QG:"kg", KGS:"kg", TON:"kg", T:"kg",
+  UN:"un", UND:"un", PC:"un", PCT:"un", CX:"un", FR:"un", GL:"un", BD:"un", BB:"un",
+  SC:"sc", SACA:"sc", SAC:"sc" };
+
+function normUnid(u){
+  const k = String(u||"").trim().toUpperCase().replace(/[^A-Z]/g,"");
+  return UNID_NFE[k] || "un";
+}
+
+function lerXmlNfe(texto){
+  const doc = new DOMParser().parseFromString(texto, "application/xml");
+  if(doc.querySelector("parsererror")) throw new Error("XML inválido");
+  const t = (no, tag) => {
+    const e = no && no.getElementsByTagName(tag)[0];
+    return e ? e.textContent.trim() : "";
+  };
+  const inf = doc.getElementsByTagName("infNFe")[0];
+  if(!inf) throw new Error("Não parece um XML de NF-e");
+
+  const emit = inf.getElementsByTagName("emit")[0];
+  const ide  = inf.getElementsByTagName("ide")[0];
+  const dh   = t(ide,"dhEmi") || t(ide,"dEmi");
+
+  const itens = [...inf.getElementsByTagName("det")].map(det=>{
+    const p = det.getElementsByTagName("prod")[0];
+    if(!p) return null;
+    const qtd   = parseFloat(t(p,"qCom"))   || 0;
+    const preco = parseFloat(t(p,"vUnCom")) || 0;
+    return { nome: t(p,"xProd"), codigo: t(p,"cProd"),
+             unidade: normUnid(t(p,"uCom")), qtd, preco,
+             total: parseFloat(t(p,"vProd")) || qtd*preco, usar:true };
+  }).filter(Boolean).filter(i=>i.nome && i.qtd>0);
+
+  return { fornecedor: t(emit,"xNome"), cnpj: t(emit,"CNPJ"),
+           nota: t(ide,"nNF"), data: dh ? dh.slice(0,10) : "",
+           itens };
+}
+
+/* Casa o item da nota com um produto já cadastrado */
+function acharSemelhante(f, nome){
+  const limpa = s => String(s||"").toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+    .replace(/[^a-z0-9 ]/g," ").replace(/\s+/g," ").trim();
+  const alvo = limpa(nome);
+  if(!alvo) return null;
+  const prods = produtosDe(f);
+  let exato = prods.find(p=>limpa(p.nome) === alvo);
+  if(exato) return exato;
+  const tokens = alvo.split(" ").filter(w=>w.length>2);
+  if(!tokens.length) return null;
+  return prods.find(p=>{
+    const n = limpa(p.nome);
+    return tokens.some(w=>n.includes(w) && w.length>3);
+  }) || null;
+}
+
+
+/* ═══════════════════════════════════════════════════
+   DOCUMENTOS
+   Os dados ficam no armazenamento comum; o arquivo em
+   si vai para o IndexedDB, que aguenta bem mais que os
+   5 MB do localStorage e funciona sem internet.
+   ═══════════════════════════════════════════════════ */
+const TIPOS_DOC = ["Contrato de venda","Contrato de compra","Prestação de serviço",
+                   "Arrendamento","Nota fiscal","Laudo","Outro"];
+
+function kDocs(f){ return "faz_"+f+"_docs"; }
+function docsDe(f){ return Store.get(kDocs(f), []); }
+
+function abrirBanco(){
+  return new Promise((ok,err)=>{
+    if(!("indexedDB" in window)) return err(new Error("sem IndexedDB"));
+    const r = indexedDB.open("safra-arquivos", 1);
+    r.onupgradeneeded = ()=>{
+      if(!r.result.objectStoreNames.contains("arquivos"))
+        r.result.createObjectStore("arquivos", {keyPath:"id"});
+    };
+    r.onsuccess = ()=>ok(r.result);
+    r.onerror   = ()=>err(r.error);
+  });
+}
+function guardarArquivo(id, blob){
+  return abrirBanco().then(db=>new Promise((ok,err)=>{
+    const t = db.transaction("arquivos","readwrite");
+    t.objectStore("arquivos").put({id, blob});
+    t.oncomplete = ()=>ok(true);
+    t.onerror    = ()=>err(t.error);
+  }));
+}
+function pegarArquivo(id){
+  return abrirBanco().then(db=>new Promise((ok,err)=>{
+    const r = db.transaction("arquivos","readonly").objectStore("arquivos").get(id);
+    r.onsuccess = ()=>ok(r.result ? r.result.blob : null);
+    r.onerror   = ()=>err(r.error);
+  }));
+}
+function removerArquivo(id){
+  return abrirBanco().then(db=>new Promise(ok=>{
+    const t = db.transaction("arquivos","readwrite");
+    t.objectStore("arquivos").delete(id);
+    t.oncomplete = ()=>ok(true);
+    t.onerror    = ()=>ok(false);
+  })).catch(()=>false);
+}
+
+function salvarDoc(f, d, id){
+  const l = docsDe(f);
+  const dados = { nome:(d.nome||"").trim(), tipo:d.tipo, data:d.data||"",
+                  vencimento:d.vencimento||"", contraparte:(d.contraparte||"").trim(),
+                  valor:Number(d.valor)||0, obs:(d.obs||"").trim(),
+                  arquivo:d.arquivo||null, tamanho:d.tamanho||0 };
+  if(id){
+    const i=l.findIndex(x=>x.id===id); if(i<0) return null;
+    l[i]=Object.assign({},l[i],dados);
+    Store.set(kDocs(f),l); Sync.push("documentos","upsert",l[i]); return l[i];
+  }
+  const novo=Object.assign({id:"dc_"+Date.now().toString(36)+Math.random().toString(36).slice(2,4),
+    fazenda_id:f, criado_em:new Date().toISOString()}, dados);
+  l.push(novo); Store.set(kDocs(f),l); Sync.push("documentos","upsert",novo);
+  return novo;
+}
+function apagarDoc(f,id){
+  const d = docsDe(f).find(x=>x.id===id);
+  if(d && d.arquivo) removerArquivo(id);
+  Store.set(kDocs(f), docsDe(f).filter(x=>x.id!==id));
+  Sync.push("documentos","delete",{id});
+}
+
+function tamanhoLegivel(b){
+  if(!b) return "—";
+  if(b < 1024) return b+" B";
+  if(b < 1048576) return (b/1024).toFixed(0)+" KB";
+  return (b/1048576).toFixed(1)+" MB";
+}
+function diasAte(iso){
+  if(!iso) return null;
+  const d=(new Date(iso+"T12:00:00") - new Date())/86400000;
+  return Math.ceil(d);
+}
+
 /* ═══════════════════════════════════════════════════
    MÓDULOS
    ═══════════════════════════════════════════════════ */
@@ -1545,7 +1748,8 @@ const MODULOS = [
   { grupo:"Acompanhamento", itens:[
     { id:"visitas",    ic:"visitas",    nome:"Visitas técnicas", desc:"Registro de visitas e recomendações", pronto:false, resumo:()=>"0 visitas" },
     { id:"relatorios", ic:"relatorios", nome:"Relatórios", desc:"Geral, por operação, chuva e mapa", pronto:false },
-    { id:"documentos", ic:"documentos", nome:"Documentos", desc:"Mapas, pedidos e contratos", pronto:false },
+    { id:"documentos", ic:"documentos", nome:"Documentos", desc:"Contratos, notas e laudos", pronto:true,
+      resumo:f=>{const n=docsDe(f.id).length; return n? n+" documento(s) guardado(s)" : "Guarde o primeiro contrato";} },
     { id:"safras",     ic:"safras",     nome:"Histórico de safras", desc:"Comparar safras anteriores", pronto:false, resumo:f=>"atual "+f.safra },
     { id:"suporte",    ic:"suporte",    nome:"Suporte", desc:"Dúvidas, vídeos e WhatsApp da equipe", pronto:false }
   ]}
@@ -1577,7 +1781,7 @@ function render(){
   let h = topbar();
   if(App.tela==="fazendas")      h += telaFazendas();
   else if(App.tela==="fazenda")  h += telaFazenda();
-  else if(App.tela==="modulo")   h += (App.moduloId==="talhoes" ? telaTalhoes() : App.moduloId==="colheita" ? telaColheita() : App.moduloId==="chuva" ? telaChuva() : App.moduloId==="operacoes" ? telaOperacoes() : App.moduloId==="lavoura" ? telaLavoura() : App.moduloId==="estoque" ? telaEstoque() : App.moduloId==="ndvi" ? telaMapa() : App.moduloId==="tempo" ? telaTempo() : App.moduloId==="cotacoes" ? telaCotacoes() : telaModulo());
+  else if(App.tela==="modulo")   h += (App.moduloId==="talhoes" ? telaTalhoes() : App.moduloId==="colheita" ? telaColheita() : App.moduloId==="chuva" ? telaChuva() : App.moduloId==="operacoes" ? telaOperacoes() : App.moduloId==="lavoura" ? telaLavoura() : App.moduloId==="estoque" ? telaEstoque() : App.moduloId==="ndvi" ? telaMapa() : App.moduloId==="tempo" ? telaTempo() : App.moduloId==="cotacoes" ? telaCotacoes() : App.moduloId==="documentos" ? telaDocumentos() : telaModulo());
   else if(App.tela==="panorama") h += telaPanorama();
   document.getElementById("root").innerHTML = h;
   Sync.render();
@@ -2553,10 +2757,11 @@ function abaSaldo(f,E){
   const ls = E.linhas.filter(l=>l.entrou>0||l.saiu>0);
   let h = '<div class="acts">'+
     '<button class="btn-act primary" onclick="modalEntrada()">+ Receber produto</button>'+
+    '<button class="btn-act" onclick="modalXml()">Importar XML da nota</button>'+
     (ls.length?'<button class="btn-act" onclick="exportarEstoque()">Baixar planilha</button>':'')+'</div>';
   if(!ls.length)
     return h+'<div class="empty"><strong>Estoque vazio</strong>'+
-      'Lance o recebimento de um produto para começar. O que for aplicado no talhão sai daqui sozinho.</div>';
+      'Lance o recebimento de um produto ou importe o XML da nota. O que for aplicado no talhão sai daqui sozinho.</div>';
 
   h += '<div class="tbl"><table><thead><tr><th>Produto</th>'+
     '<th class="num">Entrou</th><th class="num">Aplicado</th><th class="num">Saldo</th>'+
@@ -2583,7 +2788,8 @@ function abaSaldo(f,E){
 function abaEntradas(f){
   const l = entradasDe(f.id).slice().sort((a,b)=>(b.data||"").localeCompare(a.data||""));
   let h = '<div class="acts">'+
-    '<button class="btn-act primary" onclick="modalEntrada()">+ Receber produto</button></div>';
+    '<button class="btn-act primary" onclick="modalEntrada()">+ Receber produto</button>'+
+    '<button class="btn-act" onclick="modalXml()">Importar XML da nota</button></div>';
   if(!l.length)
     return h+'<div class="empty"><strong>Nenhum recebimento lançado</strong>'+
       'Cada nota de compra que chega na fazenda vira um recebimento.</div>';
@@ -2677,6 +2883,103 @@ function removerEntrada(id){
   const f=acharFazenda(App.fazendaId);
   if(!confirm("Remover este recebimento?")) return;
   apagarEntrada(f.id,id); toast("Recebimento removido"); render();
+}
+
+/* ── Importar XML da nota ────────────────── */
+let _nfe = null;
+
+function modalXml(){
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal modal-lg">'+
+    '<h2>Importar XML da nota</h2>'+
+    '<p class="sub">Escolha o arquivo XML da NF-e. Os itens entram como recebimento no estoque.</p>'+
+    '<div class="frm">'+
+      '<label class="drop" for="xml-file">'+
+        '<b>Escolher arquivo XML</b>'+
+        '<span>O XML fica no e-mail do fornecedor ou no portal da NF-e</span>'+
+        '<input id="xml-file" type="file" accept=".xml,text/xml,application/xml" onchange="lerArquivoXml(this)">'+
+      '</label>'+
+      '<div id="xml-res"></div>'+
+    '</div>'+
+    '<div class="modal-acts" id="xml-acts">'+
+      '<button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
+    '</div></div></div>';
+}
+
+function lerArquivoXml(input){
+  const arq = input.files && input.files[0];
+  if(!arq) return;
+  const box = document.getElementById("xml-res");
+  box.innerHTML = '<p class="vazio">Lendo o arquivo…</p>';
+  const fr = new FileReader();
+  fr.onerror = ()=>{ box.innerHTML='<p class="vazio">Não consegui ler o arquivo.</p>'; };
+  fr.onload = ()=>{
+    try{
+      _nfe = lerXmlNfe(String(fr.result));
+      if(!_nfe.itens.length){ box.innerHTML='<p class="vazio">A nota não tem itens com quantidade.</p>'; return; }
+      desenharNfe();
+    }catch(e){
+      box.innerHTML='<p class="vazio">'+esc(e.message||"Arquivo inválido")+
+        '. Confira se é o XML da NF-e, não o DANFE em PDF.</p>';
+    }
+  };
+  fr.readAsText(arq, "UTF-8");
+}
+
+function desenharNfe(){
+  const f = acharFazenda(App.fazendaId);
+  const n = _nfe;
+  n.itens.forEach(i=>{ if(i.match===undefined){ const p=acharSemelhante(f.id,i.nome); i.match = p?p.id:""; } });
+
+  const prods = produtosDe(f.id).slice().sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR"));
+  const total = n.itens.filter(i=>i.usar).reduce((s,i)=>s+i.total,0);
+
+  document.getElementById("xml-res").innerHTML =
+    '<div class="nfe-cab">'+
+      '<div><i>Fornecedor</i><b>'+esc(n.fornecedor||"—")+'</b></div>'+
+      '<div><i>Nota</i><b>'+esc(n.nota||"—")+'</b></div>'+
+      '<div><i>Emissão</i><b>'+(n.data?dataBR(n.data):"—")+'</b></div>'+
+    '</div>'+
+    '<div class="nfe-itens">'+ n.itens.map((i,k)=>
+      '<div class="nfe-it'+(i.usar?"":" fora")+'">'+
+        '<label class="nfe-ck"><input type="checkbox" '+(i.usar?"checked":"")+' '+
+          'onchange="_nfe.itens['+k+'].usar=this.checked;desenharNfe()"></label>'+
+        '<div class="nfe-nome"><b>'+esc(i.nome)+'</b>'+
+          '<span>'+nf(i.qtd,2)+' '+esc(i.unidade)+' × '+moeda(i.preco)+' = '+moeda(i.total)+'</span></div>'+
+        '<select class="nfe-sel" onchange="_nfe.itens['+k+'].match=this.value">'+
+          '<option value="">+ criar produto novo</option>'+
+          prods.map(p=>'<option value="'+p.id+'" '+(i.match===p.id?"selected":"")+'>'+
+            esc(p.nome)+'</option>').join("")+
+        '</select>'+
+      '</div>').join("")+'</div>'+
+    '<div class="nfe-tot">'+n.itens.filter(i=>i.usar).length+' item(ns) · '+moeda(total)+'</div>'+
+    '<p class="dica">Itens já reconhecidos vêm com o produto selecionado. Os demais criam um cadastro novo.</p>';
+
+  document.getElementById("xml-acts").innerHTML =
+    '<button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
+    '<button class="btn-save" onclick="importarNfe()">Lançar no estoque</button>';
+}
+
+function importarNfe(){
+  const f = acharFazenda(App.fazendaId); if(!f || !_nfe) return;
+  const usar = _nfe.itens.filter(i=>i.usar);
+  if(!usar.length){ toast("Escolha ao menos um item"); return; }
+  const data = _nfe.data || new Date().toISOString().slice(0,10);
+  let criados = 0;
+
+  usar.forEach(i=>{
+    let pid = i.match;
+    if(!pid){
+      const novo = salvarProduto(f.id,{ nome:i.nome, unidade:i.unidade, preco:i.preco });
+      pid = novo.id; criados++;
+    }
+    salvarEntrada(f.id,{ data, produto_id:pid, qtd:i.qtd, preco:i.preco,
+      nota:_nfe.nota, fornecedor:_nfe.fornecedor, obs:i.codigo?"cód. "+i.codigo:"" });
+  });
+
+  _nfe = null; fecharModal();
+  toast(usar.length+" item(ns) lançado(s)"+(criados?" · "+criados+" produto(s) novo(s)":""));
+  _abaEst = "entradas"; render();
 }
 
 function exportarEstoque(){
@@ -2994,6 +3297,184 @@ async function atualizarDolar(){
   toast("Buscando cotação…");
   try{ await buscarDolar(30); toast("Cotação atualizada"); render(); }
   catch(e){ toast("Não consegui buscar agora. Tente de novo."); }
+}
+
+/* ═══════════════════════════════════════════════════
+   TELA — Documentos
+   ═══════════════════════════════════════════════════ */
+let _fTipoDoc = "";
+
+function telaDocumentos(){
+  const f = acharFazenda(App.fazendaId);
+  if(!f){ App.tela="fazendas"; return telaFazendas(); }
+  const todos = docsDe(f.id);
+  let l = _fTipoDoc ? todos.filter(d=>d.tipo===_fTipoDoc) : todos.slice();
+  l.sort((a,b)=>(b.data||"").localeCompare(a.data||""));
+
+  const comArq = todos.filter(d=>d.arquivo).length;
+  const bytes  = todos.reduce((s,d)=>s+(d.tamanho||0),0);
+  const vencendo = todos.filter(d=>{ const n=diasAte(d.vencimento); return n!=null && n>=0 && n<=30; }).length;
+  const vencidos = todos.filter(d=>{ const n=diasAte(d.vencimento); return n!=null && n<0; }).length;
+
+  let h = '<div class="wrap wrap-wide">';
+  h += '<div class="farm-head">'+
+    '<button class="btn-back" onclick="irPara(\'fazenda\')">← '+esc(f.nome)+'</button>'+
+    '<div class="farm-head-mid"><h1>Documentos</h1>'+
+    '<p>Contratos, notas e laudos guardados no aparelho</p></div></div>';
+
+  h += '<div class="kpis kpis-4">'+
+    kpi("Documentos", todos.length, comArq+" com arquivo")+
+    kpi("Espaço usado", tamanhoLegivel(bytes).split(" ")[0], tamanhoLegivel(bytes).split(" ")[1]||"")+
+    kpi("Vencem em 30 dias", vencendo, vencendo?"confira os prazos":"nada próximo")+
+    kpi("Vencidos", vencidos, vencidos?"revisar":"em dia")+
+  '</div>';
+
+  h += '<div class="acts">'+
+    '<button class="btn-act primary" onclick="modalDoc()">+ Novo documento</button>'+
+    (todos.length?'<select class="sel-f" onchange="_fTipoDoc=this.value;render()">'+
+      '<option value="">Todos os tipos</option>'+
+      TIPOS_DOC.map(t=>'<option '+(_fTipoDoc===t?'selected':'')+'>'+esc(t)+'</option>').join("")+
+      '</select>':'')+'</div>';
+
+  if(!todos.length)
+    return h+'<div class="empty"><strong>Nenhum documento guardado</strong>'+
+      'Contratos de venda, compra de maquinário e prestação de serviço. '+
+      'O arquivo fica no aparelho e abre sem internet.</div></div>';
+  if(!l.length)
+    return h+'<div class="empty"><strong>Nada neste tipo</strong>Troque o filtro para ver os outros.</div></div>';
+
+  h += '<div class="docs">';
+  l.forEach(d=>{
+    const n = diasAte(d.vencimento);
+    const estado = n==null ? "" : n<0 ? "venc" : n<=30 ? "perto" : "";
+    h += '<div class="doc'+(estado?" "+estado:"")+'">'+
+      '<div class="doc-top">'+
+        '<div><b>'+esc(d.nome)+'</b>'+
+          '<span class="doc-tipo">'+esc(d.tipo)+'</span></div>'+
+        '<div class="doc-acts">'+
+          (d.arquivo?'<button class="bx" onclick="baixarDoc(\''+d.id+'\')">Baixar</button>':'')+
+          '<button onclick="modalDoc(\''+d.id+'\')">Editar</button>'+
+          '<button class="rm" onclick="excluirDoc(\''+d.id+'\')">✕</button>'+
+        '</div></div>'+
+      '<div class="doc-meta">'+
+        (d.contraparte?'<span><i>Com</i>'+esc(d.contraparte)+'</span>':'')+
+        (d.data?'<span><i>Data</i>'+dataBR(d.data)+'</span>':'')+
+        (d.vencimento?'<span class="'+estado+'"><i>Vencimento</i>'+dataBR(d.vencimento)+
+          (n!=null?' <u>'+(n<0?Math.abs(n)+" dias atrás":n===0?"hoje":"em "+n+" dias")+'</u>':'')+'</span>':'')+
+        (d.valor>0?'<span><i>Valor</i>'+moeda(d.valor)+'</span>':'')+
+        (d.arquivo?'<span><i>Arquivo</i>'+esc(d.arquivo)+' · '+tamanhoLegivel(d.tamanho)+'</span>'
+                  :'<span class="sem"><i>Arquivo</i>não anexado</span>')+
+      '</div>'+
+      (d.obs?'<p class="doc-obs">'+esc(d.obs)+'</p>':'')+
+    '</div>';
+  });
+  h += '</div>';
+  h += '<p class="resumo-obs">Os arquivos ficam guardados neste navegador. '+
+    'Se trocar de aparelho, use o backup — ou espere a sincronização na nuvem.</p>';
+  return h+'</div>';
+}
+
+function modalDoc(id){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const d = id ? docsDe(f.id).find(x=>x.id===id) : null;
+  const hoje = new Date().toISOString().slice(0,10);
+  window._docArq = null;
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal modal-lg">'+
+    '<h2>'+(d?"Editar documento":"Novo documento")+'</h2>'+
+    '<p class="sub">O arquivo fica guardado no aparelho e pode ser baixado a qualquer momento.</p>'+
+    '<div class="frm">'+
+      '<div><label for="dc-nome">Nome do documento</label>'+
+        '<input id="dc-nome" value="'+esc(d?d.nome:"")+'" placeholder="Contrato ALZ 176 · soja 25/26"></div>'+
+      '<div class="g2">'+
+        '<div><label for="dc-tipo">Tipo</label><select id="dc-tipo">'+
+          TIPOS_DOC.map(t=>'<option '+(d&&d.tipo===t?"selected":"")+'>'+esc(t)+'</option>').join("")+
+        '</select></div>'+
+        '<div><label for="dc-parte">Com quem</label>'+
+          '<input id="dc-parte" value="'+esc(d?d.contraparte:"")+'" placeholder="ALZ, Cargill, fornecedor…"></div>'+
+      '</div>'+
+      '<div class="g3">'+
+        '<div><label for="dc-data">Data</label><input type="date" id="dc-data" value="'+(d&&d.data?d.data:hoje)+'"></div>'+
+        '<div><label for="dc-venc">Vencimento</label><input type="date" id="dc-venc" value="'+(d?d.vencimento:"")+'"></div>'+
+        '<div><label for="dc-valor">Valor (R$)</label>'+
+          '<input id="dc-valor" type="number" step="0.01" inputmode="decimal" value="'+(d&&d.valor?d.valor:"")+'" placeholder="opcional"></div>'+
+      '</div>'+
+      '<label class="drop" for="dc-file">'+
+        '<b id="dc-lbl">'+(d&&d.arquivo?esc(d.arquivo)+" · "+tamanhoLegivel(d.tamanho):"Anexar arquivo")+'</b>'+
+        '<span>PDF, foto ou imagem digitalizada · até 8 MB</span>'+
+        '<input id="dc-file" type="file" accept=".pdf,image/*" onchange="escolherArquivo(this)">'+
+      '</label>'+
+      '<div><label for="dc-obs">Observação</label>'+
+        '<input id="dc-obs" value="'+esc(d?d.obs:"")+'" placeholder="opcional"></div>'+
+    '</div>'+
+    '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
+      '<button class="btn-save" onclick="gravarDoc('+(d?"'"+d.id+"'":"null")+')">Salvar</button>'+
+    '</div></div></div>';
+  setTimeout(()=>{const e=document.getElementById("dc-nome"); if(e) e.focus();},60);
+}
+
+function escolherArquivo(input){
+  const a = input.files && input.files[0];
+  const lbl = document.getElementById("dc-lbl");
+  if(!a){ window._docArq=null; return; }
+  if(a.size > 8*1024*1024){
+    toast("Arquivo acima de 8 MB — reduza antes de anexar");
+    input.value=""; window._docArq=null; return;
+  }
+  window._docArq = a;
+  if(lbl) lbl.textContent = a.name+" · "+tamanhoLegivel(a.size);
+  const nome=document.getElementById("dc-nome");
+  if(nome && !nome.value) nome.value = a.name.replace(/\.[^.]+$/,"");
+}
+
+async function gravarDoc(id){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const g=i=>String((document.getElementById(i)||{}).value||"").trim();
+  const nome=g("dc-nome");
+  if(!nome){ toast("Informe o nome do documento"); return; }
+  const venc=g("dc-venc"), data=g("dc-data");
+  if(venc && data && venc < data){ toast("O vencimento é anterior à data do documento"); return; }
+
+  const antigo = id ? docsDe(f.id).find(x=>x.id===id) : null;
+  const arq = window._docArq;
+  const dados = { nome, tipo:g("dc-tipo"), data, vencimento:venc,
+    contraparte:g("dc-parte"),
+    valor:parseFloat(g("dc-valor").replace(",","."))||0, obs:g("dc-obs"),
+    arquivo: arq ? arq.name : (antigo?antigo.arquivo:null),
+    tamanho: arq ? arq.size : (antigo?antigo.tamanho:0) };
+
+  const salvo = salvarDoc(f.id, dados, id);
+  if(arq && salvo){
+    try{ await guardarArquivo(salvo.id, arq); }
+    catch(e){
+      salvarDoc(f.id, Object.assign({},dados,{arquivo:null,tamanho:0}), salvo.id);
+      toast("Cadastro salvo, mas não consegui guardar o arquivo");
+      fecharModal(); render(); return;
+    }
+  }
+  window._docArq=null; fecharModal();
+  toast(id?"Documento atualizado":"Documento guardado"); render();
+}
+
+async function baixarDoc(id){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const d=docsDe(f.id).find(x=>x.id===id); if(!d) return;
+  try{
+    const blob = await pegarArquivo(id);
+    if(!blob){ toast("Arquivo não encontrado neste aparelho"); return; }
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download=d.arquivo||d.nome;
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+  }catch(e){ toast("Não consegui abrir o arquivo"); }
+}
+
+function excluirDoc(id){
+  const f=acharFazenda(App.fazendaId);
+  const d=docsDe(f.id).find(x=>x.id===id); if(!d) return;
+  if(!confirm('Remover "'+d.nome+'"?'+(d.arquivo?"\nO arquivo também sai do aparelho.":""))) return;
+  apagarDoc(f.id,id); toast("Documento removido"); render();
 }
 
 function telaModulo(){
