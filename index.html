@@ -781,7 +781,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.6.1";
+const APP_VERSION = "2.6.2";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -955,6 +955,22 @@ const Sync = {
   pending(){ return this.sujos().length; },
   push(){ /* mantido por compatibilidade: o que conta é marcar() */ },
 
+  // Repete a chamada quando o Safari derruba a 1ª requisição de uma rajada
+  // ("Load failed" / "conexão de rede"). Erros de verdade (permissão, dados)
+  // sobem na hora, sem repetição.
+  async _comRetry(fn, tentativas){
+    tentativas = tentativas || 4;
+    for(let i=1;i<=tentativas;i++){
+      try{ return await fn(); }
+      catch(e){
+        const rede = /Load failed|conexão de rede|network|failed to fetch|carregar/i
+                     .test(String(e && e.message || e));
+        if(!rede || i===tentativas) throw e;
+        await new Promise(res=>setTimeout(res, 400*i));
+      }
+    }
+  },
+
   async subir(){
     let sujos = this.sujos();
     if(!sujos.length) return 0;
@@ -968,19 +984,32 @@ const Sync = {
         if(chave === "fazendas"){
           const l = fazendas();
           for(const f of l){
-            await api("safra_fazendas", { method:"POST",
-              prefer:"resolution=merge-duplicates,return=minimal",
-              body:{ id:f.id, nome:f.nome, produtor:f.produtor||null,
+            const corpo = { id:f.id, nome:f.nome, produtor:f.produtor||null,
                      municipio:f.municipio||null, uf:f.uf||null, safra:f.safra||null,
-                     lat:f.lat??null, lon:f.lon??null } });
+                     lat:f.lat??null, lon:f.lon??null };
+            // INSERT puro (sem merge-duplicates). Numa fazenda nova só a política de
+            // INSERT é avaliada, e o gatilho cria o vínculo de dono. Com merge-duplicates
+            // o Postgres avaliaria também a política de UPDATE (safra_pode_editar), que
+            // exige um vínculo que ainda não existe no 1º envio — e recusaria com 42501.
+            try{
+              await this._comRetry(()=>api("safra_fazendas", { method:"POST",
+                prefer:"return=minimal", body:corpo }));
+            }catch(e){
+              // Já está na nuvem e você é membro dela: atualiza os campos por PATCH.
+              if(/duplicate|already exists|conflict|23505|409/i.test(String(e && e.message || e))){
+                await this._comRetry(()=>api("safra_fazendas?id=eq."+encodeURIComponent(f.id),
+                  { method:"PATCH", prefer:"return=minimal", body:corpo }));
+              } else throw e;
+            }
           }
         }else{
           const [_, fid, bloco] = chave.match(/^faz_(.+)_([a-z]+)$/) || [];
           if(!fid) continue;
-          await api("safra_estado", { method:"POST",
+          // Blocos usam upsert normalmente: aqui o vínculo de membro já existe
+          // (a fazenda subiu antes), então a política de UPDATE passa.
+          await this._comRetry(()=>api("safra_estado", { method:"POST",
             prefer:"resolution=merge-duplicates,return=minimal",
-            headers:{ "Prefer":"resolution=merge-duplicates,return=minimal" },
-            body:{ fazenda_id:fid, chave:bloco, dados: Store.get(chave, null) } });
+            body:{ fazenda_id:fid, chave:bloco, dados: Store.get(chave, null) } }));
         }
       }catch(e){ restam.push(chave); erro = e; }
     }
@@ -2107,9 +2136,15 @@ async function modalDiagnostico(){
   const f = fazendas()[0];
   if(f){
     try{
-      await api("safra_fazendas", { method:"POST",
-        prefer:"resolution=merge-duplicates,return=minimal",
-        body:{ id:f.id, nome:f.nome, safra:f.safra||null } });
+      const corpo = { id:f.id, nome:f.nome, safra:f.safra||null };
+      try{
+        await api("safra_fazendas", { method:"POST", prefer:"return=minimal", body:corpo });
+      }catch(e){
+        if(/duplicate|already exists|conflict|23505|409/i.test(String(e && e.message || e)))
+          await api("safra_fazendas?id=eq."+encodeURIComponent(f.id),
+            { method:"PATCH", prefer:"return=minimal", body:corpo });
+        else throw e;
+      }
       anota("Gravar uma fazenda", true);
     }catch(e){ anota("Gravar uma fazenda", false, explicaErro(e.message)); }
 
