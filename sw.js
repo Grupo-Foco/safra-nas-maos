@@ -2,7 +2,7 @@
    Guarda o app no aparelho para abrir sem internet.
    CACHE muda a cada publicação: é o que dispara a atualização. */
 
-const CACHE = "safra-v2.6.2";
+const CACHE = "safra-v2.6.3";
 const SHELL = ["./", "./index.html", "./manifest.json", "./icone.svg", "./icone-maskable.svg", "./mapa-santa-angelina.jpg"];
 
 self.addEventListener("install", e => {

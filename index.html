@@ -781,7 +781,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.6.2";
+const APP_VERSION = "2.6.3";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -951,6 +951,11 @@ const Sync = {
     const l = this.sujos();
     if(!l.includes(chave)){ l.push(chave); Store.set("sync_sujo", l); }
     this.render();
+    // Envia sozinho pouco depois da última edição, se houver internet.
+    if(navigator.onLine && Auth.logado()){
+      clearTimeout(this._flushTimer);
+      this._flushTimer = setTimeout(()=>{ Sync.rodar(); }, 2500);
+    }
   },
   pending(){ return this.sujos().length; },
   push(){ /* mantido por compatibilidade: o que conta é marcar() */ },
@@ -1130,6 +1135,34 @@ const SEED_SANTA_ANGELINA = {
   talhoes: [["Pivo 01",92.0],["Pivo 02",92.7],["Pivo 03",100.5],["Saia Pivos",38.9],["Sede",158.55],["Talhão 01",308.3],["Talhão 02",258.2,3.98],["Talhão 03",48.8],["Talhão 04",264.7,2.48],["Talhão 05",107.3,1.77],["Talhão 06",101.94,3.49],["Talhão 07",121.0],["Talhão 08",275.6],["Talhão 09",403.46],["Talhão 10",248.66,5.16],["Talhão 11",225.6],["Talhão 12",142.14],["Talhão 13",317.98],["Talhão 14",272.83],["Talhão 15",131.23,9.95],["Talhão 16",355.74],["Talhão 17",199.0],["Luiz 01",321.6,7.2],["Luiz 02",269.2],["Luiz 03",298.74],["Luiz 04",303.53],["Luiz 05",604.22],["Luiz 06",169.4],["Luiz 07",83.46],["Luiz 08",291.91],["Luiz 09",75.9],["Paulo 01",89.74],["Paulo 02",388.96,57.29],["Paulo 03",125.28],["Corredor Luiz",24.1],["Corredor Sta A.",13.5]]
 };
 
+// Talhões (nome + área/ha) — 16 talhões · 2.336,90 ha
+const SEED_MAYARA = { talhoes: [
+  ["Caixa dagua- Asfalto",467],["Rocinha",23.8],["Pedra Preta",115],["Fundo de casa",162.1],
+  ["Baixada",90.4],["Baixada (Rego)",87.7],["Dr Julio T1 -",22],["Dr Julio T1",291.53],
+  ["Dr Julio T2",132.3],["Dr Julio T3",65],["Dr Julio T4",181.8],["Dr Julio T5",95],
+  ["Zé Luiz T1 E 2",285.67],["Zé Luiz T3",112.7],["Zé Luiz T4",162],["Zé Luiz T5",42.9]
+]};
+
+// Talhões (nome + área/ha) — 14 talhões · 1.632,86 ha
+const SEED_LAJEADO = { talhoes: [
+  ["Aeroporto",96.4],["Aeroporto",57.8],["Curral",155.89],["Talhão 1,2,3",101.3],
+  ["Bijui",140],["Lobato",158],["Area Rocinha Vania",22.82],["Carlitão Abertura 3",82],
+  ["João - Lageado",57],["Carlitão 1-2",311],["Paulo Nobre - Frente -Fundo",281.65],
+  ["Zeca",87],["Sidimiro",32],["Geracino",50]
+]};
+
+/* Sementes de talhões por nome de fazenda — nova fazenda ganha o botão de
+   "carregar talhões" quando o nome bate com uma destas. */
+const SEEDS_TALHOES = [
+  { chave:"santa angelina", rotulo:"Santa Angelina", talhoes:SEED_SANTA_ANGELINA.talhoes },
+  { chave:"mayara",         rotulo:"Mayara",         talhoes:SEED_MAYARA.talhoes },
+  { chave:"lajeado",        rotulo:"Lajeado",        talhoes:SEED_LAJEADO.talhoes }
+];
+function seedParaFazenda(nome){
+  const n = (nome||"").toLowerCase();
+  return SEEDS_TALHOES.find(s=>n.includes(s.chave)) || null;
+}
+
 /* ═══════════════════════════════════════════════════
    TALHÕES — uma gaveta por fazenda
    ═══════════════════════════════════════════════════ */
@@ -1177,6 +1210,13 @@ function aplicarSeedSA(fid){
   }));
   salvarTalhoes(fid,l);
   l.forEach(t=>Sync.push("talhoes","upsert",t));
+}
+function aplicarSeedTalhoes(fid, seed){
+  const l = seed.talhoes.map((r,i)=>({
+    id:"tal_"+fid+"_"+i, fazenda_id:fid, nome:r[0], hectares:r[1], abertura:r[2]||0
+  }));
+  salvarTalhoes(fid,l);           // grava e marca o bloco 'talhoes' para sincronizar
+  return l.length;
 }
 
 
@@ -2101,6 +2141,10 @@ async function tentarSync(){
 }
 
 /* Testa cada peça e diz onde travou */
+let _verTimer=null;
+function _verPress(){ _verTimer=setTimeout(()=>{ _verTimer=null; modalDiagnostico(); }, 650); }
+function _verSolta(){ if(_verTimer){ clearTimeout(_verTimer); _verTimer=null; } }
+
 async function modalDiagnostico(){
   document.getElementById("modal-root").innerHTML=
   '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal modal-lg">'+
@@ -2353,7 +2397,9 @@ function topbar(){
     '<div class="topbar-right">'+
       '<span id="sync-chip" class="sync-chip"><span class="sync-dot"></span> —</span>'+
       '<span class="user-nome">'+esc(p.nome)+'</span>'+
-      '<span class="ver-chip" title="Versão publicada">v'+APP_VERSION+'</span>'+
+      '<span class="ver-chip" title="Segure para diagnóstico" '+
+        'ontouchstart="_verPress()" ontouchend="_verSolta()" ontouchcancel="_verSolta()" '+
+        'onmousedown="_verPress()" onmouseup="_verSolta()" onmouseleave="_verSolta()">v'+APP_VERSION+'</span>'+
       (SUPABASE.ligado() && Auth.logado()
         ? '<button class="btn-ghost" onclick="sairDaConta()">Sair</button>'
         : '<button class="btn-ghost" onclick="abrirPerfil()">Trocar perfil</button>')+
@@ -2370,7 +2416,6 @@ function banners(){
       Sync.pending()+' lançamento(s) aguardando envio.'+
       (e?' <b>'+esc(explicaErro(e))+'</b>':'')+
       ' <button class="banner-btn" onclick="tentarSync()">Tentar agora</button>'+
-      (e?' <button class="banner-btn" onclick="modalDiagnostico()">Diagnóstico</button>':'')+
     '</div>';
   }
   if(!Store.persistent())
@@ -2489,11 +2534,14 @@ function telaTalhoes(){
   '</div>';
 
   if(!todos.length){
+    const seed = seedParaFazenda(f.nome);
+    const totSeed = seed ? seed.talhoes.reduce((s,r)=>s+(r[1]||0),0) : 0;
     h += '<div class="empty"><strong>Nenhum talhão cadastrado</strong>'+
          'Cadastre os talhões com nome e área. Eles são a base para colheita, operações, chuva e NDVI.'+
-         (f.nome.toLowerCase().includes("santa angelina")
-           ? '<div style="margin-top:16px"><button class="btn-act primary" onclick="carregarSA()">'+
-             'Carregar os 36 talhões da Santa Angelina</button></div>' : '')+
+         (seed
+           ? '<div style="margin-top:16px"><button class="btn-act primary" onclick="carregarSeed()">'+
+             'Carregar os '+seed.talhoes.length+' talhões da '+esc(seed.rotulo)+
+             ' ('+totSeed.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})+' ha)</button></div>' : '')+
          '</div>';
   }else if(!lista.length){
     h += '<div class="empty"><strong>Nada encontrado</strong>Nenhum talhão com “'+esc(_buscaTal)+'”.</div>';
@@ -2528,6 +2576,17 @@ function carregarSA(){
   if(!confirm("Carregar os 36 talhões da Santa Angelina (7.324,67 ha)?")) return;
   aplicarSeedSA(f.id);
   toast("36 talhões carregados");
+  render();
+}
+
+function carregarSeed(){
+  const f = acharFazenda(App.fazendaId); if(!f) return;
+  const seed = seedParaFazenda(f.nome); if(!seed) return;
+  const tot = seed.talhoes.reduce((s,r)=>s+(r[1]||0),0);
+  if(!confirm("Carregar os "+seed.talhoes.length+" talhões da "+seed.rotulo+" ("+
+     tot.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})+" ha)?")) return;
+  aplicarSeedTalhoes(f.id, seed);
+  toast(seed.talhoes.length+" talhões carregados");
   render();
 }
 
@@ -4870,6 +4929,9 @@ if(SUPABASE.ligado() && Auth.logado()) Sync.rodar();
 setInterval(()=>{ if(navigator.onLine && Auth.logado()) Sync.rodar(); }, 60000);
 window.addEventListener("online", ()=>{ Sync.rodar(); render(); });
 window.addEventListener("offline", ()=>{ render(); });
+document.addEventListener("visibilitychange", ()=>{
+  if(!document.hidden && navigator.onLine && Auth.logado()) Sync.rodar();
+});
 /* Atualização automática: o navegador nunca serve o sw.js do
    cache, procura versão nova ao abrir e a cada minuto, e recarrega
    sozinho quando a nova assume. */
