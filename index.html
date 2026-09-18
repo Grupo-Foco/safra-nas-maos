@@ -846,7 +846,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.13.0";
+const APP_VERSION = "2.14.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -1380,7 +1380,13 @@ function aplicarSeedTalhoes(fid, seed){
    Vem semeado com o que já foi compartilhado; é editável.
    ═══════════════════════════════════════════════════ */
 const HIST_SEED = {
-  "santa angelina": { "2024/2025": {
+  "santa angelina": {
+    "2025/2026": {
+      "Pivo 01":79.39,"Pivo 03":83.72,"Pivo 02":73.54,"T 03 e 04":56,"T 17":59.75,"Luis 04":73.09,
+      "Luis 09":57.5,"T 10 e 11":77.58,"Luis 05 e Corredor Luiz":76.34,"T 12, 13 e 14 + Saias Pivôs":64.57,
+      "Sede":53.1,"Luis 06, 07 e 08":64.39,"T 05":51.37,"T 01 e 02":56.09,"T 06, 07, 08 e 09":67.56,
+      "T 15 e 16 + Corredor Zoi":52.1,"Paulo 02":55.17,"Paulo 03":55.34,"Luis 01, 02 e 03":84.77,"Paulo 01":61.65 },
+    "2024/2025": {
     "Pivô 03":83.6,"Pivô 01":72.13,"Pivô 02":72.93,"Talhão 10 e 11":77.29,"Calcinhas":75.12,
     "Corredor Luiz":74.18,"Luiz 01 e 02":80.45,"Talhão 13":73.62,"Luiz 07":55.2,"Luiz 08":53.13,
     "Talhão 07":73.17,"Luiz 03":85.36,"Luiz 09":57.18,"Luiz 05":69.89,"Luiz 04":64.77,
@@ -1388,6 +1394,10 @@ const HIST_SEED = {
     "Talhão 06":88.63,"Talhão 08":75.43,"Talhão 05":65.93,"Talhão 03 e 04":62.55,"Luiz 06":53.21,
     "Talhão 16":59.03,"Talhão 15 e 17":66.55,"Paulo 01":70.54,"Paulo 02":58.61,"Paulo 03":51.61 } },
   "mayara": {
+    "2025/2026": {
+      "Caixa dagua- Asfalto":89.29,"Rocinha":90.42,"Pedra Preta":94.10,"Fundo de casa":96.66,"Baixada":94.47,
+      "Baixada (Rego)":92.78,"Dr Julio T1":72.98,"Dr Julio T2":83.51,"Dr Julio T3":83.43,"Dr Julio T4":90.09,
+      "Dr Julio T5":86.55,"Zé Luiz T1 E 2":80.67,"Zé Luiz T3":87.25,"Zé Luiz T4":72.41,"Zé Luiz T5":61.28 },
     "2024/2025": {
       "Asfalto":77.63,"Caixa dagua":77.37,"Caixa dagua 2":75.61,"Rocinha":79.04,"Pedra Preta":78.17,
       "Fundo de casa":83.98,"Baixada":86.41,"Baixada (Rego)":85.60,"Dr Julio T1 -":88.47,"Dr Julio T1":91.47,
@@ -1398,7 +1408,12 @@ const HIST_SEED = {
       "Fundo de casa":86.64,"Baixada":73.06,"Baixada (Rego)":80.13,"Dr Julio T1":77.18,"Dr Julio T2":72.46,
       "Dr Julio T3":79.10,"Dr Julio T4":77.80,"Dr Julio T5":80.28,"Zé Luiz T1":79.98,"Zé Luiz T2":79.86,
       "Zé Luiz T3":73.22,"Zé Luiz T4":73.28,"Zé Luiz T5":42.06 } },
-  "lageado": { "2024/2025": {
+  "lageado": {
+    "2025/2026": {
+      "Curral":87.13,"Talhão 1,2,3":82.76,"Bijui":82.63,"Lobato":88.48,"Area Rocinha Vania":61.75,
+      "Carlitão Abertura 3":49.85,"João - Lageado":72.18,"Carlitão 1-2":81.39,"Paulo Nobre - Frente -Fundo":79.71,
+      "Zeca":73.85,"Sidimiro":73.38,"Geracino":50.98 },
+    "2024/2025": {
     "Curral":88.92,"Talhão 1,2":80.63,"Talhao 3":95.05,"Bijui":83.56,"Lobato":91.47,
     "Area Rocinha Vania":86.35,"Carlitão Area nova":86.82,"João - Lageado":88.87,"Carlitão":90.36,
     "Paulo Nobre - Frente":88.61,"Paulo Nobre - Fundo":96.03 } }
@@ -2249,7 +2264,7 @@ const MODULOS = [
     { id:"contratos",  ic:"documentos", nome:"Contratos", desc:"Venda e arrendamento · abatidos pela colheita", pronto:true,
       resumo:f=>{const n=contratosDe(f.id).length; return n? n+" contrato(s) a cumprir" : "Cadastre os contratos";} },
     { id:"financeiro", ic:"financeiro", nome:"Financeiro", desc:"Custos, planejamento, vendas e compras", pronto:false },
-    { id:"diesel",     ic:"diesel",     nome:"Diesel e manutenção", desc:"Abastecimento e trocas de óleo", pronto:false }
+    { id:"diesel",     ic:"diesel",     nome:"Diesel e manutenção", desc:"Gastos do financeiro · diesel, peças e serviços", pronto:true }
   ]},
   { grupo:"Acompanhamento", itens:[
     { id:"visitas",    ic:"visitas",    nome:"Visitas técnicas", desc:"Diário de bordo da cultura: estágio, clima e recomendações", pronto:true,
@@ -2610,7 +2625,7 @@ function render(){
   let h = topbar();
   if(App.tela==="fazendas")      h += telaFazendas();
   else if(App.tela==="fazenda")  h += telaFazenda();
-  else if(App.tela==="modulo")   h += (App.moduloId==="talhoes" ? telaTalhoes() : App.moduloId==="colheita" ? telaColheita() : App.moduloId==="chuva" ? telaChuva() : App.moduloId==="operacoes" ? telaOperacoes() : App.moduloId==="lavoura" ? telaLavoura() : App.moduloId==="estoque" ? telaEstoque() : App.moduloId==="ndvi" ? telaMapa() : App.moduloId==="tempo" ? telaTempo() : App.moduloId==="cotacoes" ? telaCotacoes() : App.moduloId==="documentos" ? telaDocumentos() : App.moduloId==="visitas" ? telaVisitas() : App.moduloId==="contratos" ? telaContratos() : App.moduloId==="safras" ? telaHistorico() : telaModulo());
+  else if(App.tela==="modulo")   h += (App.moduloId==="talhoes" ? telaTalhoes() : App.moduloId==="colheita" ? telaColheita() : App.moduloId==="chuva" ? telaChuva() : App.moduloId==="operacoes" ? telaOperacoes() : App.moduloId==="lavoura" ? telaLavoura() : App.moduloId==="estoque" ? telaEstoque() : App.moduloId==="ndvi" ? telaMapa() : App.moduloId==="tempo" ? telaTempo() : App.moduloId==="cotacoes" ? telaCotacoes() : App.moduloId==="documentos" ? telaDocumentos() : App.moduloId==="visitas" ? telaVisitas() : App.moduloId==="contratos" ? telaContratos() : App.moduloId==="safras" ? telaHistorico() : App.moduloId==="diesel" ? telaDiesel() : telaModulo());
   else if(App.tela==="panorama") h += telaPanorama();
   document.getElementById("root").innerHTML = h;
   Sync.render();
@@ -5084,6 +5099,95 @@ function relHist(f, safra){
 function exportarHist(fmt){
   const f=acharFazenda(App.fazendaId); if(!f||_histSafra==="__nova") return;
   const spec=relHist(f,_histSafra), nm="safra-"+_histSafra.replace("/","-")+"-"+f.nome.toLowerCase().replace(/[^a-z0-9]+/g,"-");
+  fmt==="pdf"?REL.pdf(spec,nm):REL.png(spec,nm);
+}
+
+let _diesel = { grupo:"todos", estaSafra:true, dados:null, carregando:false, erro:null, fid:null };
+const DIESEL_GRUPOS = [["todos","Todos"],["diesel","Diesel/Combustível"],["pecas","Peças"],
+  ["manutencao","Manutenção"],["servicos","Serviços"]];
+
+async function carregarDiesel(f){
+  _diesel.carregando=true; _diesel.erro=null;
+  try{
+    if(!SUPABASE.ligado() || !Auth.logado()) throw new Error("Entre na sua conta para ver os gastos do financeiro");
+    if(!navigator.onLine) throw new Error("Sem internet — os gastos do financeiro precisam de conexão");
+    const r = await api("rpc/safra_gastos_manut", { method:"POST",
+      body:{ p_fazenda_id:f.id, p_safra:_diesel.estaSafra?f.safra:null, p_grupo:_diesel.grupo } });
+    _diesel.dados = Array.isArray(r) ? r : [];
+  }catch(e){ _diesel.erro = explicaErro(e.message||String(e)); _diesel.dados=[]; }
+  _diesel.carregando=false; render();
+}
+function dieselFiltro(g){ if(_diesel.grupo===g) return; _diesel.grupo=g; _diesel.dados=null; render(); }
+function dieselSafra(v){ if(_diesel.estaSafra===v) return; _diesel.estaSafra=v; _diesel.dados=null; render(); }
+
+function telaDiesel(){
+  const f=acharFazenda(App.fazendaId); if(!f){ App.tela="fazendas"; return telaFazendas(); }
+  if(_diesel.fid!==f.id){ _diesel={grupo:"todos",estaSafra:true,dados:null,carregando:false,erro:null,fid:f.id}; }
+  if(_diesel.dados===null && !_diesel.carregando){ setTimeout(()=>carregarDiesel(f),0); }
+
+  const d=_diesel.dados||[];
+  const total=d.reduce((s,x)=>s+(Number(x.valor)||0),0);
+
+  let h='<div class="wrap wrap-wide">';
+  h+='<div class="farm-head"><button class="btn-back" onclick="irPara(\'fazenda\')">← '+esc(f.nome)+'</button>'+
+    '<div class="farm-head-mid"><h1>Diesel e manutenção</h1>'+
+    '<p>Gastos do Gestão Financeira · leitura direta, só desta fazenda</p></div></div>';
+
+  h+='<div class="kpis kpis-3">'+
+    kpi("Lançamentos", _diesel.carregando?"…":d.length, _diesel.estaSafra?("safra "+f.safra):"todas as safras")+
+    kpi("Total no filtro", _diesel.carregando?"…":moeda(total).replace("R$","").trim(), "R$")+
+    kpi("Categoria", (DIESEL_GRUPOS.find(g=>g[0]===_diesel.grupo)||["","Todos"])[1], "")+
+  '</div>';
+
+  // filtros de categoria
+  h+='<div class="acts">'+ DIESEL_GRUPOS.map(g=>
+      '<button class="btn-act'+(_diesel.grupo===g[0]?" primary":"")+'" onclick="dieselFiltro(\''+g[0]+'\')">'+esc(g[1])+'</button>').join("")+
+    '<span style="width:10px"></span>'+
+    '<button class="btn-act'+(_diesel.estaSafra?" primary":"")+'" onclick="dieselSafra(true)">Esta safra</button>'+
+    '<button class="btn-act'+(!_diesel.estaSafra?" primary":"")+'" onclick="dieselSafra(false)">Todas</button>'+
+    (d.length?'<button class="btn-act" onclick="exportarDiesel(\'png\')">Exportar imagem</button>'+
+      '<button class="btn-act" onclick="exportarDiesel(\'pdf\')">Exportar PDF</button>':'')+
+  '</div>';
+
+  if(_diesel.carregando)
+    return h+'<div class="empty"><strong>Buscando no financeiro…</strong>Consultando os lançamentos desta fazenda.</div></div>';
+  if(_diesel.erro)
+    return h+'<div class="empty"><strong>Não consegui carregar</strong>'+esc(_diesel.erro)+
+      '<p class="resumo-obs" style="margin-top:12px">Se acabou de instalar, confirme que o SQL da integração foi rodado no Supabase.</p></div></div>';
+  if(!d.length)
+    return h+'<div class="empty"><strong>Nenhum gasto neste filtro</strong>'+
+      'Não há lançamentos dessa categoria para esta fazenda'+(_diesel.estaSafra?" nesta safra":"")+'.</div></div>';
+
+  h+='<div class="tbl"><table><thead><tr>'+
+    '<th>Data</th><th>Categoria</th><th>Histórico</th><th>Fornecedor</th><th class="num">Valor</th></tr></thead><tbody>';
+  d.forEach(x=>{
+    h+='<tr><td class="mono">'+dataBR(x.data)+'</td>'+
+      '<td>'+esc(x.categoria||"")+'</td>'+
+      '<td>'+esc(x.historico||"")+'</td>'+
+      '<td>'+esc(x.fornecedor||"—")+'</td>'+
+      '<td class="num mono forte">'+moeda(Number(x.valor)||0)+'</td></tr>';
+  });
+  h+='</tbody></table></div>';
+  h+='<p class="resumo-obs">'+d.length+' lançamento(s) · total '+moeda(total)+
+    '. Somente leitura — vem do Gestão Financeira, filtrado pela fazenda e categoria.</p>';
+  return h+'</div>';
+}
+
+function relDiesel(f){
+  const d=_diesel.dados||[];
+  const linhas=[{t:'cab',cs:['Data','Categoria','Histórico','Fornecedor','Valor']}];
+  let tot=0;
+  d.forEach(x=>{ tot+=Number(x.valor)||0;
+    linhas.push({t:'dado',cs:[dataBR(x.data), x.categoria||"", x.historico||"", x.fornecedor||"—", moeda(Number(x.valor)||0)]}); });
+  linhas.push({t:'total',cs:['','','','TOTAL', moeda(tot)]});
+  const gr=(DIESEL_GRUPOS.find(g=>g[0]===_diesel.grupo)||["","Todos"])[1];
+  return {titulo:"Diesel e manutenção · "+f.nome,
+    sub:gr+"  ·  "+(_diesel.estaSafra?"safra "+f.safra:"todas as safras"),
+    larguras:[90,220,430,220,120], aligns:['center','left','left','left','right'], linhas};
+}
+function exportarDiesel(fmt){
+  const f=acharFazenda(App.fazendaId); if(!f||!(_diesel.dados||[]).length) return;
+  const spec=relDiesel(f), nm="diesel-"+f.nome.toLowerCase().replace(/[^a-z0-9]+/g,"-");
   fmt==="pdf"?REL.pdf(spec,nm):REL.png(spec,nm);
 }
 
