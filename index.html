@@ -846,7 +846,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.15.1";
+const APP_VERSION = "2.16.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -1274,9 +1274,15 @@ function criarFazenda(d){
   l.push(f); salvarFazendas(l); Sync.push("fazendas","upsert",f);
   return f;
 }
-function removerFazenda(id){
+async function removerFazenda(id){
   salvarFazendas(fazendas().filter(f=>f.id!==id));
-  Sync.push("fazendas","delete",{id});
+  // tira também os blocos locais dessa fazenda
+  BLOCOS.forEach(b=>Store.del("faz_"+id+"_"+b));
+  if(SUPABASE.ligado() && Auth.logado() && navigator.onLine){
+    // apaga na nuvem; o cascade remove estado/membros/convites
+    try{ await api("safra_fazendas?id=eq."+encodeURIComponent(id), {method:"DELETE"}); }
+    catch(e){ /* fica só local; se falhar, some no próximo baixar não — avisar */ }
+  }
 }
 
 
@@ -1381,17 +1387,17 @@ function aplicarSeedTalhoes(fid, seed){
    ═══════════════════════════════════════════════════ */
 const HIST_SEED = {
   "santa angelina": {
-    "2025/2026": {"Pivo 01":{v:79.39,c:"Olimpo"}, "Pivo 03":{v:83.72,c:"Olimpo"}, "Pivo 02":{v:73.54,c:"Olimpo"}, "T 03 e 04":{v:56,c:"Neo 790"}, "T 17":{v:59.75,c:"Neo 790"}, "Luis 04":{v:73.09,c:"Olimpo"}, "Luis 09":{v:57.5,c:"Olimpo"}, "T 10 e 11":{v:77.58,c:"Olimpo"}, "Luis 05 e Corredor Luiz":{v:76.34,c:"Olimpo/Neo 790"}, "T 12, 13 e 14 + Saias Pivôs":{v:64.57,c:"Olimpo"}, "Sede":{v:53.1,c:"Lenda"}, "Luis 06, 07 e 08":{v:64.39,c:"Olimpo"}, "T 05":{v:51.37,c:"Lenda"}, "T 01 e 02":{v:56.09,c:"Neo 790"}, "T 06, 07, 08 e 09":{v:67.56,c:"Olimpo/Neo 790"}, "T 15 e 16 + Corredor Zoi":{v:52.1,c:"Lenda"}, "Paulo 02":{v:55.17,c:"Lenda"}, "Paulo 03":{v:55.34,c:"Lenda"}, "Luis 01, 02 e 03":{v:84.77,c:"Olimpo"}, "Paulo 01":{v:61.65,c:"Lenda"}},
-    "2024/2025": {"Pivô 03":{v:83.6,c:"Olimpo"}, "Pivô 01":{v:72.13,c:"Olimpo"}, "Pivô 02":{v:72.93,c:"Olimpo"}, "Talhão 10 e 11":{v:77.29,c:"Olimpo"}, "Calcinhas":{v:75.12,c:"Olimpo"}, "Corredor Luiz":{v:74.18,c:"Neo 790"}, "Luiz 01 e 02":{v:80.45,c:"Neo 790/Olimpo"}, "Talhão 13":{v:73.62,c:"Olimpo"}, "Luiz 07":{v:55.2,c:"Neo 790"}, "Luiz 08":{v:53.13,c:"Neo 790"}, "Talhão 07":{v:73.17,c:"Dominio"}, "Luiz 03":{v:85.36,c:"Neo 790/Olimpo"}, "Luiz 09":{v:57.18,c:"Olimpo"}, "Luiz 05":{v:69.89,c:"Olimpo"}, "Luiz 04":{v:64.77,c:"Olimpo"}, "Talhão 14 e 12":{v:72.5,c:"Olimpo"}, "Sede":{v:55.99,c:"Dominio"}, "Corredor Zoi":{v:51.3,c:"Dominio"}, "Talhão 01 e 02":{v:64.78,c:"Neo 840/Dominio"}, "Talhão 09":{v:75.92,c:"Neo 790"}, "Talhão 06":{v:88.63,c:"Neo 790/Dominio"}, "Talhão 08":{v:75.43,c:"Neo 790/Dominio"}, "Talhão 05":{v:65.93,c:"Dominio"}, "Talhão 03 e 04":{v:62.55,c:"Dominio"}, "Luiz 06":{v:53.21,c:"Neo 790"}, "Talhão 16":{v:59.03,c:"Dominio"}, "Talhão 15 e 17":{v:66.55,c:"Dominio"}, "Paulo 01":{v:70.54,c:"Dominio"}, "Paulo 02":{v:58.61,c:"Dominio"}, "Paulo 03":{v:51.61,c:"Dominio"}}
+    "2025/2026": {"Pivo 01":{v:79.39,c:"Olimpo",a:92}, "Pivo 03":{v:83.72,c:"Olimpo",a:100.5}, "Pivo 02":{v:73.54,c:"Olimpo",a:92.7}, "T 03 e 04":{v:56,c:"Neo 790",a:313.5}, "T 17":{v:59.75,c:"Neo 790",a:199}, "Luis 04":{v:73.09,c:"Olimpo",a:303.53}, "Luis 09":{v:57.5,c:"Olimpo",a:75.9}, "T 10 e 11":{v:77.58,c:"Olimpo",a:474.26}, "Luis 05 e Corredor Luiz":{v:76.34,c:"Olimpo/Neo 790",a:628.22}, "T 12, 13 e 14 + Saias Pivôs":{v:64.57,c:"Olimpo",a:771.85}, "Sede":{v:53.1,c:"Lenda",a:158.55}, "Luis 06, 07 e 08":{v:64.39,c:"Olimpo",a:544.77}, "T 05":{v:51.37,c:"Lenda",a:107.3}, "T 01 e 02":{v:56.09,c:"Neo 790",a:566.5}, "T 06, 07, 08 e 09":{v:67.56,c:"Olimpo/Neo 790",a:902}, "T 15 e 16 + Corredor Zoi":{v:52.1,c:"Lenda",a:500.47}, "Paulo 02":{v:55.17,c:"Lenda",a:388.96}, "Paulo 03":{v:55.34,c:"Lenda",a:125.28}, "Luis 01, 02 e 03":{v:84.77,c:"Olimpo",a:889.54}, "Paulo 01":{v:61.65,c:"Lenda",a:89.74}},
+    "2024/2025": {"Pivô 03":{v:83.6,c:"Olimpo",a:100.54}, "Pivô 01":{v:72.13,c:"Olimpo",a:91.35}, "Pivô 02":{v:72.93,c:"Olimpo",a:92.7}, "Talhão 10 e 11":{v:77.29,c:"Olimpo",a:469.1}, "Calcinhas":{v:75.12,c:"Olimpo",a:38.9}, "Corredor Luiz":{v:74.18,c:"Neo 790",a:14.8}, "Luiz 01 e 02":{v:80.45,c:"Neo 790/Olimpo",a:581.8}, "Talhão 13":{v:73.62,c:"Olimpo",a:317.98}, "Luiz 07":{v:55.2,c:"Neo 790",a:83.46}, "Luiz 08":{v:53.13,c:"Neo 790",a:291.91}, "Talhão 07":{v:73.17,c:"Dominio",a:121.68}, "Luiz 03":{v:85.36,c:"Neo 790/Olimpo",a:298.74}, "Luiz 09":{v:57.18,c:"Olimpo",a:76.16}, "Luiz 05":{v:69.89,c:"Olimpo",a:604.22}, "Luiz 04":{v:64.77,c:"Olimpo",a:305.41}, "Talhão 14 e 12":{v:72.5,c:"Olimpo",a:414.97}, "Sede":{v:55.99,c:"Dominio",a:158.55}, "Corredor Zoi":{v:51.3,c:"Dominio",a:12.4}, "Talhão 01 e 02":{v:64.78,c:"Neo 840/Dominio",a:562.52}, "Talhão 09":{v:75.92,c:"Neo 790",a:403.46}, "Talhão 06":{v:88.63,c:"Neo 790/Dominio",a:98.41}, "Talhão 08":{v:75.43,c:"Neo 790/Dominio",a:275.64}, "Talhão 05":{v:65.93,c:"Dominio",a:105.53}, "Talhão 03 e 04":{v:62.55,c:"Dominio",a:311.04}, "Luiz 06":{v:53.21,c:"Neo 790",a:169.45}, "Talhão 16":{v:59.03,c:"Dominio",a:355.74}, "Talhão 15 e 17":{v:66.55,c:"Dominio",a:320.3}, "Paulo 01":{v:70.54,c:"Dominio",a:89.03}, "Paulo 02":{v:58.61,c:"Dominio",a:331.66}, "Paulo 03":{v:51.61,c:"Dominio",a:125.28}}
   },
   "mayara": {
-    "2025/2026": {"Caixa dagua- Asfalto":{v:89.29,c:"OLIMPO"}, "Rocinha":{v:90.42,c:"OLIMPO"}, "Pedra Preta":{v:94.1,c:"OLIMPO"}, "Fundo de casa":{v:96.66,c:"OLIMPO"}, "Baixada":{v:94.47,c:"OLIMPO"}, "Baixada (Rego)":{v:92.78,c:"OLIMPO"}, "Dr Julio T1":{v:72.98,c:"NEO 790 IPRO"}, "Dr Julio T2":{v:83.51,c:"NEO 790 IPRO"}, "Dr Julio T3":{v:83.43,c:"OLIMPO"}, "Dr Julio T4":{v:90.09,c:"OLIMPO"}, "Dr Julio T5":{v:86.55,c:"OLIMPO"}, "Zé Luiz T1 E 2":{v:80.67,c:"NEO 790 IPRO"}, "Zé Luiz T3":{v:87.25,c:"NEO 790 IPRO"}, "Zé Luiz T4":{v:72.41,c:"NEO 790 IPRO"}, "Zé Luiz T5":{v:61.28,c:"NEO 790 IPRO"}},
-    "2024/2025": {"Asfalto":{v:77.63,c:"DOMARIO 73i75"}, "Caixa dagua":{v:77.37,c:"DOMARIO 73i75"}, "Caixa dagua 2":{v:75.61,c:"OLIMPO"}, "Rocinha":{v:79.04,c:"OLIMPO"}, "Pedra Preta":{v:78.17,c:"OLIMPO"}, "Fundo de casa":{v:83.98,c:"OLIMPO"}, "Baixada":{v:86.41,c:"OLIMPO"}, "Baixada (Rego)":{v:85.6,c:"OLIMPO"}, "Dr Julio T1 -":{v:88.47,c:"OLIMPO"}, "Dr Julio T1":{v:91.47,c:"NEO 790 IPRO"}, "Dr Julio T2":{v:86.61,c:"OLIMPO"}, "Dr Julio T3":{v:96.04,c:"OLIMPO"}, "Dr Julio T4":{v:95.38,c:"OLIMPO"}, "Dr Julio T5":{v:90.71,c:"OLIMPO"}, "Zé Luiz T3":{v:86.63,c:"NEO 790 IPRO"}, "Zé Luiz T4":{v:78.1,c:"NEO 790 IPRO"}, "Zé Luiz T5":{v:43.18,c:"NEO 790 IPRO"}},
-    "2023/2024": {"Asfalto":{v:79.05,c:"NEO 790 IPRO"}, "Caixa dagua":{v:80.17,c:"NEO 790 IPRO"}, "Caixa dagua 2":{v:78.47,c:"BMX OLIMPO IPRO"}, "Rocinha":{v:80.36,c:"BMX OLIMPO IPRO"}, "Pedra Preta":{v:81.1,c:"BMX OLIMPO IPRO"}, "Fundo de casa":{v:86.64,c:"BMX OLIMPO IPRO"}, "Baixada":{v:73.06,c:"BMX OLIMPO IPRO"}, "Baixada (Rego)":{v:80.13,c:"BMX OLIMPO IPRO"}, "Dr Julio T1":{v:77.18,c:"BMX OLIMPO IPRO"}, "Dr Julio T2":{v:72.46,c:"BMX OLIMPO IPRO"}, "Dr Julio T3":{v:79.1,c:"BMX OLIMPO IPRO"}, "Dr Julio T4":{v:77.8,c:"BMX OLIMPO IPRO"}, "Dr Julio T5":{v:80.28,c:"BMX OLIMPO IPRO"}, "Zé Luiz T1":{v:79.98,c:"NS 7901 RR"}, "Zé Luiz T2":{v:79.86,c:"NS 7901 RR"}, "Zé Luiz T3":{v:73.22,c:"BMX OLIMPO IPRO"}, "Zé Luiz T4":{v:73.28,c:"NS 7901 RR"}, "Zé Luiz T5":{v:42.06,c:"NS 7901 RR"}}
+    "2025/2026": {"Caixa dagua- Asfalto":{v:89.29,c:"OLIMPO",a:467}, "Rocinha":{v:90.42,c:"OLIMPO",a:23.8}, "Pedra Preta":{v:94.1,c:"OLIMPO",a:115}, "Fundo de casa":{v:96.66,c:"OLIMPO",a:162.1}, "Baixada":{v:94.47,c:"OLIMPO",a:90.4}, "Baixada (Rego)":{v:92.78,c:"OLIMPO",a:87.7}, "Dr Julio T1":{v:72.98,c:"NEO 790 IPRO",a:313.53}, "Dr Julio T2":{v:83.51,c:"NEO 790 IPRO",a:132.3}, "Dr Julio T3":{v:83.43,c:"OLIMPO",a:65}, "Dr Julio T4":{v:90.09,c:"OLIMPO",a:181.8}, "Dr Julio T5":{v:86.55,c:"OLIMPO",a:95}, "Zé Luiz T1 E 2":{v:80.67,c:"NEO 790 IPRO",a:285.67}, "Zé Luiz T3":{v:87.25,c:"NEO 790 IPRO",a:112.7}, "Zé Luiz T4":{v:72.41,c:"NEO 790 IPRO",a:162}, "Zé Luiz T5":{v:61.28,c:"NEO 790 IPRO",a:42.9}},
+    "2024/2025": {"Asfalto":{v:77.63,c:"DOMARIO 73i75",a:101}, "Caixa dagua":{v:77.37,c:"DOMARIO 73i75",a:232}, "Caixa dagua 2":{v:75.61,c:"OLIMPO",a:134}, "Rocinha":{v:79.04,c:"OLIMPO",a:23.8}, "Pedra Preta":{v:78.17,c:"OLIMPO",a:115}, "Fundo de casa":{v:83.98,c:"OLIMPO",a:162.1}, "Baixada":{v:86.41,c:"OLIMPO",a:90.4}, "Baixada (Rego)":{v:85.6,c:"OLIMPO",a:87.7}, "Dr Julio T1 -":{v:88.47,c:"OLIMPO",a:187.3}, "Dr Julio T1":{v:91.47,c:"NEO 790 IPRO",a:126.23}, "Dr Julio T2":{v:86.61,c:"OLIMPO",a:132.3}, "Dr Julio T3":{v:96.04,c:"OLIMPO",a:65}, "Dr Julio T4":{v:95.38,c:"OLIMPO",a:181.8}, "Dr Julio T5":{v:90.71,c:"OLIMPO",a:95}, "Zé Luiz T3":{v:86.63,c:"NEO 790 IPRO",a:112.7}, "Zé Luiz T4":{v:78.1,c:"NEO 790 IPRO",a:162}, "Zé Luiz T5":{v:43.18,c:"NEO 790 IPRO",a:42.9}},
+    "2023/2024": {"Asfalto":{v:79.05,c:"NEO 790 IPRO",a:104}, "Caixa dagua":{v:80.17,c:"NEO 790 IPRO",a:232}, "Caixa dagua 2":{v:78.47,c:"BMX OLIMPO IPRO",a:128}, "Rocinha":{v:80.36,c:"BMX OLIMPO IPRO",a:23.8}, "Pedra Preta":{v:81.1,c:"BMX OLIMPO IPRO",a:115}, "Fundo de casa":{v:86.64,c:"BMX OLIMPO IPRO",a:123.1}, "Baixada":{v:73.06,c:"BMX OLIMPO IPRO",a:134.3}, "Baixada (Rego)":{v:80.13,c:"BMX OLIMPO IPRO",a:87.7}, "Dr Julio T1":{v:77.18,c:"BMX OLIMPO IPRO",a:301.3}, "Dr Julio T2":{v:72.46,c:"BMX OLIMPO IPRO",a:132.3}, "Dr Julio T3":{v:79.1,c:"BMX OLIMPO IPRO",a:95}, "Dr Julio T4":{v:77.8,c:"BMX OLIMPO IPRO",a:181.8}, "Dr Julio T5":{v:80.28,c:"BMX OLIMPO IPRO",a:95}, "Zé Luiz T1":{v:79.98,c:"NS 7901 RR",a:70.4}, "Zé Luiz T2":{v:79.86,c:"NS 7901 RR",a:214.5}, "Zé Luiz T3":{v:73.22,c:"BMX OLIMPO IPRO",a:112.7}, "Zé Luiz T4":{v:73.28,c:"NS 7901 RR",a:162}, "Zé Luiz T5":{v:42.06,c:"NS 7901 RR",a:42.9}}
   },
   "lageado": {
-    "2025/2026": {"Curral":{v:87.13,c:"Olimpo"}, "Talhão 1,2,3":{v:82.76,c:"Olimpo"}, "Bijui":{v:82.63,c:"Olimpo"}, "Lobato":{v:88.48,c:"Neo 790"}, "Area Rocinha Vania":{v:61.75,c:"Neo 790"}, "Carlitão Abertura 3":{v:49.85,c:"NEO 790"}, "João - Lageado":{v:72.18,c:"NEO 761"}, "Carlitão 1-2":{v:81.39,c:"Neo 790"}, "Paulo Nobre - Frente -Fundo":{v:79.71,c:"Olimpo"}, "Zeca":{v:73.85,c:"Neo 790"}, "Sidimiro":{v:73.38,c:"Neo 790"}, "Geracino":{v:50.98,c:"Neo 790"}},
-    "2024/2025": {"Curral":{v:88.92,c:"Olimpo"}, "Talhão 1,2":{v:80.63,c:"Neo 680"}, "Talhao 3":{v:95.05,c:"Olimpo"}, "Bijui":{v:83.56,c:"Neo 680"}, "Lobato":{v:91.47,c:"Olimpo"}, "Area Rocinha Vania":{v:86.35,c:"Neo 790"}, "Carlitão Area nova":{v:86.82,c:"NEO 790"}, "João - Lageado":{v:88.87,c:"NEO 790"}, "Carlitão":{v:90.36,c:"Neo 790"}, "Paulo Nobre - Frente":{v:88.61,c:"NEO 790"}, "Paulo Nobre - Fundo":{v:96.03,c:"Olimpo"}}
+    "2025/2026": {"Curral":{v:87.13,c:"Olimpo",a:155.89}, "Talhão 1,2,3":{v:82.76,c:"Olimpo",a:101.3}, "Bijui":{v:82.63,c:"Olimpo",a:140}, "Lobato":{v:88.48,c:"Neo 790",a:158}, "Area Rocinha Vania":{v:61.75,c:"Neo 790",a:22.82}, "Carlitão Abertura 3":{v:49.85,c:"NEO 790",a:82}, "João - Lageado":{v:72.18,c:"NEO 761",a:57}, "Carlitão 1-2":{v:81.39,c:"Neo 790",a:311}, "Paulo Nobre - Frente -Fundo":{v:79.71,c:"Olimpo",a:281.65}, "Zeca":{v:73.85,c:"Neo 790",a:87}, "Sidimiro":{v:73.38,c:"Neo 790",a:32}, "Geracino":{v:50.98,c:"Neo 790",a:50}},
+    "2024/2025": {"Curral":{v:88.92,c:"Olimpo",a:155.89}, "Talhão 1,2":{v:80.63,c:"Neo 680",a:77.6}, "Talhao 3":{v:95.05,c:"Olimpo",a:23.7}, "Bijui":{v:83.56,c:"Neo 680",a:140}, "Lobato":{v:91.47,c:"Olimpo",a:158}, "Area Rocinha Vania":{v:86.35,c:"Neo 790",a:22.82}, "Carlitão Area nova":{v:86.82,c:"NEO 790",a:58}, "João - Lageado":{v:88.87,c:"NEO 790",a:57}, "Carlitão":{v:90.36,c:"Neo 790",a:253}, "Paulo Nobre - Frente":{v:88.61,c:"NEO 790",a:105.65}, "Paulo Nobre - Fundo":{v:96.03,c:"Olimpo",a:176}}
   }
 };
 function histSeedDe(nomeFaz){
@@ -1425,6 +1431,7 @@ function baselineComp(fid, safraAtual){
 /* Uma entrada do histórico pode ser um número (sc/ha) ou {v:sc/ha, c:variedade}. */
 function hVal(x){ return x==null?null:(typeof x==="object"?(x.v==null?null:x.v):x); }
 function hCult(x){ return (x && typeof x==="object")?(x.c||""):""; }
+function hArea(x){ return (x && typeof x==="object" && x.a!=null)?x.a:null; }
 function prod2025De(fid){
   const m=baselineComp(fid, (acharFazenda(fid)||{}).safra).mapa, o={};
   for(const k in m){ const v=hVal(m[k]); if(v!=null) o[k]=v; }
@@ -2910,12 +2917,26 @@ function telaColheita(){
        '<p>Cargas, produtividade e silo bolsa · safra '+esc(f.safra)+'</p></div></div>';
 
   const emTransito = cargas.filter(x=>!cargaBaixada(x)).length;
-  h += '<div class="kpis kpis-4">'+
-    kpi("Cargas", n0(cargas.length), emTransito ? emTransito+" a baixar" : "todas baixadas") +
-    kpi("Sacas confirmadas", nf(p.totalSacas,0), "sc") +
-    kpi("Área colhida", nf(p.haColhida,1), "ha") +
-    kpi("Produtividade", nf(p.prodColhida,2), "sc/ha") +
-  '</div>';
+  const filtrando = _abaColh==="cargas" && _fCarga.destino;
+  if(filtrando){
+    const arm = cargas.filter(c=>c.destino===_fCarga.destino);
+    const transito = arm.filter(c=>!cargaBaixada(c)).length;
+    const scConf = arm.filter(cargaBaixada).reduce((s,c)=>s+(c.baixa.sacas_final||0),0);
+    const liq = arm.reduce((s,c)=>s+(Number(c.liquido)||0),0);
+    h += '<div class="kpis kpis-4">'+
+      kpi("Cargas · "+esc(_fCarga.destino), n0(arm.length), transito?transito+" a caminho":"todas baixadas")+
+      kpi("Sacas confirmadas", nf(scConf,0), "sc")+
+      kpi("Em deslocamento", n0(transito), transito?"carga(s) a caminho":"nenhuma a caminho")+
+      kpi("Líquido na balança", n0(liq), "kg")+
+    '</div>';
+  }else{
+    h += '<div class="kpis kpis-4">'+
+      kpi("Cargas", n0(cargas.length), emTransito ? emTransito+" a baixar" : "todas baixadas") +
+      kpi("Sacas confirmadas", nf(p.totalSacas,0), "sc") +
+      kpi("Área colhida", nf(p.haColhida,1), "ha") +
+      kpi("Produtividade", nf(p.prodColhida,2), "sc/ha") +
+    '</div>';
+  }
 
   h += '<div class="abas">'+
     aba("cargas","Cargas", cargas.length)+
@@ -5041,15 +5062,17 @@ function telaHistorico(){
   const nomesAtuais = tals.map(t=>t.nome);
   const chaves = Object.keys(mapa);
   const disponiveis = tals.filter(t=>!(t.nome in mapa));
-  out+='<div class="tbl"><table><thead><tr><th>Talhão</th><th class="num">Sc/ha '+esc(safraCurta(_histSafra))+'</th><th>Variedade</th></tr></thead><tbody>';
+  out+='<div class="tbl"><table><thead><tr><th>Talhão</th><th class="num">Área/ha</th><th class="num">Sc/ha '+esc(safraCurta(_histSafra))+'</th><th>Variedade</th></tr></thead><tbody>';
   if(!chaves.length){
-    out+='<tr><td colspan="3" class="vazio" style="padding:22px;text-align:center">Nenhum dado nesta safra. Use "Adicionar talhão" para lançar.</td></tr>';
+    out+='<tr><td colspan="4" class="vazio" style="padding:22px;text-align:center">Nenhum dado nesta safra. Use "Adicionar talhão" para lançar.</td></tr>';
   }
   chaves.forEach(k=>{
     const x=mapa[k], agr=!nomesAtuais.includes(k);
     const kEsc=esc(k).replace(/'/g,"\\'");
-    out+='<tr'+(agr?' class="pendente"':'')+'><td class="forte">'+esc(k)+
+    out+='<tr><td class="forte">'+esc(k)+
       (agr?' <span class="pill">agrupado</span>':'')+'</td>'+
+      '<td class="num"><input class="silo" type="number" step="0.01" inputmode="decimal" value="'+(hArea(x)!=null?hArea(x):"")+'" '+
+        'onchange="gravarHistAreaNome(this.value,\''+kEsc+'\')"></td>'+
       '<td class="num"><input class="silo" type="number" step="0.01" inputmode="decimal" value="'+(hVal(x)!=null?hVal(x):"")+'" '+
         'onchange="gravarHistNome(this.value,\''+kEsc+'\')"></td>'+
       '<td><input class="lv" value="'+esc(hCult(x))+'" placeholder="Olimpo, Neo 790…" '+
@@ -5070,23 +5093,18 @@ function _histMapaEditavel(f){
   const stored=Store.get(kHist(f.id),{});
   return { stored, mapa:Object.assign({}, histDe(f.id)[_histSafra]||{}, stored[_histSafra]||{}) };
 }
-function gravarHistNome(val, nome){
+function _histSet(nome, patch){
   const f=acharFazenda(App.fazendaId); if(!f) return;
   const {stored,mapa}=_histMapaEditavel(f);
-  const n=parseFloat(String(val).replace(",","."));
-  const cult=hCult(mapa[nome]);
-  if(isNaN(n)||n<=0){ if(cult) mapa[nome]={v:null,c:cult}; else delete mapa[nome]; }
-  else { mapa[nome]= cult ? {v:n,c:cult} : {v:n}; }
+  let cur = (mapa[nome] && typeof mapa[nome]==="object") ? Object.assign({},mapa[nome])
+           : (mapa[nome]!=null ? {v:mapa[nome]} : {});
+  for(const k in patch){ if(patch[k]==null || patch[k]==="") delete cur[k]; else cur[k]=patch[k]; }
+  if(cur.v==null && !cur.c && cur.a==null) delete mapa[nome]; else mapa[nome]=cur;
   stored[_histSafra]=mapa; Store.set(kHist(f.id),stored);
 }
-function gravarHistCultNome(cult, nome){
-  const f=acharFazenda(App.fazendaId); if(!f) return;
-  const {stored,mapa}=_histMapaEditavel(f);
-  const v=hVal(mapa[nome]); cult=(cult||"").trim();
-  if(!cult && v==null) delete mapa[nome];
-  else mapa[nome]={v:v, c:cult};
-  stored[_histSafra]=mapa; Store.set(kHist(f.id),stored);
-}
+function gravarHistNome(val, nome){ const n=parseFloat(String(val).replace(",",".")); _histSet(nome,{v:(isNaN(n)||n<=0)?null:n}); }
+function gravarHistCultNome(cult, nome){ _histSet(nome,{c:(cult||"").trim()}); }
+function gravarHistAreaNome(val, nome){ const n=parseFloat(String(val).replace(",",".")); _histSet(nome,{a:(isNaN(n)||n<=0)?null:n}); }
 function adicionarHistTalhao(nome){
   const f=acharFazenda(App.fazendaId); if(!f) return;
   const {stored,mapa}=_histMapaEditavel(f);
@@ -5108,10 +5126,13 @@ function removerHistSafra(){
 function relHist(f, safra){
   const mapa=histDe(f.id)[safra]||{};
   const chaves=Object.keys(mapa).filter(k=>hVal(mapa[k])!=null);   // só quem tem dado
-  const linhas=[{t:'cab',cs:['Talhão','Sc/ha '+safraCurta(safra),'Variedade']}];
-  chaves.forEach(k=>linhas.push({t:'dado',cs:[k, nf(hVal(mapa[k]),2), hCult(mapa[k])||"—"]}));
+  const linhas=[{t:'cab',cs:['Talhão','Área/ha','Sc/ha '+safraCurta(safra),'Variedade']}];
+  let totA=0;
+  chaves.forEach(k=>{ const a=hArea(mapa[k]); if(a) totA+=a;
+    linhas.push({t:'dado',cs:[k, a!=null?nf(a,2):"—", nf(hVal(mapa[k]),2), hCult(mapa[k])||"—"]}); });
+  if(totA>0) linhas.push({t:'total',cs:['TOTAL', nf(totA,2), '', '']});
   return {titulo:"Produtividade "+safra+" · "+f.nome, sub:"Histórico de safras",
-    larguras:[300,120,240], aligns:['left','right','left'], linhas};
+    larguras:[280,110,120,220], aligns:['left','right','right','left'], linhas};
 }
 function exportarHist(fmt){
   const f=acharFazenda(App.fazendaId); if(!f||_histSafra==="__nova") return;
@@ -6129,8 +6150,11 @@ function exportarProdutividade(){
    ═══════════════════════════════════════════════════ */
 function semearPrimeiraVez(){
   if(Store.get("seed_feito", false)) return;
+  if(fazendas().length){ Store.set("seed_feito", true); return; }
+  // Logado: a nuvem traz as fazendas na sincronização — não semear,
+  // senão cria uma Santa Angelina duplicada antes do baixar().
+  if(SUPABASE.ligado() && Auth.logado()) return;
   Store.set("seed_feito", true);
-  if(fazendas().length) return;
   const d = SEED_SANTA_ANGELINA;
   const f = criarFazenda({ nome:d.nome, produtor:d.produtor,
                            municipio:d.municipio, uf:d.uf });
