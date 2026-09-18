@@ -380,6 +380,22 @@ input.silo:focus{border-color:var(--gold);outline:none}
 .cam button{background:none;border:none;color:#CFCABD;font-size:13px;padding:3px 6px}
 .cam button:hover{color:var(--red)}
 .vazio{color:var(--muted);font-size:13px;padding:8px 0}
+.eq-row{display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid var(--line-soft)}
+.eq-row:last-child{border-bottom:none}
+.eq-row .who{flex:1;min-width:0}
+.eq-row .who b{font-family:var(--mono);font-size:12.5px;color:var(--green);font-weight:700;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.eq-row .who small{color:var(--muted);font-size:11px;display:block;margin-top:2px}
+.eq-pill{font-family:var(--mono);font-size:9px;font-weight:700;padding:1px 6px;border-radius:20px;background:var(--gold-soft);color:var(--amber)}
+.eq-row .mini{background:none;border:1px solid var(--line);color:var(--muted);font-size:11px;font-weight:700;padding:5px 9px;border-radius:7px;white-space:nowrap}
+.eq-row .mini:hover{border-color:var(--gold);color:var(--green)}
+.acc-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 14px;margin-top:7px}
+.acc-chk{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);padding:2px 0;cursor:pointer}
+.acc-chk input{width:auto;margin:0}
+.nota-pad{display:block;color:var(--muted);font-family:var(--mono);font-size:10.5px;margin-top:8px;line-height:1.4}
+.perigo-zona{margin-top:18px;border-top:1px solid var(--line);padding-top:14px}
+.perigo-zona h3{color:var(--red);font-size:11px;font-family:var(--mono);font-weight:800;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px}
+.btn-perigo{background:var(--red-soft);color:var(--red);border:1px solid #F0D6D0;padding:11px 14px;border-radius:9px;font-weight:800;width:100%;font-size:13.5px}
+.btn-perigo:hover{background:#F6E2DE}
 
 @media(max-width:640px){
   .kpis-4{grid-template-columns:1fr 1fr}
@@ -847,7 +863,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.18.0";
+const APP_VERSION = "2.19.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -1204,6 +1220,7 @@ const Sync = {
       if(r.dados != null) Store.set(chave, r.dados);
     });
     (fz||[]).forEach(r=>recontarFazenda(r.id));
+    await Acesso.carregar();   // papel + módulos liberados do próprio usuário
     Store.set("sync_ultimo", new Date().toISOString());
     return (fz||[]).length;
     } finally { this._aplicando = false; }
@@ -1276,14 +1293,13 @@ function criarFazenda(d){
   return f;
 }
 async function removerFazenda(id){
-  salvarFazendas(fazendas().filter(f=>f.id!==id));
-  // tira também os blocos locais dessa fazenda
-  BLOCOS.forEach(b=>Store.del("faz_"+id+"_"+b));
+  // Nuvem PRIMEIRO (cascade remove estado/membros/convites). Se falhar,
+  // o erro sobe e o local NÃO é mexido — nada de fazenda órfã reaparecendo.
   if(SUPABASE.ligado() && Auth.logado() && navigator.onLine){
-    // apaga na nuvem; o cascade remove estado/membros/convites
-    try{ await api("safra_fazendas?id=eq."+encodeURIComponent(id), {method:"DELETE"}); }
-    catch(e){ /* fica só local; se falhar, some no próximo baixar não — avisar */ }
+    await Sync._comRetry(()=>api("safra_fazendas?id=eq."+encodeURIComponent(id), {method:"DELETE"}));
   }
+  salvarFazendas(fazendas().filter(f=>f.id!==id));
+  BLOCOS.forEach(b=>Store.del("faz_"+id+"_"+b));
 }
 
 
@@ -2288,6 +2304,88 @@ function acharModulo(id){
   for(const g of MODULOS){ const m=g.itens.find(i=>i.id===id); if(m) return m; }
   return null;
 }
+function todosModulos(){ const a=[]; MODULOS.forEach(g=>g.itens.forEach(m=>a.push(m))); return a; }
+function nomeModulo(id){ const m=acharModulo(id); return m?m.nome:id; }
+
+/* ── Acessos (papel + módulos liberados por fazenda) ──────────
+   Fonte: safra_membros (nuvem). Cacheado em localStorage p/ valer
+   offline. Convenção: modulos null ou [] => TODOS os módulos.
+   dono/admin sempre veem tudo (o campo modulos é ignorado). */
+const PERFIS = {
+  geral:         { nome:"Geral",         papel:"operador", modulos:null,
+                   desc:"Vê todos os módulos" },
+  produtividade: { nome:"Produtividade", papel:"operador",
+                   modulos:["colheita","talhoes","lavoura","safras"],
+                   desc:"Colheita, Dados da fazenda, Lavoura e Histórico" },
+  pluviometro:   { nome:"Pluviômetro",   papel:"operador",
+                   modulos:["chuva","tempo"],
+                   desc:"Só Pluviometria e Previsão do tempo" },
+  leitura:       { nome:"Só leitura",    papel:"leitura",  modulos:null,
+                   desc:"Vê tudo, não edita (edição travada no servidor)" },
+  admin:         { nome:"Administrador", papel:"admin",    modulos:null,
+                   desc:"Gerencia a equipe e vê todos os módulos" }
+};
+function mesmoConjunto(a,b){
+  const A=(a&&a.length)?a.slice().sort():null, B=(b&&b.length)?b.slice().sort():null;
+  if(!A && !B) return true;
+  if(!A || !B || A.length!==B.length) return false;
+  return A.every((x,i)=>x===B[i]);
+}
+function perfilDe(papel, modulos){
+  for(const k in PERFIS){ const p=PERFIS[k];
+    if(p.papel===papel && mesmoConjunto(p.modulos, modulos)) return k; }
+  return null; // personalizado
+}
+function resumoModulos(modulos){
+  if(!modulos || !modulos.length) return "Todos os módulos";
+  return modulos.map(nomeModulo).join(", ");
+}
+
+const Acesso = {
+  mapa(){ return Store.get("sm_acesso", {}); },
+  daFaz(fid){ return this.mapa()[fid] || null; },
+  guardar(m){ Store.set("sm_acesso", m||{}); },
+  // Carrega da nuvem o vínculo do PRÓPRIO usuário em cada fazenda.
+  async carregar(){
+    if(!SUPABASE.ligado() || !Auth.logado() || !navigator.onLine) return;
+    const u = Auth.usuario(); if(!u) return;
+    try{
+      const r = await api("safra_membros?user_id=eq."+encodeURIComponent(u.id)+
+                          "&select=fazenda_id,papel,modulos");
+      const m = {};
+      (r||[]).forEach(x=>{ m[x.fazenda_id] = { papel:x.papel, modulos:x.modulos||null }; });
+      this.guardar(m);
+    }catch(e){ /* mantém o cache anterior (ex.: coluna ainda não criada) */ }
+  }
+};
+// dono/admin desta fazenda? (modo local sem nuvem, ou vínculo ainda não
+// carregado => true, para nunca trancar o dono para fora da própria tela)
+function ehGestor(fid){
+  if(!SUPABASE.ligado() || !Auth.logado()) return true;
+  const a = Acesso.daFaz(fid);
+  if(!a) return true;
+  return a.papel==="dono" || a.papel==="admin";
+}
+function ehDono(fid){
+  if(!SUPABASE.ligado() || !Auth.logado()) return true;
+  const a = Acesso.daFaz(fid);
+  return !a || a.papel==="dono";
+}
+function ehSoLeitura(fid){
+  if(!SUPABASE.ligado() || !Auth.logado()) return false;
+  const a = Acesso.daFaz(fid);
+  return !!a && a.papel==="leitura";
+}
+function modulosLiberados(fid){        // null => todos
+  if(ehGestor(fid)) return null;
+  const a = Acesso.daFaz(fid);
+  const m = a && a.modulos;
+  return (m && m.length) ? m : null;
+}
+function podeModulo(fid, mid){
+  const m = modulosLiberados(fid);
+  return !m || m.indexOf(mid) >= 0;
+}
 
 /* ═══════════════════════════════════════════════════
    UI
@@ -2519,6 +2617,7 @@ async function enviarLogin(){
     try{ await api("rpc/safra_aceitar_convites", {method:"POST", body:{}}); }catch(e){}
     toast("Bem-vindo");
     await primeiraSincronizacao();
+    await Acesso.carregar();
     render();
   }catch(e){
     const m=String(e.message||"");
@@ -2557,26 +2656,39 @@ function sairDaConta(){
   Auth.sair(); toast("Você saiu"); render();
 }
 
-/* ── Convidar alguém para a fazenda ──────── */
+/* ── Equipe e acessos ──────────────────────── */
+let _equipe = { membros:[], convites:[] };
+let _editAcesso = null;
+const PERFIL_ORDEM = ["geral","produtividade","pluviometro","admin","leitura"];
+function opcoesPerfil(sel){
+  return PERFIL_ORDEM.map(k=>'<option value="'+k+'"'+(k===sel?" selected":"")+'>'+
+    esc(PERFIS[k].nome)+'</option>').join("");
+}
+
 function modalEquipe(){
   const f=acharFazenda(App.fazendaId); if(!f) return;
+  if(!ehGestor(f.id)){ toast("Só o dono ou admin gerencia acessos"); return; }
   document.getElementById("modal-root").innerHTML=
-  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal">'+
-    '<h2>Quem acessa esta fazenda</h2>'+
-    '<p class="sub">A pessoa entra com o e-mail convidado e passa a ver os mesmos dados.</p>'+
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal modal-lg">'+
+    '<h2>Equipe e acessos</h2>'+
+    '<p class="sub">Quem entra nesta fazenda e o que cada um enxerga.</p>'+
     '<div id="eq-lista"><p class="vazio">Carregando…</p></div>'+
-    '<div class="frm" style="margin-top:14px">'+
+    '<div class="frm" style="margin-top:16px">'+
       '<div><label for="eq-email">Convidar por e-mail</label>'+
         '<input id="eq-email" type="email" inputmode="email" placeholder="pessoa@exemplo.com"></div>'+
-      '<div><label for="eq-papel">Permissão</label><select id="eq-papel">'+
-        '<option value="operador">Operador · lança e edita</option>'+
-        '<option value="leitura">Leitura · só consulta</option>'+
-        '<option value="admin">Administrador</option>'+
-      '</select></div>'+
+      '<div><label for="eq-perfil">Perfil</label><select id="eq-perfil">'+opcoesPerfil("geral")+'</select>'+
+        '<span class="pad" id="eq-perfil-desc">'+esc(PERFIS.geral.desc)+'</span></div>'+
     '</div>'+
     '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Fechar</button>'+
       '<button class="btn-save" onclick="convidar()">Convidar</button></div>'+
+    (ehDono(f.id)
+      ? '<div class="perigo-zona"><h3>Zona de risco</h3>'+
+        '<button class="btn-perigo" onclick="modalExcluirFazenda(\''+esc(f.id)+'\')">Excluir esta fazenda</button></div>'
+      : '')+
   '</div></div>';
+  const sel=document.getElementById("eq-perfil");
+  if(sel) sel.onchange=function(){ const d=document.getElementById("eq-perfil-desc");
+    if(d) d.textContent=(PERFIS[this.value]||{}).desc||""; };
   carregarEquipe();
 }
 
@@ -2584,22 +2696,33 @@ async function carregarEquipe(){
   const f=acharFazenda(App.fazendaId);
   const box=document.getElementById("eq-lista"); if(!box) return;
   try{
-    const m = await api("safra_membros?fazenda_id=eq."+encodeURIComponent(f.id)+"&select=email,papel,user_id");
-    const c = await api("safra_convites?fazenda_id=eq."+encodeURIComponent(f.id)+"&select=id,email,papel");
+    const m = await api("safra_membros?fazenda_id=eq."+encodeURIComponent(f.id)+"&select=email,papel,user_id,modulos");
+    const c = await api("safra_convites?fazenda_id=eq."+encodeURIComponent(f.id)+"&select=id,email,papel,modulos");
+    _equipe = { membros:(m||[]), convites:(c||[]) };
     const eu = Auth.usuario();
-    let h = '<div class="lista-cam">';
-    (m||[]).forEach(x=>{
-      h += '<div class="cam"><span class="mono">'+esc(x.email||"—")+
-        (eu && x.user_id===eu.id?' <u class="vc">você</u>':'')+'</span>'+
-        '<span>'+esc(x.papel)+'</span><span></span></div>';
+    const podeGerir = ehGestor(f.id), souDono = ehDono(f.id);
+    let h='<div class="lista-cam">';
+    _equipe.membros.forEach(x=>{
+      const souEu = eu && x.user_id===eu.id;
+      const alvoDono = x.papel==="dono";
+      const podeEditar = podeGerir && (!alvoDono || souDono);
+      const kperfil = perfilDe(x.papel, x.modulos);
+      const rotulo = alvoDono ? "Dono" : (kperfil ? PERFIS[kperfil].nome : "Personalizado");
+      const verTudo = alvoDono || x.papel==="admin";
+      const modsTxt = verTudo ? "todos os módulos" : resumoModulos(x.modulos);
+      h+='<div class="eq-row"><div class="who"><b>'+esc(x.email||"—")+(souEu?" · você":"")+'</b>'+
+         '<small>'+esc(rotulo)+' — '+esc(modsTxt)+'</small></div>'+
+         (podeEditar? '<button class="mini" onclick="abrirEditarAcesso(\''+esc(x.user_id)+'\')">Acesso</button>' : '')+
+         (podeGerir && !souEu && !alvoDono? '<button class="mini" onclick="removerMembro(\''+esc(x.user_id)+'\',\''+esc((x.email||"").replace(/'/g,"\\'"))+'\')">Remover</button>' : '')+
+       '</div>';
     });
-    (c||[]).forEach(x=>{
-      h += '<div class="cam pend"><span class="mono">'+esc(x.email)+' <u class="vc">convidado</u></span>'+
-        '<span>'+esc(x.papel)+'</span>'+
-        '<button onclick="cancelarConvite(\''+x.id+'\')">✕</button></div>';
+    _equipe.convites.forEach(x=>{
+      h+='<div class="eq-row"><div class="who"><b>'+esc(x.email)+'</b>'+
+         '<small><span class="eq-pill">convidado</span> '+esc(resumoModulos(x.modulos))+'</small></div>'+
+         '<button class="mini" onclick="cancelarConvite(\''+x.id+'\')">Cancelar</button></div>';
     });
-    h += '</div>';
-    box.innerHTML = (m&&m.length)||(c&&c.length) ? h : '<p class="vazio">Só você por enquanto.</p>';
+    h+='</div>';
+    box.innerHTML = (_equipe.membros.length||_equipe.convites.length)? h : '<p class="vazio">Só você por enquanto.</p>';
   }catch(e){ box.innerHTML='<p class="vazio">Não consegui carregar agora.</p>'; }
 }
 
@@ -2607,21 +2730,134 @@ async function convidar(){
   const f=acharFazenda(App.fazendaId);
   const email=(document.getElementById("eq-email").value||"").trim();
   if(!email || !email.includes("@")){ toast("Informe um e-mail válido"); return; }
+  const p=PERFIS[document.getElementById("eq-perfil").value]||PERFIS.geral;
   try{
     await api("safra_convites", { method:"POST",
       prefer:"resolution=merge-duplicates,return=minimal",
-      body:{ fazenda_id:f.id, email:email.toLowerCase(),
-             papel:document.getElementById("eq-papel").value } });
+      body:{ fazenda_id:f.id, email:email.toLowerCase(), papel:p.papel, modulos:p.modulos } });
     document.getElementById("eq-email").value="";
     toast("Convite registrado");
     carregarEquipe();
-  }catch(e){ toast("Não consegui convidar agora"); }
+  }catch(e){ toast(/permiss|42501/i.test(String(e.message||e))?"Sem permissão para convidar":"Não consegui convidar agora"); }
 }
 
 async function cancelarConvite(id){
   try{ await api("safra_convites?id=eq."+id, {method:"DELETE", prefer:"return=minimal"});
     toast("Convite cancelado"); carregarEquipe(); }
   catch(e){ toast("Não consegui cancelar"); }
+}
+
+async function removerMembro(uid, email){
+  const f=acharFazenda(App.fazendaId);
+  if(!confirm("Remover "+(email||"esta pessoa")+" da fazenda?\n\nEla perde o acesso, mas os dados ficam.")) return;
+  try{
+    await api("safra_membros?fazenda_id=eq."+encodeURIComponent(f.id)+"&user_id=eq."+encodeURIComponent(uid),
+      {method:"DELETE", prefer:"return=minimal"});
+    toast("Acesso removido"); carregarEquipe();
+  }catch(e){ toast(/permiss|42501/i.test(String(e.message||e))?"Sem permissão":"Não consegui remover"); }
+}
+
+/* editor de acesso de UMA pessoa */
+function abrirEditarAcesso(uid){
+  const f=acharFazenda(App.fazendaId);
+  const x=(_equipe.membros||[]).find(m=>m.user_id===uid); if(!x) return;
+  _editAcesso={ user_id:uid, email:x.email, papel:x.papel, modulos:x.modulos||null };
+  const souDono=ehDono(f.id);
+  const perfilAtual = perfilDe(x.papel, x.modulos) || "";
+  const papeis=[["operador","Operador · lança e edita"],["leitura","Leitura · só consulta"],["admin","Administrador · gerencia"]];
+  if(souDono) papeis.push(["dono","Dono"]);
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal modal-lg">'+
+    '<h2>Acesso de '+esc(x.email||"—")+'</h2>'+
+    '<p class="sub">Escolha um perfil pronto ou ajuste módulo a módulo.</p>'+
+    '<div class="frm">'+
+      '<div><label for="ea-perfil">Perfil</label><select id="ea-perfil" onchange="aplicarPerfilEditor(this.value)">'+
+        '<option value="">Personalizado</option>'+opcoesPerfil(perfilAtual)+'</select></div>'+
+      '<div><label for="ea-papel">Permissão</label><select id="ea-papel" onchange="_edPapelMudou()">'+
+        papeis.map(p=>'<option value="'+p[0]+'"'+(p[0]===x.papel?" selected":"")+'>'+esc(p[1])+'</option>').join("")+
+      '</select></div>'+
+    '</div>'+
+    '<label class="lbl" style="margin-top:14px">Módulos que aparecem</label>'+
+    '<div class="acc-grid" id="ea-mods">'+
+      todosModulos().map(m=>{
+        const on = !x.modulos || !x.modulos.length || x.modulos.indexOf(m.id)>=0;
+        return '<label class="acc-chk"><input type="checkbox" data-mid="'+m.id+'"'+(on?" checked":"")+'> '+esc(m.nome)+'</label>';
+      }).join("")+
+    '</div>'+
+    '<span class="nota-pad" id="ea-nota"></span>'+
+    '<div class="modal-acts"><button class="btn-cancel" onclick="modalEquipe()">Voltar</button>'+
+      '<button class="btn-save" onclick="salvarAcesso()">Salvar</button></div>'+
+  '</div></div>';
+  _edPapelMudou();
+}
+function _edPapelMudou(){
+  const p=(document.getElementById("ea-papel")||{}).value;
+  const grid=document.getElementById("ea-mods"), nota=document.getElementById("ea-nota");
+  const tudo = (p==="admin"||p==="dono");
+  if(grid){ grid.style.opacity = tudo? .45 : 1;
+    grid.querySelectorAll("input").forEach(i=>i.disabled=tudo); }
+  if(nota) nota.textContent = tudo ? "Admin e dono veem todos os módulos." :
+    (p==="leitura" ? "Leitura: vê os módulos marcados, mas não edita." : "");
+}
+function aplicarPerfilEditor(k){
+  if(!k) return;
+  const p=PERFIS[k]; if(!p) return;
+  const selP=document.getElementById("ea-papel"); if(selP) selP.value=p.papel;
+  const grid=document.getElementById("ea-mods");
+  if(grid){ const todos=!p.modulos || !p.modulos.length;
+    grid.querySelectorAll("input").forEach(i=>{
+      i.checked = todos || p.modulos.indexOf(i.getAttribute("data-mid"))>=0; }); }
+  _edPapelMudou();
+}
+async function salvarAcesso(){
+  const f=acharFazenda(App.fazendaId); if(!_editAcesso) return;
+  const papel=document.getElementById("ea-papel").value;
+  let modulos=null;
+  if(papel!=="admin" && papel!=="dono"){
+    const ids=[...document.querySelectorAll("#ea-mods input")].filter(i=>i.checked).map(i=>i.getAttribute("data-mid"));
+    if(!ids.length){ toast("Marque ao menos um módulo"); return; }
+    modulos = ids.length>=todosModulos().length ? null : ids;   // todos marcados => sem restrição
+  }
+  try{
+    await api("safra_membros?fazenda_id=eq."+encodeURIComponent(f.id)+"&user_id=eq."+encodeURIComponent(_editAcesso.user_id),
+      { method:"PATCH", prefer:"return=minimal", body:{ papel:papel, modulos:modulos } });
+    toast("Acesso salvo");
+    const eu=Auth.usuario();
+    if(eu && eu.id===_editAcesso.user_id) await Acesso.carregar();  // mudei o meu próprio acesso
+    modalEquipe();
+  }catch(e){ toast(/permiss|42501/i.test(String(e.message||e))?"Sem permissão para esta mudança":"Não consegui salvar"); }
+}
+
+/* ── Excluir fazenda (dono, digitando o nome) ─ */
+function modalExcluirFazenda(fid){
+  const f=acharFazenda(fid); if(!f) return;
+  if(!ehDono(fid)){ toast("Só o dono pode excluir a fazenda"); return; }
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal">'+
+    '<h2>Excluir fazenda</h2>'+
+    '<p class="sub">Isto apaga <b>'+esc(f.nome)+'</b> e todos os seus dados, no aparelho e na nuvem. Não dá para desfazer.</p>'+
+    '<div class="frm"><div><label for="ex-nome">Digite o nome exato da fazenda para confirmar</label>'+
+      '<input id="ex-nome" placeholder="'+esc(f.nome)+'" autocomplete="off" oninput="_exCheca(\''+esc(fid)+'\')"></div></div>'+
+    (!navigator.onLine? '<span class="nota-pad" style="color:var(--red)">Sem internet: conecte para excluir também na nuvem.</span>' : '')+
+    '<div class="modal-acts"><button class="btn-cancel" onclick="modalEquipe()">Voltar</button>'+
+      '<button class="btn-save" id="ex-btn" style="background:var(--red);color:#fff" disabled onclick="confirmarExcluirFazenda(\''+esc(fid)+'\')">Excluir</button></div>'+
+  '</div></div>';
+}
+function _exCheca(fid){
+  const f=acharFazenda(fid), inp=document.getElementById("ex-nome"), btn=document.getElementById("ex-btn");
+  if(!f||!inp||!btn) return;
+  btn.disabled = !(inp.value.trim()===f.nome.trim() && navigator.onLine);
+}
+async function confirmarExcluirFazenda(fid){
+  const f=acharFazenda(fid); if(!f) return;
+  if(!ehDono(fid)){ toast("Só o dono pode excluir a fazenda"); return; }
+  const inp=document.getElementById("ex-nome");
+  if(!inp || inp.value.trim()!==f.nome.trim()){ toast("O nome não confere"); return; }
+  const btn=document.getElementById("ex-btn"); if(btn){ btn.disabled=true; btn.textContent="Excluindo…"; }
+  try{
+    await removerFazenda(fid);
+    fecharModal(); toast("Fazenda excluída"); irPara("fazendas");
+  }catch(e){ toast("Não consegui excluir agora"); if(btn){ btn.disabled=false; btn.textContent="Excluir"; } }
 }
 
 function render(){
@@ -2632,6 +2868,7 @@ function render(){
   let h = topbar();
   if(App.tela==="fazendas")      h += telaFazendas();
   else if(App.tela==="fazenda")  h += telaFazenda();
+  else if(App.tela==="modulo" && !podeModulo(App.fazendaId, App.moduloId)){ App.tela="fazenda"; h += telaFazenda(); }
   else if(App.tela==="modulo")   h += (App.moduloId==="talhoes" ? telaTalhoes() : App.moduloId==="colheita" ? telaColheita() : App.moduloId==="chuva" ? telaChuva() : App.moduloId==="operacoes" ? telaOperacoes() : App.moduloId==="lavoura" ? telaLavoura() : App.moduloId==="estoque" ? telaEstoque() : App.moduloId==="ndvi" ? telaMapa() : App.moduloId==="tempo" ? telaTempo() : App.moduloId==="cotacoes" ? telaCotacoes() : App.moduloId==="documentos" ? telaDocumentos() : App.moduloId==="visitas" ? telaVisitas() : App.moduloId==="contratos" ? telaContratos() : App.moduloId==="safras" ? telaHistorico() : App.moduloId==="diesel" ? telaDiesel() : telaModulo());
   else if(App.tela==="panorama") h += telaPanorama();
   document.getElementById("root").innerHTML = h;
@@ -2716,25 +2953,34 @@ function telaFazenda(){
   h+='<div class="farm-head">'+
        '<button class="btn-back" onclick="irPara(\'fazendas\')">← Fazendas</button>'+
        '<div class="farm-head-mid"><h1>'+esc(f.nome)+'</h1><p>'+esc(loc)+'</p></div>'+
-       (SUPABASE.ligado() && Auth.logado()
-         ? '<button class="btn-back" onclick="modalEquipe()">Equipe</button>' : '')+
+       (SUPABASE.ligado() && Auth.logado() && ehGestor(f.id)
+         ? '<button class="btn-back" onclick="modalEquipe()">Equipe e acessos</button>' : '')+
        '<div class="safra-box"><label for="sel-safra">SAFRA</label>'+
          '<select id="sel-safra" onchange="trocarSafra(this.value)">'+
            safrasDisponiveis().map(s=>'<option '+(s===f.safra?"selected":"")+'>'+s+'</option>').join("")+
          '</select></div></div>';
 
-  h+='<div class="heroes">'+
-       '<button class="hero hero-leaf" onclick="irPara(\'modulo\',{moduloId:\'colheita\'})">'+
+  if(ehSoLeitura(f.id))
+    h+='<div class="banner warn" style="border-radius:10px;margin:0 0 14px">Perfil de leitura: você vê os dados, mas alterações não são salvas.</div>';
+
+  const heroCol = podeModulo(f.id,"colheita"), heroCtr = podeModulo(f.id,"contratos");
+  if(heroCol || heroCtr){
+    h+='<div class="heroes">'+
+       (heroCol ? '<button class="hero hero-leaf" onclick="irPara(\'modulo\',{moduloId:\'colheita\'})">'+
          '<span class="ic">'+ICON.colheita+'</span><h2>Colheita e produtividade</h2>'+
          '<p>'+(function(){const cs=cargasDe(f.id); const emTr=cs.filter(c=>!cargaBaixada(c)).length;
-           const p=produtividade(f.id); return cs.length? (nf(p.totalSacas,0)+" sc · "+cs.length+" cargas"+(emTr?" · "+emTr+" a caminho":"")) : "Lance a primeira carga · veja produtividade por talhão";})()+'</p></button>'+
-       '<button class="hero hero-earth" onclick="irPara(\'modulo\',{moduloId:\'contratos\'})">'+
+           const p=produtividade(f.id); return cs.length? (nf(p.totalSacas,0)+" sc · "+cs.length+" cargas"+(emTr?" · "+emTr+" a caminho":"")) : "Lance a primeira carga · veja produtividade por talhão";})()+'</p></button>' : '')+
+       (heroCtr ? '<button class="hero hero-earth" onclick="irPara(\'modulo\',{moduloId:\'contratos\'})">'+
          '<span class="ic">'+ICON.documentos+'</span><h2>Contratos a cumprir</h2>'+
-         '<p>'+(function(){const C=conferenciaContratos(f.id); return C.contratos.length? (nf(C.totCumprido,0)+" de "+nf(C.totContrato,0)+" sc entregues · a fixar "+nf(C.totAFixar,0)) : "Cadastre os contratos de venda e arrendamento";})()+'</p></button></div>';
+         '<p>'+(function(){const C=conferenciaContratos(f.id); return C.contratos.length? (nf(C.totCumprido,0)+" de "+nf(C.totContrato,0)+" sc entregues · a fixar "+nf(C.totAFixar,0)) : "Cadastre os contratos de venda e arrendamento";})()+'</p></button>' : '')+
+       '</div>';
+  }
 
   MODULOS.forEach(g=>{
+    const itens = g.itens.filter(m=>podeModulo(f.id, m.id));
+    if(!itens.length) return;
     h+='<div class="sec-head"><span>'+esc(g.grupo.toUpperCase())+'</span><i></i></div><div class="mods">';
-    g.itens.forEach(m=>{
+    itens.forEach(m=>{
       h+='<button class="mod" onclick="irPara(\'modulo\',{moduloId:\''+m.id+'\'})">'+
          '<span class="tag '+(m.pronto?"tag-ready":"tag-soon")+'">'+(m.pronto?"PRONTO":"EM BREVE")+'</span>'+
          '<span class="ic">'+(ICON[m.ic]||ICON.talhoes)+'</span>'+
@@ -5343,12 +5589,6 @@ function salvarCadastro(){
     safra:document.getElementById("c-safra").value });
   fecharModal(); toast("Fazenda cadastrada");
   irPara("fazenda",{fazendaId:f.id});
-}
-function confirmarRemover(id){
-  const f=acharFazenda(id); if(!f) return;
-  if(confirm('Remover "'+f.nome+'"?\n\nOs lançamentos dessa fazenda também saem da lista.')){
-    removerFazenda(id); toast("Fazenda removida"); render();
-  }
 }
 function trocarSafra(s){
   const l=fazendas(), f=l.find(x=>x.id===App.fazendaId);
