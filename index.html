@@ -847,7 +847,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.17.0";
+const APP_VERSION = "2.18.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -2695,7 +2695,6 @@ function telaFazendas(){
          '<div style="flex:1;cursor:pointer" onclick="irPara(\'fazenda\',{fazendaId:\''+f.id+'\'})">'+
            '<h3>'+esc(f.nome)+'</h3><p>'+(loc?esc(loc)+" · ":"")+
            f.talhoes+' talhões · '+f.hectares.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' ha · safra '+esc(f.safra)+'</p></div>'+
-         '<button class="del" title="Remover" onclick="confirmarRemover(\''+f.id+'\')">✕</button>'+
          '<span class="chev" onclick="irPara(\'fazenda\',{fazendaId:\''+f.id+'\'})">›</span></div>';
     });
   }
