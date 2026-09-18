@@ -846,7 +846,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.12.0";
+const APP_VERSION = "2.13.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -928,7 +928,7 @@ const SUPABASE = {
 
 /* Blocos de estado que sobem para a nuvem */
 const BLOCOS = ["talhoes","cargas","armazens","caminhoes","silocap","bases","chuva",
-                "lavoura","produtos","aplicacoes","entradas","docs","mapa","visitas","contratos"];
+                "lavoura","produtos","aplicacoes","entradas","docs","mapa","visitas","contratos","hist"];
 
 /* ── Sessão ──────────────────────────────── */
 const Auth = {
@@ -1374,34 +1374,64 @@ function aplicarSeedTalhoes(fid, seed){
   return l.length;
 }
 
-/* Produtividade de 2025 (safra 24/25) por talhão — sc/ha.
-   Só as correspondências EXATAS com o nome do talhão atual: onde a
-   planilha histórica agrupou/dividiu talhões, fica de fora (sem realce),
-   para não atribuir um número que não é daquele talhão. O bloco
-   faz_<id>_prod2025 (se o usuário preencher) sobrepõe estes valores. */
-const PROD_2025 = {
-  "santa angelina": {
-    "Pivo 01":72.13,"Pivo 02":72.93,"Pivo 03":83.6,"Sede":55.99,"Corredor Luiz":74.18,
-    "Talhão 05":65.93,"Talhão 06":88.63,"Talhão 07":73.17,"Talhão 08":75.43,"Talhão 09":75.92,
-    "Talhão 13":73.62,"Talhão 16":59.03,"Luiz 03":85.36,"Luiz 04":64.77,"Luiz 05":69.89,
-    "Luiz 06":53.21,"Luiz 07":55.2,"Luiz 08":53.13,"Luiz 09":57.18,
-    "Paulo 01":70.54,"Paulo 02":58.61,"Paulo 03":51.61 },
+/* ═══════════════════════════════════════════════════
+   HISTÓRICO DE SAFRAS — produtividade (sc/ha) por talhão,
+   por safra. Alimenta o comparativo da produtividade atual.
+   Vem semeado com o que já foi compartilhado; é editável.
+   ═══════════════════════════════════════════════════ */
+const HIST_SEED = {
+  "santa angelina": { "2024/2025": {
+    "Pivô 03":83.6,"Pivô 01":72.13,"Pivô 02":72.93,"Talhão 10 e 11":77.29,"Calcinhas":75.12,
+    "Corredor Luiz":74.18,"Luiz 01 e 02":80.45,"Talhão 13":73.62,"Luiz 07":55.2,"Luiz 08":53.13,
+    "Talhão 07":73.17,"Luiz 03":85.36,"Luiz 09":57.18,"Luiz 05":69.89,"Luiz 04":64.77,
+    "Talhão 14 e 12":72.5,"Sede":55.99,"Corredor Zoi":51.3,"Talhão 01 e 02":64.78,"Talhão 09":75.92,
+    "Talhão 06":88.63,"Talhão 08":75.43,"Talhão 05":65.93,"Talhão 03 e 04":62.55,"Luiz 06":53.21,
+    "Talhão 16":59.03,"Talhão 15 e 17":66.55,"Paulo 01":70.54,"Paulo 02":58.61,"Paulo 03":51.61 } },
   "mayara": {
-    "Rocinha":79.04,"Pedra Preta":78.17,"Fundo de casa":83.98,"Baixada":86.41,"Baixada (Rego)":85.60,
-    "Dr Julio T1 -":88.47,"Dr Julio T1":91.47,"Dr Julio T2":86.61,"Dr Julio T3":96.04,
-    "Dr Julio T4":95.38,"Dr Julio T5":90.71,"Zé Luiz T3":86.63,"Zé Luiz T4":78.10,"Zé Luiz T5":43.18 },
-  "lageado": {
-    "Curral":88.92,"Bijui":83.56,"Lobato":91.47,"Area Rocinha Vania":86.35,"João - Lageado":88.87 }
+    "2024/2025": {
+      "Asfalto":77.63,"Caixa dagua":77.37,"Caixa dagua 2":75.61,"Rocinha":79.04,"Pedra Preta":78.17,
+      "Fundo de casa":83.98,"Baixada":86.41,"Baixada (Rego)":85.60,"Dr Julio T1 -":88.47,"Dr Julio T1":91.47,
+      "Dr Julio T2":86.61,"Dr Julio T3":96.04,"Dr Julio T4":95.38,"Dr Julio T5":90.71,
+      "Zé Luiz T3":86.63,"Zé Luiz T4":78.10,"Zé Luiz T5":43.18 },
+    "2023/2024": {
+      "Asfalto":79.05,"Caixa dagua":80.17,"Caixa dagua 2":78.47,"Rocinha":80.36,"Pedra Preta":81.10,
+      "Fundo de casa":86.64,"Baixada":73.06,"Baixada (Rego)":80.13,"Dr Julio T1":77.18,"Dr Julio T2":72.46,
+      "Dr Julio T3":79.10,"Dr Julio T4":77.80,"Dr Julio T5":80.28,"Zé Luiz T1":79.98,"Zé Luiz T2":79.86,
+      "Zé Luiz T3":73.22,"Zé Luiz T4":73.28,"Zé Luiz T5":42.06 } },
+  "lageado": { "2024/2025": {
+    "Curral":88.92,"Talhão 1,2":80.63,"Talhao 3":95.05,"Bijui":83.56,"Lobato":91.47,
+    "Area Rocinha Vania":86.35,"Carlitão Area nova":86.82,"João - Lageado":88.87,"Carlitão":90.36,
+    "Paulo Nobre - Frente":88.61,"Paulo Nobre - Fundo":96.03 } }
 };
-function baseline2025(f){
-  const nome=(f&&f.nome||"").toLowerCase();
-  const chave = Object.keys(PROD_2025).find(k=>nome.includes(k));
-  return chave ? PROD_2025[chave] : {};
+function histSeedDe(nomeFaz){
+  const n=(nomeFaz||"").toLowerCase();
+  const k=Object.keys(HIST_SEED).find(x=>n.includes(x));
+  return k ? HIST_SEED[k] : {};
 }
-function prod2025De(fid){
-  const f = acharFazenda(fid);
-  return Object.assign({}, baseline2025(f), Store.get("faz_"+fid+"_prod2025", {}));
+function kHist(f){ return "faz_"+f+"_hist"; }
+function histDe(f){
+  const fz=acharFazenda(f);
+  return Object.assign({}, fz?histSeedDe(fz.nome):{}, Store.get(kHist(f), {}));
 }
+function salvarHistSafra(f, safra, mapa){
+  const h=Store.get(kHist(f),{}); h[safra]=mapa; Store.set(kHist(f),h);
+}
+function apagarHistSafra(f, safra){
+  const h=Store.get(kHist(f),{}); delete h[safra]; Store.set(kHist(f),h);
+}
+function safraCurta(s){ const m=String(s).match(/^\d\d(\d\d)\/\d\d(\d\d)$/); return m?m[1]+"/"+m[2]:String(s); }
+function safraAnterior(s){ const m=String(s).match(/^(\d{4})\/(\d{4})$/); return m?(Number(m[1])-1)+"/"+(Number(m[2])-1):null; }
+/* Base de comparação: a safra imediatamente anterior à atual, se houver;
+   senão a safra passada mais recente registrada. Sempre rotulada certo. */
+function baselineComp(fid, safraAtual){
+  const h=histDe(fid);
+  const prev=safraAnterior(safraAtual);
+  if(prev && h[prev]) return {safra:prev, mapa:h[prev]};
+  const keys=Object.keys(h).filter(k=>k<String(safraAtual)).sort();
+  const k=keys[keys.length-1];
+  return k ? {safra:k, mapa:h[k]} : {safra:null, mapa:{}};
+}
+function prod2025De(fid){ return baselineComp(fid, (acharFazenda(fid)||{}).safra).mapa; }
 /* Talhão finalizado: sombreia a linha e marca a colheita como encerrada. */
 function talFinalizado(fid, id){ const t=talhoesDe(fid).find(x=>x.id===id); return !!(t&&t.finalizado); }
 function finalizarTalhao(id){
@@ -2227,7 +2257,8 @@ const MODULOS = [
     { id:"relatorios", ic:"relatorios", nome:"Relatórios", desc:"Geral, por operação, chuva e mapa", pronto:false },
     { id:"documentos", ic:"documentos", nome:"Documentos", desc:"Contratos, notas e laudos", pronto:true,
       resumo:f=>{const n=docsDe(f.id).length; return n? n+" documento(s) guardado(s)" : "Guarde o primeiro contrato";} },
-    { id:"safras",     ic:"safras",     nome:"Histórico de safras", desc:"Comparar safras anteriores", pronto:false, resumo:f=>"atual "+f.safra },
+    { id:"safras",     ic:"safras",     nome:"Histórico de safras", desc:"Produtividade por talhão nas safras anteriores", pronto:true,
+      resumo:f=>{const n=Object.keys(histDe(f.id)).length; return n? n+" safra(s) registrada(s)" : "atual "+f.safra;} },
     { id:"suporte",    ic:"suporte",    nome:"Suporte", desc:"Dúvidas, vídeos e WhatsApp da equipe", pronto:false }
   ]}
 ];
@@ -2579,7 +2610,7 @@ function render(){
   let h = topbar();
   if(App.tela==="fazendas")      h += telaFazendas();
   else if(App.tela==="fazenda")  h += telaFazenda();
-  else if(App.tela==="modulo")   h += (App.moduloId==="talhoes" ? telaTalhoes() : App.moduloId==="colheita" ? telaColheita() : App.moduloId==="chuva" ? telaChuva() : App.moduloId==="operacoes" ? telaOperacoes() : App.moduloId==="lavoura" ? telaLavoura() : App.moduloId==="estoque" ? telaEstoque() : App.moduloId==="ndvi" ? telaMapa() : App.moduloId==="tempo" ? telaTempo() : App.moduloId==="cotacoes" ? telaCotacoes() : App.moduloId==="documentos" ? telaDocumentos() : App.moduloId==="visitas" ? telaVisitas() : App.moduloId==="contratos" ? telaContratos() : telaModulo());
+  else if(App.tela==="modulo")   h += (App.moduloId==="talhoes" ? telaTalhoes() : App.moduloId==="colheita" ? telaColheita() : App.moduloId==="chuva" ? telaChuva() : App.moduloId==="operacoes" ? telaOperacoes() : App.moduloId==="lavoura" ? telaLavoura() : App.moduloId==="estoque" ? telaEstoque() : App.moduloId==="ndvi" ? telaMapa() : App.moduloId==="tempo" ? telaTempo() : App.moduloId==="cotacoes" ? telaCotacoes() : App.moduloId==="documentos" ? telaDocumentos() : App.moduloId==="visitas" ? telaVisitas() : App.moduloId==="contratos" ? telaContratos() : App.moduloId==="safras" ? telaHistorico() : telaModulo());
   else if(App.tela==="panorama") h += telaPanorama();
   document.getElementById("root").innerHTML = h;
   Sync.render();
@@ -2933,19 +2964,7 @@ function abaCargas(f, cargas){
       '<div style="margin-top:16px"><button class="btn-act primary" '+
       'onclick="irPara(\'modulo\',{moduloId:\'talhoes\'})">Ir para Dados da fazenda</button></div></div>';
 
-  let l = cargas.slice();
-  if(_fCarga.destino) l = l.filter(c=>c.destino===_fCarga.destino);
-  if(_fCarga.talhao)  l = l.filter(c=>(c.talhoes||[]).some(i=>i.talhao_id===_fCarga.talhao));
-  if(_fCarga.situacao==="baixada")  l = l.filter(cargaBaixada);
-  else if(_fCarga.situacao==="transito") l = l.filter(c=>!cargaBaixada(c));
-  if(_fCarga.busca){
-    const b=_fCarga.busca.toLowerCase();
-    l = l.filter(c=>(c.romaneio||"").toLowerCase().includes(b) ||
-                    (c.motorista||"").toLowerCase().includes(b) ||
-                    (c.placa||"").toLowerCase().includes(b) ||
-                    (c.codigo||"").toLowerCase().includes(b));
-  }
-  l.sort((a,b)=>(b.data||"").localeCompare(a.data||"") || (b.codigo||"").localeCompare(a.codigo||""));
+  let l = cargasFiltradas(f.id);
 
   let h = '<div class="acts">'+
     '<button class="btn-act primary" onclick="modalCarga()">+ Lançar carga</button>'+
@@ -3014,13 +3033,14 @@ function abaProdutividade(f, p){
       'Cadastre os talhões em Dados da fazenda para acompanhar a produtividade.</div>';
 
   const cap = siloCap(f.id);
-  const temBase = Object.keys(prod2025De(f.id)).length>0;
+  const _bc = baselineComp(f.id, f.safra);
+  const temBase = _bc.safra && Object.keys(_bc.mapa).length>0;
   let h = '<div class="acts">'+
     '<button class="btn-act" onclick="modalSiloCap()">Saca por silo: '+n0(cap)+'</button>'+
     '<button class="btn-act" onclick="exportarProdutividade()">Baixar planilha</button>'+
     '<button class="btn-act" onclick="exportarProdutividadeImg(\'png\')">Exportar imagem</button>'+
     '<button class="btn-act" onclick="exportarProdutividadeImg(\'pdf\')">Exportar PDF</button></div>';
-  if(temBase) h += '<p class="legenda"><span class="sc-ha supera">■</span> Sc/ha em dourado = superou a produtividade de 2025 (safra 24/25) naquele talhão.</p>';
+  if(temBase) h += '<p class="legenda"><span class="sc-ha supera">■</span> Sc/ha em dourado = superou a produtividade de '+safraCurta(_bc.safra)+' naquele talhão.</p>';
 
   h += '<div class="tbl"><table><thead><tr>'+
     '<th>Talhão</th><th class="num">Área</th><th class="num">Sacas armazém</th>'+
@@ -4983,6 +5003,90 @@ function exportarEntregas(fmt){
   fmt==="pdf" ? REL.pdf(spec,nome) : REL.png(spec,nome);
 }
 
+let _histSafra = "";
+function telaHistorico(){
+  const f=acharFazenda(App.fazendaId); if(!f){ App.tela="fazendas"; return telaFazendas(); }
+  const h=histDe(f.id);
+  const safras=Object.keys(h).sort().reverse();
+  if(_histSafra!=="__nova" && !h[_histSafra]) _histSafra = safras[0] || "__nova";
+  const tals=talhoesDe(f.id).slice().sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR",{numeric:true}));
+  const mapa = (_histSafra==="__nova") ? {} : (h[_histSafra]||{});
+
+  let out='<div class="wrap wrap-wide">';
+  out+='<div class="farm-head"><button class="btn-back" onclick="irPara(\'fazenda\')">← '+esc(f.nome)+'</button>'+
+    '<div class="farm-head-mid"><h1>Histórico de safras</h1>'+
+    '<p>Produtividade (sc/ha) por talhão · base do comparativo da Produtividade</p></div></div>';
+
+  out+='<div class="acts">'+
+    '<select class="sel-f" onchange="_histSafra=this.value;render()">'+
+      safras.map(s=>'<option value="'+esc(s)+'" '+(_histSafra===s?"selected":"")+'>Safra '+esc(s)+'</option>').join("")+
+      '<option value="__nova" '+(_histSafra==="__nova"?"selected":"")+'>+ Nova safra…</option>'+
+    '</select>'+
+    (_histSafra!=="__nova"?'<button class="btn-act" onclick="exportarHist(\'png\')">Exportar imagem</button>'+
+      '<button class="btn-act" onclick="exportarHist(\'pdf\')">Exportar PDF</button>'+
+      '<button class="btn-act" onclick="removerHistSafra()">Remover safra</button>':'')+
+  '</div>';
+
+  if(_histSafra==="__nova"){
+    out+='<div class="frm" style="max-width:340px">'+
+      '<div><label for="hs-nova">Nova safra (formato 2025/2026)</label>'+
+      '<input id="hs-nova" placeholder="2025/2026"></div>'+
+      '<div style="margin-top:12px"><button class="btn-save" onclick="criarHistSafra()">Criar safra</button></div></div>';
+    return out+'</div>';
+  }
+  if(!tals.length)
+    return out+'<div class="empty"><strong>Cadastre os talhões primeiro</strong>Eles são as linhas do histórico.</div></div>';
+
+  out+='<div class="tbl"><table><thead><tr><th>Talhão</th><th class="num">Sc/ha '+esc(safraCurta(_histSafra))+'</th></tr></thead><tbody>';
+  tals.forEach(t=>{
+    const v=mapa[t.nome];
+    out+='<tr><td class="forte">'+esc(t.nome)+'</td>'+
+      '<td class="num"><input class="silo" type="number" step="0.01" inputmode="decimal" value="'+(v!=null?v:"")+'" '+
+      'onchange="gravarHist(this.value,\''+esc(t.id)+'\')"></td></tr>';
+  });
+  const extras=Object.keys(mapa).filter(k=>!tals.some(t=>t.nome===k));
+  extras.forEach(k=>{ out+='<tr class="pendente"><td>'+esc(k)+' <span class="pill">agrupado</span></td>'+
+    '<td class="num mono">'+nf(mapa[k],2)+'</td></tr>'; });
+  out+='</tbody></table></div>';
+  out+='<p class="resumo-obs">Esses valores alimentam a coluna comparativa na Produtividade (a safra anterior à atual). '+
+    'Talhões que na safra antiga vinham agrupados aparecem em cinza — não casam com o talhão atual.</p>';
+  return out+'</div>';
+}
+function gravarHist(val, talId){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const t=talhoesDe(f.id).find(x=>x.id===talId); if(!t) return;
+  const stored=Store.get(kHist(f.id),{});
+  const mapa=Object.assign({}, histDe(f.id)[_histSafra]||{}, stored[_histSafra]||{});
+  const n=parseFloat(String(val).replace(",","."));
+  if(isNaN(n)||n<=0) delete mapa[t.nome]; else mapa[t.nome]=n;
+  stored[_histSafra]=mapa; Store.set(kHist(f.id),stored);
+}
+function criarHistSafra(){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const s=String((document.getElementById("hs-nova")||{}).value||"").trim();
+  if(!/^\d{4}\/\d{4}$/.test(s)){ toast("Use o formato 2025/2026"); return; }
+  const stored=Store.get(kHist(f.id),{}); if(!stored[s]) stored[s]={}; Store.set(kHist(f.id),stored);
+  _histSafra=s; toast("Safra "+s+" criada"); render();
+}
+function removerHistSafra(){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  if(!confirm("Remover a safra "+_histSafra+" do histórico desta fazenda?")) return;
+  apagarHistSafra(f.id,_histSafra); _histSafra=""; toast("Safra removida"); render();
+}
+function relHist(f, safra){
+  const mapa=histDe(f.id)[safra]||{};
+  const tals=talhoesDe(f.id).slice().sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR",{numeric:true}));
+  const linhas=[{t:'cab',cs:['Talhão','Sc/ha '+safraCurta(safra)]}];
+  tals.forEach(t=>linhas.push({t:'dado',cs:[t.nome, mapa[t.nome]!=null?nf(mapa[t.nome],2):"—"]}));
+  Object.keys(mapa).filter(k=>!tals.some(t=>t.nome===k)).forEach(k=>linhas.push({t:'dado',cs:[k+" (agrupado)", nf(mapa[k],2)]}));
+  return {titulo:"Produtividade "+safra+" · "+f.nome, sub:"Histórico de safras", larguras:[300,140], aligns:['left','right'], linhas};
+}
+function exportarHist(fmt){
+  const f=acharFazenda(App.fazendaId); if(!f||_histSafra==="__nova") return;
+  const spec=relHist(f,_histSafra), nm="safra-"+_histSafra.replace("/","-")+"-"+f.nome.toLowerCase().replace(/[^a-z0-9]+/g,"-");
+  fmt==="pdf"?REL.pdf(spec,nm):REL.png(spec,nm);
+}
+
 function telaModulo(){
   const f=acharFazenda(App.fazendaId), m=acharModulo(App.moduloId);
   const nome = m ? m.nome
@@ -5747,15 +5851,33 @@ function baixarCSV(linhas, nome){
 }
 const vBR = v => String(v==null?"":v).replace(".",",");
 
+/* Cargas na ordem e com os filtros da tela (destino, situação, busca). */
+function cargasFiltradas(fid){
+  let l = cargasDe(fid).slice();
+  if(_fCarga.destino) l=l.filter(c=>c.destino===_fCarga.destino);
+  if(_fCarga.talhao)  l=l.filter(c=>(c.talhoes||[]).some(i=>i.talhao_id===_fCarga.talhao));
+  if(_fCarga.situacao==="baixada") l=l.filter(cargaBaixada);
+  else if(_fCarga.situacao==="transito") l=l.filter(c=>!cargaBaixada(c));
+  if(_fCarga.busca){ const b=_fCarga.busca.toLowerCase();
+    l=l.filter(c=>(c.romaneio||"").toLowerCase().includes(b)||(c.motorista||"").toLowerCase().includes(b)||
+      (c.placa||"").toLowerCase().includes(b)||(c.codigo||"").toLowerCase().includes(b)); }
+  return l.sort((a,b)=>(b.data||"").localeCompare(a.data||"")||(b.codigo||"").localeCompare(a.codigo||""));
+}
+
 /* ── Relatórios formatados (PNG/PDF) ─────── */
 function relCaminhoes(f){
   const tals=talhoesDe(f.id);
   const nome=id=>{const t=tals.find(x=>x.id===id); return t?t.nome:"";};
   const larguras=[72,66,116,92,300,116,96,84,74];
   const aligns=['center','center','left','center','left','center','right','right','right'];
+  const filtro=[]; // legenda dos filtros ativos, para o subtítulo
+  if(_fCarga.destino) filtro.push("destino "+_fCarga.destino);
+  if(_fCarga.situacao==="baixada") filtro.push("só baixadas");
+  else if(_fCarga.situacao==="transito") filtro.push("só a caminho");
+  if(_fCarga.busca) filtro.push('"'+_fCarga.busca+'"');
   const linhas=[{t:'cab',cs:['Controle','Data','Motorista','Placa','Talhão','Destino','Balança Faz.','Sc','Umidade']}];
   let totLiq=0, totSc=0;
-  cargasDe(f.id).slice().sort((a,b)=>(b.data||"").localeCompare(a.data||"")).forEach(c=>{
+  cargasFiltradas(f.id).forEach(c=>{
     const ok=cargaBaixada(c); const sc= ok?c.baixa.sacas_final:(c.sacas||0);
     const rateio=(c.talhoes||[]).map(i=>{
       const kg=Number(i.kg)||0; return (kg>0?n0(kg)+"kg ":"")+nome(i.talhao_id);
@@ -5766,7 +5888,8 @@ function relCaminhoes(f){
     totLiq+=Number(c.liquido)||0; totSc+=sc;
   });
   linhas.push({t:'total',cs:['','','','','','TOTAL', n0(totLiq), nf(totSc,2), '']});
-  return {titulo:"Controle de Caminhões · "+f.nome, sub:"Safra "+f.safra, larguras, aligns, linhas};
+  return {titulo:"Controle de Caminhões · "+f.nome,
+    sub:"Safra "+f.safra+(filtro.length?"  ·  filtro: "+filtro.join(", "):""), larguras, aligns, linhas};
 }
 function exportarCaminhoes(fmt){
   const f=acharFazenda(App.fazendaId); if(!f) return;
@@ -5777,20 +5900,43 @@ function exportarCaminhoes(fmt){
 
 function relProdutividade(f){
   const p=produtividade(f.id);
-  const base=prod2025De(f.id);
-  const larguras=[210,90,120,70,110,120,90,100];
-  const aligns=['left','right','right','right','right','right','right','right'];
-  const linhas=[{t:'cab',cs:['Talhão','Área/ha','Sacas armazém','Silos','Sacas silo','Total sc','Sc/ha','Sc/ha 2025']}];
+  const bc=baselineComp(f.id, f.safra);
+  const base=bc.mapa;
+  const rotBase = bc.safra ? "Sc/ha "+safraCurta(bc.safra) : "Sc/ha anterior";
+  const temSilo = p.linhas.some(t=>(t.silos>0)||(t.sc_silo>0));   // só mostra silo se existir
+  // colunas dinâmicas
+  const cols=[{n:'Talhão',a:'left',w:210, v:t=>t.nome},
+              {n:'Área/ha',a:'right',w:90, v:t=>nf(t.hectares,2)},
+              {n:'Sacas armazém',a:'right',w:120, v:t=>t.sacas>0?nf(t.sacas,2):"—"}];
+  if(temSilo){
+    cols.push({n:'Silos',a:'right',w:70, v:t=>t.silos||"—"});
+    cols.push({n:'Sacas silo',a:'right',w:110, v:t=>t.sc_silo>0?nf(t.sc_silo,0):"—"});
+  }
+  cols.push({n:'Total sc',a:'right',w:120, v:t=>t.total_sc>0?nf(t.total_sc,2):"—"});
+  cols.push({n:'Sc/ha',a:'right',w:90, v:t=>t.colhido?nf(t.sc_ha,2):"—"});
+  cols.push({n:rotBase,a:'right',w:100, v:t=>{const b=base[t.nome]; return b!=null?nf(b,2):"—";}});
+
+  const larguras=cols.map(c=>c.w), aligns=cols.map(c=>c.a);
+  const idxSc=cols.findIndex(c=>c.n==='Sc/ha');
+  const linhas=[{t:'cab',cs:cols.map(c=>c.n)}];
   p.linhas.forEach(t=>{
-    const b=base[t.nome];
-    const cor=[]; if(b!=null && t.colhido && t.sc_ha>b) cor[6]=REL.ouro;   // dourado quando supera 2025
-    linhas.push({t:'dado', cor, cs:[t.nome, nf(t.hectares,2), t.sacas>0?nf(t.sacas,2):"—",
-      t.silos||"—", t.sc_silo>0?nf(t.sc_silo,0):"—", t.total_sc>0?nf(t.total_sc,2):"—",
-      t.colhido?nf(t.sc_ha,2):"—", b!=null?nf(b,2):"—"]});
+    const b=base[t.nome], cor=[];
+    if(b!=null && t.colhido && t.sc_ha>b) cor[idxSc]=REL.ouro;   // dourado quando supera a safra anterior
+    linhas.push({t:'dado', cor, cs:cols.map(c=>c.v(t))});
   });
-  linhas.push({t:'total',cs:['TOTAL / MÉDIA', nf(p.haTotal,2), nf(p.sacasArmazem,2), '',
-    nf(p.sacasSilo,0), nf(p.totalSacas,2), nf(p.prodColhida,2), '']});
-  return {titulo:"Produtividade · "+f.nome, sub:"Safra "+f.safra+"  ·  comparativo com 2025 (24/25)",
+  // linha total (respeitando as colunas)
+  const tot=cols.map(c=>{
+    if(c.n==='Talhão') return 'TOTAL / MÉDIA';
+    if(c.n==='Área/ha') return nf(p.haTotal,2);
+    if(c.n==='Sacas armazém') return nf(p.sacasArmazem,2);
+    if(c.n==='Sacas silo') return nf(p.sacasSilo,0);
+    if(c.n==='Total sc') return nf(p.totalSacas,2);
+    if(c.n==='Sc/ha') return nf(p.prodColhida,2);
+    return '';
+  });
+  linhas.push({t:'total', cs:tot});
+  return {titulo:"Produtividade · "+f.nome,
+    sub:"Safra "+f.safra+(bc.safra?"  ·  comparativo com "+safraCurta(bc.safra):"  ·  sem safra anterior registrada"),
     larguras, aligns, linhas};
 }
 function exportarProdutividadeImg(fmt){
