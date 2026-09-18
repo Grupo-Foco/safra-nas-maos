@@ -736,6 +736,8 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 .vis-txt{color:var(--text);font-size:14px;margin-top:11px;line-height:1.55;white-space:pre-wrap}
 .vis-foto{margin-top:12px}
 .vis-foto img{max-width:220px;width:100%;border-radius:9px;cursor:zoom-in;display:block}
+.vis-fotos{margin-top:12px;display:flex;flex-wrap:wrap;gap:8px}
+.vis-fotos img{width:120px;height:120px;object-fit:cover;border-radius:9px;cursor:zoom-in;display:block;background:var(--line-soft)}
 @media(max-width:640px){ .kpis-3{grid-template-columns:1fr} .vis-foto img{max-width:100%} }
 
 /* ── Contratos ───────────────────────────── */
@@ -844,7 +846,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.11.0";
+const APP_VERSION = "2.12.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -2670,12 +2672,13 @@ function telaFazenda(){
          '</select></div></div>';
 
   h+='<div class="heroes">'+
-       '<button class="hero hero-leaf" onclick="irPara(\'modulo\',{moduloId:\'panorama-fazenda\'})">'+
-         '<span class="ic">'+ICON.panorama+'</span><h2>Panorama da fazenda</h2>'+
-         '<p>Lavoura, colheita, chuva e pendências num olhar</p></button>'+
-       '<button class="hero hero-earth" onclick="irPara(\'modulo\',{moduloId:\'resumo-fazenda\'})">'+
-         '<span class="ic">'+ICON.resumo+'</span><h2>Resumo financeiro</h2>'+
-         '<p>Custo por hectare, estoque, colheita e diesel</p></button></div>';
+       '<button class="hero hero-leaf" onclick="irPara(\'modulo\',{moduloId:\'colheita\'})">'+
+         '<span class="ic">'+ICON.colheita+'</span><h2>Colheita e produtividade</h2>'+
+         '<p>'+(function(){const cs=cargasDe(f.id); const emTr=cs.filter(c=>!cargaBaixada(c)).length;
+           const p=produtividade(f.id); return cs.length? (nf(p.totalSacas,0)+" sc · "+cs.length+" cargas"+(emTr?" · "+emTr+" a caminho":"")) : "Lance a primeira carga · veja produtividade por talhão";})()+'</p></button>'+
+       '<button class="hero hero-earth" onclick="irPara(\'modulo\',{moduloId:\'contratos\'})">'+
+         '<span class="ic">'+ICON.documentos+'</span><h2>Contratos a cumprir</h2>'+
+         '<p>'+(function(){const C=conferenciaContratos(f.id); return C.contratos.length? (nf(C.totCumprido,0)+" de "+nf(C.totContrato,0)+" sc entregues · a fixar "+nf(C.totAFixar,0)) : "Cadastre os contratos de venda e arrendamento";})()+'</p></button></div>';
 
   MODULOS.forEach(g=>{
     h+='<div class="sec-head"><span>'+esc(g.grupo.toUpperCase())+'</span><i></i></div><div class="mods">';
@@ -2947,6 +2950,8 @@ function abaCargas(f, cargas){
   let h = '<div class="acts">'+
     '<button class="btn-act primary" onclick="modalCarga()">+ Lançar carga</button>'+
     (cargas.length?'<button class="btn-act" onclick="exportarCargas()">Baixar planilha</button>':'')+
+    (cargas.length?'<button class="btn-act" onclick="exportarCaminhoes(\'png\')">Exportar imagem</button>':'')+
+    (cargas.length?'<button class="btn-act" onclick="exportarCaminhoes(\'pdf\')">Exportar PDF</button>':'')+
     (cargas.length?'<select class="sel-f" onchange="_fCarga.destino=this.value;render()">'+
       '<option value="">Todos os destinos</option>'+
       armazensDe(f.id).map(a=>'<option '+(_fCarga.destino===a?'selected':'')+'>'+esc(a)+'</option>').join("")+
@@ -3012,7 +3017,9 @@ function abaProdutividade(f, p){
   const temBase = Object.keys(prod2025De(f.id)).length>0;
   let h = '<div class="acts">'+
     '<button class="btn-act" onclick="modalSiloCap()">Saca por silo: '+n0(cap)+'</button>'+
-    '<button class="btn-act" onclick="exportarProdutividade()">Baixar planilha</button></div>';
+    '<button class="btn-act" onclick="exportarProdutividade()">Baixar planilha</button>'+
+    '<button class="btn-act" onclick="exportarProdutividadeImg(\'png\')">Exportar imagem</button>'+
+    '<button class="btn-act" onclick="exportarProdutividadeImg(\'pdf\')">Exportar PDF</button></div>';
   if(temBase) h += '<p class="legenda"><span class="sc-ha supera">■</span> Sc/ha em dourado = superou a produtividade de 2025 (safra 24/25) naquele talhão.</p>';
 
   h += '<div class="tbl"><table><thead><tr>'+
@@ -3132,7 +3139,8 @@ function telaChuva(){
       '<button class="'+(_modoChuva==="dia"?"on":"")+'" onclick="_modoChuva=\'dia\';render()">Por dia</button>'+
       '<button class="'+(_modoChuva==="planilha"?"on":"")+'" onclick="_modoChuva=\'planilha\';render()">Planilha</button>'+
     '</div>'+
-    '<button class="btn-act" onclick="exportarChuva()">Baixar planilha</button>'+
+    '<button class="btn-act" onclick="exportarChuvaImg(\'png\')">Exportar imagem</button>'+
+    '<button class="btn-act" onclick="exportarChuvaImg(\'pdf\')">Exportar PDF</button>'+
   '</div>';
 
   h += _modoChuva==="dia" ? chuvaPorDia(f,ano,mes,pts,r) : chuvaPlanilha(f,ano,mes,pts,r);
@@ -4230,6 +4238,7 @@ function telaDocumentos(){
         '<div><b>'+esc(d.nome)+'</b>'+
           '<span class="doc-tipo">'+esc(d.tipo)+'</span></div>'+
         '<div class="doc-acts">'+
+          (d.arquivo?'<button class="bx" onclick="verDoc(\''+d.id+'\')" title="Pré-visualizar">👁 Ver</button>':'')+
           (d.arquivo?'<button class="bx" onclick="baixarDoc(\''+d.id+'\')">Baixar</button>':'')+
           '<button onclick="modalDoc(\''+d.id+'\')">Editar</button>'+
           '<button class="rm" onclick="excluirDoc(\''+d.id+'\')">✕</button>'+
@@ -4343,6 +4352,18 @@ async function gravarDoc(id){
   toast(id?"Documento atualizado":"Documento guardado"); render();
 }
 
+async function verDoc(id){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const d=docsDe(f.id).find(x=>x.id===id); if(!d) return;
+  try{
+    let blob = d.arquivo_path ? await pegarArquivo(d.arquivo_path) : null;
+    if(!blob) blob = await pegarArquivo(id);
+    if(!blob && d.arquivo_path && navigator.onLine){ blob=await stBaixar(d.arquivo_path); if(blob) guardarArquivo(d.arquivo_path,blob); }
+    if(!blob){ toast(navigator.onLine?"Arquivo não encontrado":"Sem internet e sem cópia no aparelho"); return; }
+    window.open(URL.createObjectURL(blob), "_blank", "noopener");
+  }catch(e){ toast("Não consegui abrir o arquivo"); }
+}
+
 async function baixarDoc(id){
   const f=acharFazenda(App.fazendaId); if(!f) return;
   const d=docsDe(f.id).find(x=>x.id===id); if(!d) return;
@@ -4384,16 +4405,22 @@ function salvarVisita(f, v, id){
   const l = visitasDe(f);
   const dados = { talhao_id:v.talhao_id||"", talhao_nome:v.talhao_nome||"",
     data:v.data||"", estagio:v.estagio||"", clima:(v.clima||"").trim(),
-    texto:(v.texto||"").trim(), foto:v.foto||null, foto_path:v.foto_path||null, tamanho:v.tamanho||0 };
+    texto:(v.texto||"").trim(), fotos: Array.isArray(v.fotos)?v.fotos:[] };
   if(id){ const i=l.findIndex(x=>x.id===id); if(i<0) return null;
     l[i]=Object.assign({},l[i],dados); Store.set(kVisitas(f),l); return l[i]; }
   const novo=Object.assign({id:"vs_"+Date.now().toString(36)+Math.random().toString(36).slice(2,4),
     fazenda_id:f, criado_em:new Date().toISOString()}, dados);
   l.push(novo); Store.set(kVisitas(f),l); return novo;
 }
+/* Fotos de uma visita, tolerando o formato antigo (foto única). */
+function fotosDaVisita(v){
+  if(Array.isArray(v.fotos) && v.fotos.length) return v.fotos;
+  if(v.foto_path) return [{path:v.foto_path, nome:v.foto, tamanho:v.tamanho}];
+  return [];
+}
 function apagarVisita(f,id){
   const v=visitasDe(f).find(x=>x.id===id);
-  if(v && v.foto_path){ removerArquivo(v.foto_path); stApagar(v.foto_path); }
+  if(v) fotosDaVisita(v).forEach(ft=>{ if(ft.path){ removerArquivo(ft.path); stApagar(ft.path); } });
   Store.set(kVisitas(f), visitasDe(f).filter(x=>x.id!==id));
 }
 
@@ -4413,7 +4440,7 @@ function telaVisitas(){
     '<div class="farm-head-mid"><h1>Visitas técnicas</h1>'+
     '<p>Diário de bordo da cultura · estágio, clima e recomendações</p></div></div>';
 
-  const comFoto = todas.filter(v=>v.foto_path||v.foto).length;
+  const comFoto = todas.filter(v=>fotosDaVisita(v).length).length;
   const ultima = todas.slice().sort((a,b)=>(b.data||"").localeCompare(a.data||""))[0];
   h += '<div class="kpis kpis-3">'+
     kpi("Registros", todas.length, comFoto+" com foto")+
@@ -4434,14 +4461,14 @@ function telaVisitas(){
       'A visita é registrada por talhão. Cadastre-os em Dados da fazenda.</div></div>';
   if(!todas.length)
     return h+'<div class="empty"><strong>Diário vazio</strong>'+
-      'Registre a primeira visita: talhão, estágio da cultura, clima, recomendação e uma foto.</div></div>';
+      'Registre a primeira visita: talhão, estágio da cultura, clima, recomendação e fotos.</div></div>';
   if(!l.length)
     return h+'<div class="empty"><strong>Nada neste talhão</strong>Troque o filtro para ver as outras.</div></div>';
 
   h += '<div class="diario">';
   l.forEach(v=>{
-    const temFoto = !!(v.foto_path||v.foto);
-    if(v.foto_path) setTimeout(()=>pintarArquivo(v.foto_path,"vf-"+v.id),0);
+    const fotos = fotosDaVisita(v);
+    fotos.forEach((ft,k)=>{ if(ft.path) setTimeout(()=>pintarArquivo(ft.path,"vf-"+v.id+"-"+k),0); });
     h += '<div class="vis">'+
       '<div class="vis-cab">'+
         '<div><b>'+esc(v.talhao_nome||"Fazenda toda")+'</b>'+
@@ -4455,10 +4482,10 @@ function telaVisitas(){
         (v.clima?'<span><i>Clima</i>'+esc(v.clima)+'</span>':'')+
       '</div>'+
       (v.texto?'<p class="vis-txt">'+esc(v.texto)+'</p>':'')+
-      (temFoto?'<div class="vis-foto">'+
-        (v.foto_path
-          ? '<img id="vf-'+v.id+'" alt="Foto da visita" onclick="verFotoVisita(\''+esc(v.foto_path)+'\')">'
-          : '<span class="vazio">Foto guardada neste aparelho</span>')+
+      (fotos.length?'<div class="vis-fotos">'+
+        fotos.map((ft,k)=> ft.path
+          ? '<img id="vf-'+v.id+'-'+k+'" alt="Foto da visita" onclick="verFotoVisita(\''+esc(ft.path)+'\')">'
+          : '<span class="vazio">Foto no aparelho</span>').join("")+
         '</div>':'')+
     '</div>';
   });
@@ -4471,11 +4498,12 @@ function modalVisita(id){
   const v = id ? visitasDe(f.id).find(x=>x.id===id) : null;
   const hoje = new Date().toISOString().slice(0,10);
   const tals = talhoesDe(f.id).slice().sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR",{numeric:true}));
-  window._visitaFoto = null;
+  const jaTem = v ? fotosDaVisita(v).length : 0;
+  window._visitaFotos = [];
   document.getElementById("modal-root").innerHTML=
   '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal modal-lg">'+
     '<h2>'+(v?"Editar visita":"Nova visita")+'</h2>'+
-    '<p class="sub">Registro do talhão para o diário de bordo. A foto sobe para a nuvem.</p>'+
+    '<p class="sub">Registro do talhão para o diário de bordo. As fotos sobem para a nuvem.</p>'+
     '<div class="frm">'+
       '<div class="g2">'+
         '<div><label for="vs-tal">Talhão</label><select id="vs-tal">'+
@@ -4495,9 +4523,9 @@ function modalVisita(id){
       '<div><label for="vs-txt">Recomendação / observação</label>'+
         '<textarea id="vs-txt" rows="4" placeholder="O que foi visto no talhão e o que fazer">'+esc(v?v.texto:"")+'</textarea></div>'+
       '<label class="drop" for="vs-file">'+
-        '<b id="vs-lbl">'+(v&&v.foto?esc(v.foto)+" · "+tamanhoLegivel(v.tamanho):"Tirar ou anexar foto")+'</b>'+
-        '<span>Foto do talhão · até 20 MB</span>'+
-        '<input id="vs-file" type="file" accept="image/*" capture="environment" onchange="escolherFotoVisita(this)">'+
+        '<b id="vs-lbl">'+(jaTem?jaTem+" foto(s) já anexada(s) · adicionar mais":"Tirar ou anexar fotos (até 5)")+'</b>'+
+        '<span>Fotos do talhão · até 5 · máx. 20 MB cada</span>'+
+        '<input id="vs-file" type="file" accept="image/*" capture="environment" multiple onchange="escolherFotoVisita(this,'+jaTem+')">'+
       '</label>'+
     '</div>'+
     '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
@@ -4505,12 +4533,15 @@ function modalVisita(id){
     '</div></div></div>';
 }
 
-function escolherFotoVisita(input){
-  const a=input.files&&input.files[0]; const lbl=document.getElementById("vs-lbl");
-  if(!a){ window._visitaFoto=null; return; }
-  if(a.size>20*1024*1024){ toast("Foto acima de 20 MB — reduza antes"); input.value=""; window._visitaFoto=null; return; }
-  window._visitaFoto=a;
-  if(lbl) lbl.textContent=a.name+" · "+tamanhoLegivel(a.size);
+function escolherFotoVisita(input, jaTem){
+  const arqs=[...(input.files||[])];
+  const lbl=document.getElementById("vs-lbl");
+  const rest=Math.max(0, 5-(jaTem||0));
+  const bons=arqs.filter(a=>a.size<=20*1024*1024).slice(0, rest);
+  if(arqs.some(a=>a.size>20*1024*1024)) toast("Alguma foto acima de 20 MB foi ignorada");
+  if(arqs.length>rest) toast("Máximo de 5 fotos por visita");
+  window._visitaFotos=bons;
+  if(lbl) lbl.textContent = bons.length ? (bons.length+" nova(s) foto(s) selecionada(s)") : "Nenhuma foto";
 }
 
 async function gravarVisita(id){
@@ -4519,24 +4550,26 @@ async function gravarVisita(id){
   const talId=g("vs-tal");
   const tal = talhoesDe(f.id).find(x=>x.id===talId);
   const antiga = id ? visitasDe(f.id).find(x=>x.id===id) : null;
-  const foto = window._visitaFoto;
+  const novas = window._visitaFotos||[];
+  const fotosAntigas = antiga ? fotosDaVisita(antiga) : [];
   const dados = { talhao_id:talId, talhao_nome:tal?tal.nome:"",
     data:g("vs-data"), estagio:g("vs-est"), clima:g("vs-clima"), texto:g("vs-txt"),
-    foto: foto?foto.name:(antiga?antiga.foto:null),
-    tamanho: foto?foto.size:(antiga?antiga.tamanho:0),
-    foto_path: antiga?antiga.foto_path:null };
-  if(!dados.data && !dados.texto && !dados.estagio && !foto){ toast("Preencha ao menos data ou observação"); return; }
+    fotos: fotosAntigas.slice() };
+  if(!dados.data && !dados.texto && !dados.estagio && !novas.length && !fotosAntigas.length){
+    toast("Preencha ao menos data ou observação"); return; }
 
   const salvo = salvarVisita(f.id, dados, id);
-  if(foto && salvo){
-    const ext=(foto.name.match(/\.[a-z0-9]+$/i)||[".jpg"])[0].toLowerCase();
-    const caminho=f.id+"/visita-"+salvo.id+ext;
-    if(antiga && antiga.foto_path && antiga.foto_path!==caminho){ stApagar(antiga.foto_path); removerArquivo(antiga.foto_path); }
-    try{ await enviarArquivo(caminho, foto);
-      salvarVisita(f.id, Object.assign({},dados,{foto_path:caminho}), salvo.id); }
-    catch(e){ toast("Visita salva; a foto sobe quando houver internet"); }
+  if(novas.length && salvo){
+    const fotos = fotosAntigas.slice();
+    for(let k=0;k<novas.length;k++){
+      const a=novas[k]; const ext=(a.name.match(/\.[a-z0-9]+$/i)||[".jpg"])[0].toLowerCase();
+      const caminho=f.id+"/visita-"+salvo.id+"-"+Date.now().toString(36)+k+ext;
+      try{ await enviarArquivo(caminho, a); fotos.push({path:caminho, nome:a.name, tamanho:a.size}); }
+      catch(e){ /* fica na fila; segue */ }
+    }
+    salvarVisita(f.id, Object.assign({},dados,{fotos}), salvo.id);
   }
-  window._visitaFoto=null; fecharModal();
+  window._visitaFotos=[]; fecharModal();
   toast(id?"Visita atualizada":"Visita registrada"); render();
 }
 
@@ -4563,7 +4596,7 @@ function salvarContrato(f, c, id){
   const dados = { tipo:c.tipo||"venda", categoria:c.categoria||"Venda",
     numero:(c.numero||"").trim(), parte:(c.parte||"").trim(), produtor:(c.produtor||"").trim(),
     destino:c.destino||"", sacas:Number(c.sacas)||0, entregue:(c.entregue===""||c.entregue==null)?null:Number(c.entregue),
-    preco:Number(c.preco)||0, status:c.status||"", vencimento:c.vencimento||"", obs:(c.obs||"").trim() };
+    preco:Number(c.preco)||0, banco:(c.banco||"").trim(), status:c.status||"", vencimento:c.vencimento||"", obs:(c.obs||"").trim() };
   if(id){ const i=l.findIndex(x=>x.id===id); if(i<0) return null;
     l[i]=Object.assign({},l[i],dados); Store.set(kContratos(f),l); return l[i]; }
   const novo=Object.assign({id:"ct_"+Date.now().toString(36)+Math.random().toString(36).slice(2,4),
@@ -4732,7 +4765,7 @@ const REL = {
 function telaContratos(){
   const f = acharFazenda(App.fazendaId);
   if(!f){ App.tela="fazendas"; return telaFazendas(); }
-  const C = conferenciaContratos(f);
+  const C = conferenciaContratos(f.id);
   const arm = armazensDe(f.id);
 
   // mapa contrato → cumprido/restante, para exibir na lista
@@ -4791,6 +4824,8 @@ function telaContratos(){
           '<span class="'+(done?"ok":"")+'"><i>Restante</i>'+(done?"cumprido":nf(it.restante,0)+" sc")+'</span>'+
           (ct.vencimento?'<span class="'+(venc!=null&&venc<0&&!done?"venc":"")+'"><i>Vencimento</i>'+dataBR(ct.vencimento)+'</span>':'')+
           (ct.tipo==="venda"&&ct.preco>0?'<span><i>Preço saca</i>'+moeda(ct.preco)+'</span>':'')+
+          (ct.categoria==="Venda"&&ct.preco>0?'<span><i>Valor a receber</i>'+moeda(ct.sacas*ct.preco)+'</span>':'')+
+          (ct.banco?'<span><i>Banco</i>'+esc(ct.banco)+'</span>':'')+
         '</div>'+
         (ct.obs?'<p class="ct-obs">'+esc(ct.obs)+'</p>':'')+
       '</div>';
@@ -4859,10 +4894,12 @@ function modalContrato(id){
         '</select></div>'+
       '</div>'+
       '<div class="g2">'+
-        '<div><label for="ct-venc">Vencimento</label><input type="date" id="ct-venc" value="'+(c?c.vencimento:"")+'"></div>'+
+        '<div><label for="ct-venc">Data de cumprimento</label><input type="date" id="ct-venc" value="'+(c?c.vencimento:"")+'"></div>'+
         '<div id="ct-preco-box"'+(cat!=="Venda"?' style="display:none"':'')+'><label for="ct-preco">Preço da saca (R$)</label>'+
           '<input id="ct-preco" type="number" step="0.01" inputmode="decimal" value="'+(c&&c.preco?c.preco:"")+'" placeholder="opcional"></div>'+
       '</div>'+
+      '<div id="ct-banco-box"'+(cat!=="Venda"?' style="display:none"':'')+'><label for="ct-banco">Banco (a receber em)</label>'+
+        '<input id="ct-banco" value="'+esc(c?c.banco:"")+'" placeholder="Sicoob, BB, Bradesco…"></div>'+
       '<div><label for="ct-obs">Observação</label>'+
         '<input id="ct-obs" value="'+esc(c?c.obs:"")+'" placeholder="opcional"></div>'+
     '</div>'+
@@ -4873,8 +4910,10 @@ function modalContrato(id){
 function _ctCateg(v){
   const lbl=document.getElementById("ct-parte-lbl");
   const box=document.getElementById("ct-preco-box");
+  const bco=document.getElementById("ct-banco-box");
   if(lbl) lbl.textContent = v==="Arrendamento" ? "Arrendador" : v==="Depósito" ? "Armazém / rótulo" : "Comprador";
   if(box) box.style.display = v==="Venda" ? "" : "none";
+  if(bco) bco.style.display = v==="Venda" ? "" : "none";
 }
 function gravarContrato(id){
   const f=acharFazenda(App.fazendaId); if(!f) return;
@@ -4887,7 +4926,7 @@ function gravarContrato(id){
   salvarContrato(f.id,{ categoria:cat, tipo:(cat==="Arrendamento"?"arrendamento":"venda"),
     produtor:g("ct-prod"), numero:g("ct-num"), parte:g("ct-parte"), destino:g("ct-dest"),
     sacas, entregue: entrRaw===""?null:parseFloat(entrRaw.replace(",","."))||0,
-    preco:parseFloat(g("ct-preco").replace(",","."))||0, status:g("ct-status"),
+    preco:parseFloat(g("ct-preco").replace(",","."))||0, banco:g("ct-banco"), status:g("ct-status"),
     vencimento:g("ct-venc"), obs:g("ct-obs") }, id);
   fecharModal(); toast(id?"Contrato atualizado":"Contrato cadastrado"); render();
 }
@@ -5707,6 +5746,80 @@ function baixarCSV(linhas, nome){
   toast("Planilha baixada");
 }
 const vBR = v => String(v==null?"":v).replace(".",",");
+
+/* ── Relatórios formatados (PNG/PDF) ─────── */
+function relCaminhoes(f){
+  const tals=talhoesDe(f.id);
+  const nome=id=>{const t=tals.find(x=>x.id===id); return t?t.nome:"";};
+  const larguras=[72,66,116,92,300,116,96,84,74];
+  const aligns=['center','center','left','center','left','center','right','right','right'];
+  const linhas=[{t:'cab',cs:['Controle','Data','Motorista','Placa','Talhão','Destino','Balança Faz.','Sc','Umidade']}];
+  let totLiq=0, totSc=0;
+  cargasDe(f.id).slice().sort((a,b)=>(b.data||"").localeCompare(a.data||"")).forEach(c=>{
+    const ok=cargaBaixada(c); const sc= ok?c.baixa.sacas_final:(c.sacas||0);
+    const rateio=(c.talhoes||[]).map(i=>{
+      const kg=Number(i.kg)||0; return (kg>0?n0(kg)+"kg ":"")+nome(i.talhao_id);
+    }).join(" + ");
+    linhas.push({t:'dado',cs:[c.codigo||c.romaneio||"", dataBR(c.data), c.motorista||"", c.placa||"",
+      rateio||"—", c.destino||"", n0(c.liquido), nf(sc,2),
+      nf(ok?c.baixa.umidade:c.umidade,1)+"%"]});
+    totLiq+=Number(c.liquido)||0; totSc+=sc;
+  });
+  linhas.push({t:'total',cs:['','','','','','TOTAL', n0(totLiq), nf(totSc,2), '']});
+  return {titulo:"Controle de Caminhões · "+f.nome, sub:"Safra "+f.safra, larguras, aligns, linhas};
+}
+function exportarCaminhoes(fmt){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  if(!cargasDe(f.id).length){ toast("Nenhuma carga para exportar"); return; }
+  const spec=relCaminhoes(f), nm="caminhoes-"+f.nome.toLowerCase().replace(/[^a-z0-9]+/g,"-");
+  fmt==="pdf"?REL.pdf(spec,nm):REL.png(spec,nm);
+}
+
+function relProdutividade(f){
+  const p=produtividade(f.id);
+  const base=prod2025De(f.id);
+  const larguras=[210,90,120,70,110,120,90,100];
+  const aligns=['left','right','right','right','right','right','right','right'];
+  const linhas=[{t:'cab',cs:['Talhão','Área/ha','Sacas armazém','Silos','Sacas silo','Total sc','Sc/ha','Sc/ha 2025']}];
+  p.linhas.forEach(t=>{
+    const b=base[t.nome];
+    const cor=[]; if(b!=null && t.colhido && t.sc_ha>b) cor[6]=REL.ouro;   // dourado quando supera 2025
+    linhas.push({t:'dado', cor, cs:[t.nome, nf(t.hectares,2), t.sacas>0?nf(t.sacas,2):"—",
+      t.silos||"—", t.sc_silo>0?nf(t.sc_silo,0):"—", t.total_sc>0?nf(t.total_sc,2):"—",
+      t.colhido?nf(t.sc_ha,2):"—", b!=null?nf(b,2):"—"]});
+  });
+  linhas.push({t:'total',cs:['TOTAL / MÉDIA', nf(p.haTotal,2), nf(p.sacasArmazem,2), '',
+    nf(p.sacasSilo,0), nf(p.totalSacas,2), nf(p.prodColhida,2), '']});
+  return {titulo:"Produtividade · "+f.nome, sub:"Safra "+f.safra+"  ·  comparativo com 2025 (24/25)",
+    larguras, aligns, linhas};
+}
+function exportarProdutividadeImg(fmt){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  if(!produtividade(f.id).linhas.length){ toast("Cadastre talhões primeiro"); return; }
+  const spec=relProdutividade(f), nm="produtividade-"+f.nome.toLowerCase().replace(/[^a-z0-9]+/g,"-");
+  fmt==="pdf"?REL.pdf(spec,nm):REL.png(spec,nm);
+}
+
+function relChuva(f){
+  const pts=pontosDe(f.id), dias=diasDeChuva(f.id,f.safra);
+  const larg=[100].concat(pts.map(()=>66)).concat([80]);
+  const aligns=['center'].concat(pts.map(()=>'right')).concat(['right']);
+  const linhas=[{t:'cab',cs:['Dia'].concat(pts.map(p=>p.nome)).concat(['Total'])}];
+  const tot={}; pts.forEach(p=>tot[p.id]=0); let geral=0;
+  dias.forEach(k=>{ let soma=0;
+    const cs=[diaCurto(k)].concat(pts.map(p=>{ const v=lerChuva(f.id,k,p.id); if(v!=null){soma+=v;tot[p.id]+=v;} return v==null?"—":nf(v,1); }));
+    cs.push(nf(soma,1)); geral+=soma; linhas.push({t:'dado',cs});
+  });
+  linhas.push({t:'total',cs:['Total'].concat(pts.map(p=>nf(tot[p.id],1))).concat([nf(geral,1)])});
+  linhas.push({t:'total',cs:['Média'].concat(pts.map(()=>nf(geral/(pts.length||1),1))).concat([nf(geral/(pts.length||1),1)])});
+  return {titulo:"Pluviometria · "+f.nome, sub:"Safra "+f.safra, larguras:larg, aligns, linhas};
+}
+function exportarChuvaImg(fmt){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  if(!diasDeChuva(f.id,f.safra).length){ toast("Nenhuma chuva lançada ainda"); return; }
+  const spec=relChuva(f), nm="pluviometria-"+f.nome.toLowerCase().replace(/[^a-z0-9]+/g,"-");
+  fmt==="pdf"?REL.pdf(spec,nm):REL.png(spec,nm);
+}
 
 function exportarCargas(){
   const f=acharFazenda(App.fazendaId); if(!f) return;
