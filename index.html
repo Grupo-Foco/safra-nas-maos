@@ -311,8 +311,13 @@ svg{display:block}
 .acoes button:hover{border-color:var(--gold);color:var(--green)}
 .acoes .rm:hover{border-color:var(--red);color:var(--red)}
 .sc-ha{font-weight:800}
-.sc-ha.bom{color:var(--leaf-dk)}
-.sc-ha.baixo{color:var(--red)}
+.sc-ha.bom{color:inherit}
+.sc-ha.baixo{color:inherit}
+.sc-ha.supera{color:var(--gold,#C3A95A)}
+.pill.fin{background:#E7E2D6;color:#6A6152}
+.tal.fin{opacity:.62}
+.tbl tr.fin td{background:#F1EEE6}
+.tbl tr.fin td.forte{opacity:.7}
 input.silo{width:62px;padding:5px 7px;border:1px solid var(--line);border-radius:6px;
   background:#fff;font-family:var(--mono);font-size:12.5px;text-align:center;color:var(--green)}
 input.silo:focus{border-color:var(--gold);outline:none}
@@ -712,6 +717,64 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 .doc-meta u{text-decoration:none;font-family:var(--mono);font-size:10.5px;font-weight:700}
 .doc-obs{color:var(--muted);font-size:12.5px;margin-top:10px;line-height:1.5}
 
+/* ── Visitas (diário de bordo) ───────────── */
+.kpis-3{grid-template-columns:repeat(3,1fr)}
+.frm textarea{width:100%;box-sizing:border-box;font:inherit;padding:11px 12px;
+  border:1px solid var(--line);border-radius:9px;background:var(--card);color:var(--text);resize:vertical}
+.diario{display:flex;flex-direction:column;gap:12px}
+.vis{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--leaf);
+  border-radius:12px;padding:15px 16px}
+.vis-cab{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.vis-cab b{font-size:15px}
+.vis-acts{display:flex;gap:6px;flex-shrink:0}
+.vis-acts button{background:none;border:1px solid var(--line);border-radius:7px;
+  padding:5px 10px;font-size:12px;cursor:pointer;color:var(--green)}
+.vis-acts button.rm{color:var(--red);border-color:transparent}
+.vis-meta{display:flex;gap:20px;flex-wrap:wrap;margin-top:10px}
+.vis-meta span{display:flex;flex-direction:column;gap:2px;font-size:13px;color:var(--green)}
+.vis-meta i{font-style:normal;color:var(--muted);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.vis-txt{color:var(--text);font-size:14px;margin-top:11px;line-height:1.55;white-space:pre-wrap}
+.vis-foto{margin-top:12px}
+.vis-foto img{max-width:220px;width:100%;border-radius:9px;cursor:zoom-in;display:block}
+@media(max-width:640px){ .kpis-3{grid-template-columns:1fr} .vis-foto img{max-width:100%} }
+
+/* ── Contratos ───────────────────────────── */
+.cts{display:flex;flex-direction:column;gap:12px;margin-bottom:22px}
+.ct{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--gold);
+  border-radius:12px;padding:15px 16px}
+.ct.ok{border-left-color:var(--leaf)}
+.ct-cab{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.ct-cab b{font-size:15px;margin-left:8px}
+.ct-num{font-family:var(--mono);font-size:11px;color:var(--muted);margin-left:8px}
+.ct-tipo{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;
+  padding:3px 8px;border-radius:20px;vertical-align:middle}
+.ct-tipo.ven{background:var(--gold-soft);color:var(--gold-dk)}
+.ct-tipo.arr{background:var(--blue-soft);color:var(--blue)}
+.ct-acts{display:flex;gap:6px;flex-shrink:0}
+.ct-acts button{background:none;border:1px solid var(--line);border-radius:7px;padding:5px 10px;
+  font-size:12px;cursor:pointer;color:var(--green)}
+.ct-acts button.rm{color:var(--red);border-color:transparent}
+.ct-barra{height:7px;background:var(--line-soft);border-radius:20px;overflow:hidden;margin:12px 0 4px}
+.ct-barra i{display:block;height:100%;background:var(--gold);border-radius:20px}
+.ct.ok .ct-barra i{background:var(--leaf)}
+.ct-meta{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px}
+.ct-meta span{display:flex;flex-direction:column;gap:2px;font-size:13px;color:var(--green);font-family:var(--mono)}
+.ct-meta i{font-style:normal;color:var(--muted);font-size:10px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.04em;font-family:inherit}
+.ct-meta span.ok{color:var(--leaf-dk)}
+.ct-meta span.venc{color:var(--red)}
+.ct-obs{color:var(--muted);font-size:12.5px;margin-top:10px;line-height:1.5}
+.confere{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:18px 18px 14px}
+.confere-t{font-weight:800;color:var(--green);margin-bottom:14px;display:flex;align-items:center;gap:10px}
+.confere-linha{display:flex;justify-content:space-between;align-items:baseline;padding:6px 0;font-weight:700;color:var(--text)}
+.confere-linha b{font-family:var(--mono)}
+.confere-sub{display:flex;justify-content:space-between;align-items:baseline;padding:3px 0 3px 18px;
+  color:var(--green);font-size:14px}
+.confere-sub b{font-family:var(--mono)}
+.confere-div{height:1px;background:var(--line);margin:12px 0}
+.legenda{font-size:12.5px;color:var(--muted);margin:-4px 0 12px;display:flex;align-items:center;gap:7px}
+.legenda .sc-ha{font-size:15px;line-height:1}
+
 /* ── Entrar ──────────────────────────────── */
 .login-tela{min-height:100vh;display:flex;align-items:center;justify-content:center;
   padding:24px 16px;background:var(--bg)}
@@ -781,7 +844,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.6.3";
+const APP_VERSION = "2.11.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -863,7 +926,7 @@ const SUPABASE = {
 
 /* Blocos de estado que sobem para a nuvem */
 const BLOCOS = ["talhoes","cargas","armazens","caminhoes","silocap","bases","chuva",
-                "lavoura","produtos","aplicacoes","entradas","docs","mapa"];
+                "lavoura","produtos","aplicacoes","entradas","docs","mapa","visitas","contratos"];
 
 /* ── Sessão ──────────────────────────────── */
 const Auth = {
@@ -941,6 +1004,95 @@ async function api(caminho, opcoes){
   const d = await r.json().catch(()=>null);
   if(!r.ok) throw new Error((d && (d.message||d.hint)) || "erro "+r.status);
   return d;
+}
+
+/* ── Storage (arquivos na nuvem) ─────────────
+   Bucket safra-documentos. O caminho começa sempre com o id da
+   fazenda (faz_xxx/...), que é o que as políticas do banco exigem.
+   Arquivo anexado sem internet fica em cache e sobe depois (fila). */
+const BUCKET = "safra-documentos";
+
+async function stEnviar(caminho, blob){
+  const t = await Auth.token(); if(!t) throw new Error("sem sessão");
+  const r = await fetch(SUPABASE.url+"/storage/v1/object/"+BUCKET+"/"+caminho, {
+    method:"POST",
+    headers:{ "apikey":SUPABASE.anonKey, "Authorization":"Bearer "+t,
+              "x-upsert":"true", "Content-Type": blob.type||"application/octet-stream" },
+    body: blob
+  });
+  if(!r.ok) throw new Error("upload "+r.status+" "+(await r.text().catch(()=>"")));
+  return true;
+}
+async function stUrlAssinada(caminho, seg){
+  const t = await Auth.token(); if(!t) throw new Error("sem sessão");
+  const r = await fetch(SUPABASE.url+"/storage/v1/object/sign/"+BUCKET+"/"+caminho, {
+    method:"POST",
+    headers:{ "apikey":SUPABASE.anonKey, "Authorization":"Bearer "+t, "Content-Type":"application/json" },
+    body: JSON.stringify({ expiresIn: seg||3600 })
+  });
+  if(!r.ok) throw new Error("sign "+r.status);
+  const d = await r.json();
+  return SUPABASE.url + "/storage/v1" + d.signedURL;
+}
+async function stBaixar(caminho){
+  const t = await Auth.token(); if(!t) throw new Error("sem sessão");
+  const r = await fetch(SUPABASE.url+"/storage/v1/object/authenticated/"+BUCKET+"/"+caminho, {
+    headers:{ "apikey":SUPABASE.anonKey, "Authorization":"Bearer "+t }
+  });
+  if(!r.ok) throw new Error("download "+r.status);
+  return await r.blob();
+}
+async function stApagar(caminho){
+  const t = await Auth.token(); if(!t) return false;
+  try{
+    const r = await fetch(SUPABASE.url+"/storage/v1/object/"+BUCKET+"/"+caminho, {
+      method:"DELETE",
+      headers:{ "apikey":SUPABASE.anonKey, "Authorization":"Bearer "+t }
+    });
+    return r.ok;
+  }catch(e){ return false; }
+}
+
+/* Fila de arquivos a subir (para anexos feitos sem internet) */
+function filaArq(){ return Store.get("arq_fila", []); }
+function marcarArqPendente(caminho){
+  const l = filaArq(); if(!l.includes(caminho)){ l.push(caminho); Store.set("arq_fila", l); }
+}
+function tirarArqPendente(caminho){
+  Store.set("arq_fila", filaArq().filter(x=>x!==caminho));
+}
+/* Guarda o blob no aparelho (IndexedDB) e tenta subir; se falhar, entra na fila. */
+async function enviarArquivo(caminho, blob){
+  await guardarArquivo(caminho, blob);         // cache offline (chave = caminho)
+  marcarArqPendente(caminho);
+  if(navigator.onLine && Auth.logado()){
+    try{ await stEnviar(caminho, blob); tirarArqPendente(caminho); }
+    catch(e){ /* fica na fila para o próximo flush */ }
+  }
+  return caminho;
+}
+/* Sobe o que ficou pendente. Chamado pela sincronização. */
+async function flushArquivos(){
+  if(!SUPABASE.ligado() || !Auth.logado() || !navigator.onLine) return;
+  for(const caminho of filaArq().slice()){
+    try{
+      const blob = await pegarArquivo(caminho);
+      if(!blob){ tirarArqPendente(caminho); continue; }  // sumiu do cache
+      await stEnviar(caminho, blob);
+      tirarArqPendente(caminho);
+    }catch(e){ /* tenta de novo no próximo ciclo */ }
+  }
+}
+/* Devolve uma URL exibível: usa o cache do aparelho (offline) ou baixa
+   da nuvem e guarda. `alvoId` é o id do <img> a preencher. */
+async function pintarArquivo(caminho, alvoId){
+  const img = document.getElementById(alvoId); if(!img) return;
+  try{
+    let blob = await pegarArquivo(caminho);
+    if(!blob && navigator.onLine){ blob = await stBaixar(caminho); if(blob) guardarArquivo(caminho, blob); }
+    if(blob){ img.src = URL.createObjectURL(blob); return; }
+    if(navigator.onLine){ img.src = await stUrlAssinada(caminho, 3600); }
+  }catch(e){ /* deixa o alt aparecer */ }
 }
 
 /* ── Sincronização ───────────────────────── */
@@ -1061,6 +1213,7 @@ const Sync = {
     try{
       await this.subir();
       await this.baixar();
+      await flushArquivos();
       if(!this.pending()) Store.del("sync_erro");
       this.render();
     }catch(e){ Store.set("sync_erro", String(e.message||e)); this.render(); }
@@ -1217,6 +1370,44 @@ function aplicarSeedTalhoes(fid, seed){
   }));
   salvarTalhoes(fid,l);           // grava e marca o bloco 'talhoes' para sincronizar
   return l.length;
+}
+
+/* Produtividade de 2025 (safra 24/25) por talhão — sc/ha.
+   Só as correspondências EXATAS com o nome do talhão atual: onde a
+   planilha histórica agrupou/dividiu talhões, fica de fora (sem realce),
+   para não atribuir um número que não é daquele talhão. O bloco
+   faz_<id>_prod2025 (se o usuário preencher) sobrepõe estes valores. */
+const PROD_2025 = {
+  "santa angelina": {
+    "Pivo 01":72.13,"Pivo 02":72.93,"Pivo 03":83.6,"Sede":55.99,"Corredor Luiz":74.18,
+    "Talhão 05":65.93,"Talhão 06":88.63,"Talhão 07":73.17,"Talhão 08":75.43,"Talhão 09":75.92,
+    "Talhão 13":73.62,"Talhão 16":59.03,"Luiz 03":85.36,"Luiz 04":64.77,"Luiz 05":69.89,
+    "Luiz 06":53.21,"Luiz 07":55.2,"Luiz 08":53.13,"Luiz 09":57.18,
+    "Paulo 01":70.54,"Paulo 02":58.61,"Paulo 03":51.61 },
+  "mayara": {
+    "Rocinha":79.04,"Pedra Preta":78.17,"Fundo de casa":83.98,"Baixada":86.41,"Baixada (Rego)":85.60,
+    "Dr Julio T1 -":88.47,"Dr Julio T1":91.47,"Dr Julio T2":86.61,"Dr Julio T3":96.04,
+    "Dr Julio T4":95.38,"Dr Julio T5":90.71,"Zé Luiz T3":86.63,"Zé Luiz T4":78.10,"Zé Luiz T5":43.18 },
+  "lageado": {
+    "Curral":88.92,"Bijui":83.56,"Lobato":91.47,"Area Rocinha Vania":86.35,"João - Lageado":88.87 }
+};
+function baseline2025(f){
+  const nome=(f&&f.nome||"").toLowerCase();
+  const chave = Object.keys(PROD_2025).find(k=>nome.includes(k));
+  return chave ? PROD_2025[chave] : {};
+}
+function prod2025De(fid){
+  const f = acharFazenda(fid);
+  return Object.assign({}, baseline2025(f), Store.get("faz_"+fid+"_prod2025", {}));
+}
+/* Talhão finalizado: sombreia a linha e marca a colheita como encerrada. */
+function talFinalizado(fid, id){ const t=talhoesDe(fid).find(x=>x.id===id); return !!(t&&t.finalizado); }
+function finalizarTalhao(id){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const l=talhoesDe(f.id), t=l.find(x=>x.id===id); if(!t) return;
+  t.finalizado=!t.finalizado;
+  salvarTalhoes(f.id,l);
+  toast(t.finalizado?"Talhão finalizado":"Talhão reaberto"); render();
 }
 
 
@@ -1927,7 +2118,7 @@ function acharSemelhante(f, nome){
    5 MB do localStorage e funciona sem internet.
    ═══════════════════════════════════════════════════ */
 const TIPOS_DOC = ["Contrato de venda","Contrato de compra","Prestação de serviço",
-                   "Arrendamento","Nota fiscal","Laudo","Outro"];
+                   "Arrendamento","Nota fiscal","Laudo","Mapa de aplicação","Outro"];
 
 function kDocs(f){ return "faz_"+f+"_docs"; }
 function docsDe(f){ return Store.get(kDocs(f), []); }
@@ -1973,7 +2164,8 @@ function salvarDoc(f, d, id){
   const dados = { nome:(d.nome||"").trim(), tipo:d.tipo, data:d.data||"",
                   vencimento:d.vencimento||"", contraparte:(d.contraparte||"").trim(),
                   valor:Number(d.valor)||0, obs:(d.obs||"").trim(),
-                  arquivo:d.arquivo||null, tamanho:d.tamanho||0 };
+                  arquivo:d.arquivo||null, tamanho:d.tamanho||0,
+                  arquivo_path:d.arquivo_path||null };
   if(id){
     const i=l.findIndex(x=>x.id===id); if(i<0) return null;
     l[i]=Object.assign({},l[i],dados);
@@ -1987,6 +2179,7 @@ function salvarDoc(f, d, id){
 function apagarDoc(f,id){
   const d = docsDe(f).find(x=>x.id===id);
   if(d && d.arquivo) removerArquivo(id);
+  if(d && d.arquivo_path){ removerArquivo(d.arquivo_path); stApagar(d.arquivo_path); }
   Store.set(kDocs(f), docsDe(f).filter(x=>x.id!==id));
   Sync.push("documentos","delete",{id});
 }
@@ -2021,11 +2214,14 @@ const MODULOS = [
   { grupo:"Dinheiro e máquinas", itens:[
     { id:"cotacoes",   ic:"cotacoes",   nome:"Cotações", desc:"Dólar automático e atalhos de mercado", pronto:true,
       resumo:()=>{const R=resumoDolar(dolarCache()); return R? "R$ "+nf(R.atual.venda,4)+" · "+(R.atual.var_pct>=0?"+":"")+nf(R.atual.var_pct,2)+"%" : "Toque para ver o dólar";} },
+    { id:"contratos",  ic:"documentos", nome:"Contratos", desc:"Venda e arrendamento · abatidos pela colheita", pronto:true,
+      resumo:f=>{const n=contratosDe(f.id).length; return n? n+" contrato(s) a cumprir" : "Cadastre os contratos";} },
     { id:"financeiro", ic:"financeiro", nome:"Financeiro", desc:"Custos, planejamento, vendas e compras", pronto:false },
     { id:"diesel",     ic:"diesel",     nome:"Diesel e manutenção", desc:"Abastecimento e trocas de óleo", pronto:false }
   ]},
   { grupo:"Acompanhamento", itens:[
-    { id:"visitas",    ic:"visitas",    nome:"Visitas técnicas", desc:"Registro de visitas e recomendações", pronto:false, resumo:()=>"0 visitas" },
+    { id:"visitas",    ic:"visitas",    nome:"Visitas técnicas", desc:"Diário de bordo da cultura: estágio, clima e recomendações", pronto:true,
+      resumo:f=>{const n=visitasDe(f.id).length; return n? n+" registro(s) no diário" : "Registre a primeira visita";} },
     { id:"relatorios", ic:"relatorios", nome:"Relatórios", desc:"Geral, por operação, chuva e mapa", pronto:false },
     { id:"documentos", ic:"documentos", nome:"Documentos", desc:"Contratos, notas e laudos", pronto:true,
       resumo:f=>{const n=docsDe(f.id).length; return n? n+" documento(s) guardado(s)" : "Guarde o primeiro contrato";} },
@@ -2381,7 +2577,7 @@ function render(){
   let h = topbar();
   if(App.tela==="fazendas")      h += telaFazendas();
   else if(App.tela==="fazenda")  h += telaFazenda();
-  else if(App.tela==="modulo")   h += (App.moduloId==="talhoes" ? telaTalhoes() : App.moduloId==="colheita" ? telaColheita() : App.moduloId==="chuva" ? telaChuva() : App.moduloId==="operacoes" ? telaOperacoes() : App.moduloId==="lavoura" ? telaLavoura() : App.moduloId==="estoque" ? telaEstoque() : App.moduloId==="ndvi" ? telaMapa() : App.moduloId==="tempo" ? telaTempo() : App.moduloId==="cotacoes" ? telaCotacoes() : App.moduloId==="documentos" ? telaDocumentos() : telaModulo());
+  else if(App.tela==="modulo")   h += (App.moduloId==="talhoes" ? telaTalhoes() : App.moduloId==="colheita" ? telaColheita() : App.moduloId==="chuva" ? telaChuva() : App.moduloId==="operacoes" ? telaOperacoes() : App.moduloId==="lavoura" ? telaLavoura() : App.moduloId==="estoque" ? telaEstoque() : App.moduloId==="ndvi" ? telaMapa() : App.moduloId==="tempo" ? telaTempo() : App.moduloId==="cotacoes" ? telaCotacoes() : App.moduloId==="documentos" ? telaDocumentos() : App.moduloId==="visitas" ? telaVisitas() : App.moduloId==="contratos" ? telaContratos() : telaModulo());
   else if(App.tela==="panorama") h += telaPanorama();
   document.getElementById("root").innerHTML = h;
   Sync.render();
@@ -2549,13 +2745,15 @@ function telaTalhoes(){
     h += '<div class="tal-list">';
     lista.forEach(t=>{
       const pct = totHa>0 ? (t.hectares/totHa*100) : 0;
-      h += '<div class="tal">'+
+      h += '<div class="tal'+(t.finalizado?' fin':'')+'">'+
         '<div class="tal-bar"><i style="width:'+Math.max(2,Math.min(100,pct*3)).toFixed(1)+'%"></i></div>'+
         '<div class="tal-nome">'+esc(t.nome)+
+          (t.finalizado?'<span class="pill fin">finalizado</span>':'')+
           ((t.abertura||0)>0 ? '<span class="pill">área nova '+t.abertura.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})+' ha</span>' : '')+
         '</div>'+
         '<div class="tal-ha">'+t.hectares.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})+' <span>ha</span></div>'+
         '<div class="tal-acts">'+
+          '<button onclick="finalizarTalhao(\''+t.id+'\')" title="'+(t.finalizado?"Reabrir talhão":"Marcar como finalizado")+'">'+(t.finalizado?"Reabrir":"Finalizar")+'</button>'+
           '<button onclick="modalTalhao(\''+t.id+'\')" title="Editar">Editar</button>'+
           '<button class="rm" onclick="removerTalhao(\''+t.id+'\')" title="Remover">✕</button>'+
         '</div></div>';
@@ -2661,7 +2859,7 @@ function exportarTalhoes(){
    TELA — Colheita
    ═══════════════════════════════════════════════════ */
 let _abaColh = "cargas";
-let _fCarga  = { destino:"", talhao:"", busca:"" };
+let _fCarga  = { destino:"", talhao:"", busca:"", situacao:"" };
 
 const nf = (v,d=2)=>Number(v||0).toLocaleString("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d});
 const n0 = v=>Number(v||0).toLocaleString("pt-BR",{maximumFractionDigits:0});
@@ -2735,6 +2933,8 @@ function abaCargas(f, cargas){
   let l = cargas.slice();
   if(_fCarga.destino) l = l.filter(c=>c.destino===_fCarga.destino);
   if(_fCarga.talhao)  l = l.filter(c=>(c.talhoes||[]).some(i=>i.talhao_id===_fCarga.talhao));
+  if(_fCarga.situacao==="baixada")  l = l.filter(cargaBaixada);
+  else if(_fCarga.situacao==="transito") l = l.filter(c=>!cargaBaixada(c));
   if(_fCarga.busca){
     const b=_fCarga.busca.toLowerCase();
     l = l.filter(c=>(c.romaneio||"").toLowerCase().includes(b) ||
@@ -2750,6 +2950,11 @@ function abaCargas(f, cargas){
     (cargas.length?'<select class="sel-f" onchange="_fCarga.destino=this.value;render()">'+
       '<option value="">Todos os destinos</option>'+
       armazensDe(f.id).map(a=>'<option '+(_fCarga.destino===a?'selected':'')+'>'+esc(a)+'</option>').join("")+
+      '</select>':'')+
+    (cargas.length?'<select class="sel-f" onchange="_fCarga.situacao=this.value;render()">'+
+      '<option value="">Todas as situações</option>'+
+      '<option value="baixada"'+(_fCarga.situacao==="baixada"?" selected":"")+'>Só baixadas</option>'+
+      '<option value="transito"'+(_fCarga.situacao==="transito"?" selected":"")+'>Só a caminho</option>'+
       '</select>':'')+
     (cargas.length?'<input class="busca" placeholder="Romaneio, motorista ou placa…" value="'+esc(_fCarga.busca)+'" '+
       'oninput="clearTimeout(window._bc);window._bc=setTimeout(()=>{_fCarga.busca=this.value;render();},250)">':'')+
@@ -2804,19 +3009,25 @@ function abaProdutividade(f, p){
       'Cadastre os talhões em Dados da fazenda para acompanhar a produtividade.</div>';
 
   const cap = siloCap(f.id);
+  const temBase = Object.keys(prod2025De(f.id)).length>0;
   let h = '<div class="acts">'+
     '<button class="btn-act" onclick="modalSiloCap()">Saca por silo: '+n0(cap)+'</button>'+
     '<button class="btn-act" onclick="exportarProdutividade()">Baixar planilha</button></div>';
+  if(temBase) h += '<p class="legenda"><span class="sc-ha supera">■</span> Sc/ha em dourado = superou a produtividade de 2025 (safra 24/25) naquele talhão.</p>';
 
   h += '<div class="tbl"><table><thead><tr>'+
     '<th>Talhão</th><th class="num">Área</th><th class="num">Sacas armazém</th>'+
     '<th class="num">Silos</th><th class="num">Sacas silo</th>'+
     '<th class="num">Total</th><th class="num">sc/ha</th></tr></thead><tbody>';
+  const base2025 = prod2025De(f.id);
   p.linhas.forEach(t=>{
-    const media = p.prodColhida;
-    const cor = !t.colhido ? "" : (t.sc_ha>=media ? " bom" : " baixo");
-    h += '<tr'+(t.colhido?"":' class="pendente"')+'>'+
-      '<td class="forte">'+esc(t.nome)+'</td>'+
+    const alvo = base2025[t.nome];
+    const supera = t.colhido && alvo>0 && t.sc_ha>alvo;   // superou a produtividade de 2025
+    const cor = supera ? " supera" : "";                  // sem verde/vermelho; só realça quem supera 2025
+    const fin = talFinalizado(f.id, t.id);
+    const cls = [t.colhido?"":"pendente", fin?"fin":""].filter(Boolean).join(" ");
+    h += '<tr'+(cls?' class="'+cls+'"':'')+'>'+
+      '<td class="forte">'+esc(t.nome)+(fin?' <span class="pill fin">fim</span>':'')+'</td>'+
       '<td class="num mono">'+nf(t.hectares,2)+'</td>'+
       '<td class="num mono">'+(t.sacas>0?nf(t.sacas,1):"—")+'</td>'+
       '<td class="num"><input class="silo" type="number" min="0" step="0.5" value="'+(t.silos||"")+'" '+
@@ -3647,44 +3858,81 @@ function telaMapa(){
 
   h += '<div class="acts">'+
     '<button class="btn-act primary" onclick="modalMapa()">'+(m?"Trocar mapa":"Adicionar mapa")+'</button>'+
-    (m?'<a class="btn-act" href="'+esc(m.url)+'" target="_blank" rel="noopener">Abrir em tela cheia</a>':'')+
+    (m&&m.url?'<a class="btn-act" href="'+esc(m.url)+'" target="_blank" rel="noopener">Abrir em tela cheia</a>':'')+
+    (m&&m.path?'<button class="btn-act" onclick="abrirMapaCheia(\''+esc(m.path)+'\')">Abrir em tela cheia</button>':'')+
   '</div>';
 
   if(!m)
     return h+'<div class="empty"><strong>Nenhum mapa cadastrado</strong>'+
-      'Suba a imagem do mapa junto com o app, no mesmo repositório, e informe o nome do arquivo. '+
-      'Ele fica disponível também sem internet.</div></div>';
+      'Toque em "Adicionar mapa" e escolha a foto ou imagem. Ela sobe para a nuvem '+
+      'e fica disponível para a equipe, também sem internet.</div></div>';
 
-  h += '<div class="mapa-wrap"><img src="'+esc(m.url)+'" alt="Mapa de talhões da '+esc(f.nome)+'" '+
-       'onerror="this.parentNode.innerHTML=\'<p class=&quot;vazio&quot; style=&quot;padding:30px;text-align:center&quot;>'+
-       'Arquivo não encontrado. Confira se o nome bate com o do repositório.</p>\'"></div>'+
-       '<p class="resumo-obs">Toque na imagem para ampliar. O mapa fica guardado no aparelho e abre sem sinal.</p>';
+  if(m.path){
+    setTimeout(()=>pintarArquivo(m.path,"mapa-img"),0);
+    h += '<div class="mapa-wrap"><img id="mapa-img" alt="Mapa de talhões da '+esc(f.nome)+'"></div>';
+  }else{
+    h += '<div class="mapa-wrap"><img src="'+esc(m.url)+'" alt="Mapa de talhões da '+esc(f.nome)+'" '+
+      'onerror="this.parentNode.innerHTML=\'<p class=&quot;vazio&quot; style=&quot;padding:30px;text-align:center&quot;>'+
+      'Arquivo não encontrado.</p>\'"></div>';
+  }
+  h += '<p class="resumo-obs">Toque na imagem para ampliar. O mapa fica guardado no aparelho e abre sem sinal.</p>';
   return h+'</div>';
+}
+
+async function abrirMapaCheia(caminho){
+  try{
+    let blob = await pegarArquivo(caminho);
+    if(!blob && navigator.onLine){ blob = await stBaixar(caminho); if(blob) guardarArquivo(caminho, blob); }
+    const url = blob ? URL.createObjectURL(blob) : (navigator.onLine ? await stUrlAssinada(caminho,3600) : null);
+    if(url) window.open(url, "_blank", "noopener"); else toast("Mapa indisponível offline");
+  }catch(e){ toast("Não consegui abrir o mapa"); }
 }
 
 function modalMapa(){
   const f=acharFazenda(App.fazendaId); if(!f) return;
-  const m=mapaDe(f.id)||{url:"",titulo:""};
+  const m=mapaDe(f.id)||{titulo:""};
+  window._mapaArq = null;
   document.getElementById("modal-root").innerHTML=
   '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal">'+
     '<h2>Mapa da fazenda</h2>'+
-    '<p class="sub">Coloque a imagem na mesma pasta do app e informe o nome do arquivo.</p>'+
+    '<p class="sub">Escolha a foto ou imagem do mapa. Ela sobe para a nuvem e vale para toda a equipe.</p>'+
     '<div class="frm">'+
-      '<div><label for="mp-url">Nome do arquivo ou endereço</label>'+
-        '<input id="mp-url" value="'+esc(m.url)+'" placeholder="mapa-santa-angelina.jpg"></div>'+
+      '<label class="drop" for="mp-file">'+
+        '<b id="mp-lbl">'+(m.arquivo?esc(m.arquivo)+" · "+tamanhoLegivel(m.tamanho):"Escolher imagem do mapa")+'</b>'+
+        '<span>JPG, PNG ou imagem digitalizada · até 20 MB</span>'+
+        '<input id="mp-file" type="file" accept="image/*" onchange="escolherMapa(this)">'+
+      '</label>'+
       '<div><label for="mp-tit">Descrição</label>'+
-        '<input id="mp-tit" value="'+esc(m.titulo)+'" placeholder="Talhões e vias · 2025"></div>'+
+        '<input id="mp-tit" value="'+esc(m.titulo||"")+'" placeholder="Talhões e vias · 2025"></div>'+
     '</div>'+
     '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
       '<button class="btn-save" onclick="gravarMapa()">Salvar</button></div></div></div>';
-  setTimeout(()=>{const e=document.getElementById("mp-url"); if(e) e.focus();},60);
 }
-function gravarMapa(){
-  const f=acharFazenda(App.fazendaId);
-  const url=document.getElementById("mp-url").value.trim();
-  if(!url){ toast("Informe o nome do arquivo"); return; }
-  Store.set(kMapa(f.id),{url, titulo:document.getElementById("mp-tit").value.trim()});
-  fecharModal(); toast("Mapa salvo"); render();
+function escolherMapa(input){
+  const a = input.files && input.files[0];
+  const lbl=document.getElementById("mp-lbl");
+  if(!a){ window._mapaArq=null; return; }
+  if(a.size > 20*1024*1024){ toast("Imagem acima de 20 MB — reduza antes"); input.value=""; window._mapaArq=null; return; }
+  window._mapaArq=a;
+  if(lbl) lbl.textContent=a.name+" · "+tamanhoLegivel(a.size);
+}
+async function gravarMapa(){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const tit=document.getElementById("mp-tit").value.trim();
+  const arq=window._mapaArq;
+  const atual=mapaDe(f.id);
+  if(!arq && !atual){ toast("Escolha a imagem do mapa"); return; }
+  if(!arq){                                   // só mudou a descrição
+    Store.set(kMapa(f.id), Object.assign({}, atual, {titulo:tit}));
+    fecharModal(); toast("Mapa atualizado"); render(); return;
+  }
+  const ext=(arq.name.match(/\.[a-z0-9]+$/i)||[".jpg"])[0].toLowerCase();
+  const caminho=f.id+"/mapa-"+Date.now().toString(36)+ext;
+  if(atual && atual.path && atual.path!==caminho){ stApagar(atual.path); removerArquivo(atual.path); }
+  Store.set(kMapa(f.id), {path:caminho, titulo:tit, arquivo:arq.name, tamanho:arq.size});
+  window._mapaArq=null; fecharModal(); toast("Enviando o mapa…"); render();
+  try{ await enviarArquivo(caminho, arq); toast("Mapa salvo"); render(); }
+  catch(e){ toast("Mapa guardado no aparelho; sobe quando houver internet"); }
 }
 
 /* ═══════════════════════════════════════════════════
@@ -3999,8 +4247,8 @@ function telaDocumentos(){
     '</div>';
   });
   h += '</div>';
-  h += '<p class="resumo-obs">Os arquivos ficam guardados neste navegador. '+
-    'Se trocar de aparelho, use o backup — ou espere a sincronização na nuvem.</p>';
+  h += '<p class="resumo-obs">Os arquivos sobem para a nuvem e ficam guardados também no aparelho, '+
+    'para abrir sem internet. Anexado sem sinal, sobe sozinho quando a conexão voltar.</p>';
   return h+'</div>';
 }
 
@@ -4031,7 +4279,7 @@ function modalDoc(id){
       '</div>'+
       '<label class="drop" for="dc-file">'+
         '<b id="dc-lbl">'+(d&&d.arquivo?esc(d.arquivo)+" · "+tamanhoLegivel(d.tamanho):"Anexar arquivo")+'</b>'+
-        '<span>PDF, foto ou imagem digitalizada · até 8 MB</span>'+
+        '<span>PDF, foto ou imagem digitalizada · até 20 MB</span>'+
         '<input id="dc-file" type="file" accept=".pdf,image/*" onchange="escolherArquivo(this)">'+
       '</label>'+
       '<div><label for="dc-obs">Observação</label>'+
@@ -4047,8 +4295,8 @@ function escolherArquivo(input){
   const a = input.files && input.files[0];
   const lbl = document.getElementById("dc-lbl");
   if(!a){ window._docArq=null; return; }
-  if(a.size > 8*1024*1024){
-    toast("Arquivo acima de 8 MB — reduza antes de anexar");
+  if(a.size > 20*1024*1024){
+    toast("Arquivo acima de 20 MB — reduza antes de anexar");
     input.value=""; window._docArq=null; return;
   }
   window._docArq = a;
@@ -4071,13 +4319,22 @@ async function gravarDoc(id){
     contraparte:g("dc-parte"),
     valor:parseFloat(g("dc-valor").replace(",","."))||0, obs:g("dc-obs"),
     arquivo: arq ? arq.name : (antigo?antigo.arquivo:null),
-    tamanho: arq ? arq.size : (antigo?antigo.tamanho:0) };
+    tamanho: arq ? arq.size : (antigo?antigo.tamanho:0),
+    arquivo_path: antigo?antigo.arquivo_path:null };
 
   const salvo = salvarDoc(f.id, dados, id);
   if(arq && salvo){
-    try{ await guardarArquivo(salvo.id, arq); }
-    catch(e){
-      salvarDoc(f.id, Object.assign({},dados,{arquivo:null,tamanho:0}), salvo.id);
+    const ext=(arq.name.match(/\.[a-z0-9]+$/i)||[""])[0].toLowerCase();
+    const caminho=f.id+"/doc-"+salvo.id+ext;
+    // troca de arquivo num doc já existente: limpa o anterior da nuvem
+    if(antigo && antigo.arquivo_path && antigo.arquivo_path!==caminho){
+      stApagar(antigo.arquivo_path); removerArquivo(antigo.arquivo_path);
+    }
+    try{
+      await enviarArquivo(caminho, arq);                 // cache + sobe (ou fila)
+      salvarDoc(f.id, Object.assign({},dados,{arquivo_path:caminho}), salvo.id);
+    }catch(e){
+      salvarDoc(f.id, Object.assign({},dados,{arquivo:null,tamanho:0,arquivo_path:null}), salvo.id);
       toast("Cadastro salvo, mas não consegui guardar o arquivo");
       fecharModal(); render(); return;
     }
@@ -4090,8 +4347,13 @@ async function baixarDoc(id){
   const f=acharFazenda(App.fazendaId); if(!f) return;
   const d=docsDe(f.id).find(x=>x.id===id); if(!d) return;
   try{
-    const blob = await pegarArquivo(id);
-    if(!blob){ toast("Arquivo não encontrado neste aparelho"); return; }
+    let blob = d.arquivo_path ? await pegarArquivo(d.arquivo_path) : null;
+    if(!blob) blob = await pegarArquivo(id);                       // documentos antigos (chave = id)
+    if(!blob && d.arquivo_path && navigator.onLine){
+      blob = await stBaixar(d.arquivo_path);
+      if(blob) guardarArquivo(d.arquivo_path, blob);               // guarda para abrir offline depois
+    }
+    if(!blob){ toast(navigator.onLine?"Arquivo não encontrado":"Sem internet e sem cópia no aparelho"); return; }
     const a=document.createElement("a");
     a.href=URL.createObjectURL(blob);
     a.download=d.arquivo||d.nome;
@@ -4105,6 +4367,581 @@ function excluirDoc(id){
   const d=docsDe(f.id).find(x=>x.id===id); if(!d) return;
   if(!confirm('Remover "'+d.nome+'"?'+(d.arquivo?"\nO arquivo também sai do aparelho.":""))) return;
   apagarDoc(f.id,id); toast("Documento removido"); render();
+}
+
+/* ═══════════════════════════════════════════════════
+   VISITAS TÉCNICAS — diário de bordo da cultura
+   Estágio, clima, recomendação e foto por talhão.
+   A foto sobe para a nuvem (Storage) e fica em cache offline.
+   ═══════════════════════════════════════════════════ */
+const ESTAGIOS = ["Pré-plantio","Emergência","Vegetativo (V)","Início de floração (R1–R2)",
+  "Formação de vagens (R3–R4)","Enchimento de grãos (R5)","Maturação (R6–R8)","Colhido"];
+
+function kVisitas(f){ return "faz_"+f+"_visitas"; }
+function visitasDe(f){ return Store.get(kVisitas(f), []); }
+
+function salvarVisita(f, v, id){
+  const l = visitasDe(f);
+  const dados = { talhao_id:v.talhao_id||"", talhao_nome:v.talhao_nome||"",
+    data:v.data||"", estagio:v.estagio||"", clima:(v.clima||"").trim(),
+    texto:(v.texto||"").trim(), foto:v.foto||null, foto_path:v.foto_path||null, tamanho:v.tamanho||0 };
+  if(id){ const i=l.findIndex(x=>x.id===id); if(i<0) return null;
+    l[i]=Object.assign({},l[i],dados); Store.set(kVisitas(f),l); return l[i]; }
+  const novo=Object.assign({id:"vs_"+Date.now().toString(36)+Math.random().toString(36).slice(2,4),
+    fazenda_id:f, criado_em:new Date().toISOString()}, dados);
+  l.push(novo); Store.set(kVisitas(f),l); return novo;
+}
+function apagarVisita(f,id){
+  const v=visitasDe(f).find(x=>x.id===id);
+  if(v && v.foto_path){ removerArquivo(v.foto_path); stApagar(v.foto_path); }
+  Store.set(kVisitas(f), visitasDe(f).filter(x=>x.id!==id));
+}
+
+let _fVisTal = "";
+
+function telaVisitas(){
+  const f = acharFazenda(App.fazendaId);
+  if(!f){ App.tela="fazendas"; return telaFazendas(); }
+  const tals = talhoesDe(f.id);
+  const todas = visitasDe(f.id);
+  let l = _fVisTal ? todas.filter(v=>v.talhao_id===_fVisTal) : todas.slice();
+  l.sort((a,b)=>(b.data||"").localeCompare(a.data||"") || (b.criado_em||"").localeCompare(a.criado_em||""));
+
+  let h = '<div class="wrap wrap-wide">';
+  h += '<div class="farm-head">'+
+    '<button class="btn-back" onclick="irPara(\'fazenda\')">← '+esc(f.nome)+'</button>'+
+    '<div class="farm-head-mid"><h1>Visitas técnicas</h1>'+
+    '<p>Diário de bordo da cultura · estágio, clima e recomendações</p></div></div>';
+
+  const comFoto = todas.filter(v=>v.foto_path||v.foto).length;
+  const ultima = todas.slice().sort((a,b)=>(b.data||"").localeCompare(a.data||""))[0];
+  h += '<div class="kpis kpis-3">'+
+    kpi("Registros", todas.length, comFoto+" com foto")+
+    kpi("Última visita", ultima&&ultima.data?dataBR(ultima.data):"—", ultima&&ultima.estagio?ultima.estagio.split(" ")[0]:"")+
+    kpi("Talhões visitados", new Set(todas.map(v=>v.talhao_id).filter(Boolean)).size, "de "+tals.length)+
+  '</div>';
+
+  h += '<div class="acts">'+
+    '<button class="btn-act primary" onclick="modalVisita()">+ Nova visita</button>'+
+    (tals.length?'<select class="sel-f" onchange="_fVisTal=this.value;render()">'+
+      '<option value="">Todos os talhões</option>'+
+      tals.slice().sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR",{numeric:true}))
+        .map(t=>'<option value="'+t.id+'" '+(_fVisTal===t.id?"selected":"")+'>'+esc(t.nome)+'</option>').join("")+
+      '</select>':'')+'</div>';
+
+  if(!tals.length)
+    return h+'<div class="empty"><strong>Cadastre os talhões primeiro</strong>'+
+      'A visita é registrada por talhão. Cadastre-os em Dados da fazenda.</div></div>';
+  if(!todas.length)
+    return h+'<div class="empty"><strong>Diário vazio</strong>'+
+      'Registre a primeira visita: talhão, estágio da cultura, clima, recomendação e uma foto.</div></div>';
+  if(!l.length)
+    return h+'<div class="empty"><strong>Nada neste talhão</strong>Troque o filtro para ver as outras.</div></div>';
+
+  h += '<div class="diario">';
+  l.forEach(v=>{
+    const temFoto = !!(v.foto_path||v.foto);
+    if(v.foto_path) setTimeout(()=>pintarArquivo(v.foto_path,"vf-"+v.id),0);
+    h += '<div class="vis">'+
+      '<div class="vis-cab">'+
+        '<div><b>'+esc(v.talhao_nome||"Fazenda toda")+'</b>'+
+          (v.estagio?'<span class="pill">'+esc(v.estagio)+'</span>':'')+'</div>'+
+        '<div class="vis-acts">'+
+          '<button onclick="modalVisita(\''+v.id+'\')">Editar</button>'+
+          '<button class="rm" onclick="excluirVisita(\''+v.id+'\')">✕</button>'+
+        '</div></div>'+
+      '<div class="vis-meta">'+
+        (v.data?'<span><i>Data</i>'+dataBR(v.data)+'</span>':'')+
+        (v.clima?'<span><i>Clima</i>'+esc(v.clima)+'</span>':'')+
+      '</div>'+
+      (v.texto?'<p class="vis-txt">'+esc(v.texto)+'</p>':'')+
+      (temFoto?'<div class="vis-foto">'+
+        (v.foto_path
+          ? '<img id="vf-'+v.id+'" alt="Foto da visita" onclick="verFotoVisita(\''+esc(v.foto_path)+'\')">'
+          : '<span class="vazio">Foto guardada neste aparelho</span>')+
+        '</div>':'')+
+    '</div>';
+  });
+  h += '</div>';
+  return h+'</div>';
+}
+
+function modalVisita(id){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const v = id ? visitasDe(f.id).find(x=>x.id===id) : null;
+  const hoje = new Date().toISOString().slice(0,10);
+  const tals = talhoesDe(f.id).slice().sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR",{numeric:true}));
+  window._visitaFoto = null;
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal modal-lg">'+
+    '<h2>'+(v?"Editar visita":"Nova visita")+'</h2>'+
+    '<p class="sub">Registro do talhão para o diário de bordo. A foto sobe para a nuvem.</p>'+
+    '<div class="frm">'+
+      '<div class="g2">'+
+        '<div><label for="vs-tal">Talhão</label><select id="vs-tal">'+
+          '<option value="">Fazenda toda</option>'+
+          tals.map(t=>'<option value="'+t.id+'" '+(v&&v.talhao_id===t.id?"selected":"")+'>'+esc(t.nome)+'</option>').join("")+
+        '</select></div>'+
+        '<div><label for="vs-data">Data</label><input type="date" id="vs-data" value="'+(v&&v.data?v.data:hoje)+'"></div>'+
+      '</div>'+
+      '<div class="g2">'+
+        '<div><label for="vs-est">Estágio da cultura</label><select id="vs-est">'+
+          '<option value="">—</option>'+
+          ESTAGIOS.map(e=>'<option '+(v&&v.estagio===e?"selected":"")+'>'+esc(e)+'</option>').join("")+
+        '</select></div>'+
+        '<div><label for="vs-clima">Clima</label>'+
+          '<input id="vs-clima" value="'+esc(v?v.clima:"")+'" placeholder="Ensolarado, nublado, pós-chuva…"></div>'+
+      '</div>'+
+      '<div><label for="vs-txt">Recomendação / observação</label>'+
+        '<textarea id="vs-txt" rows="4" placeholder="O que foi visto no talhão e o que fazer">'+esc(v?v.texto:"")+'</textarea></div>'+
+      '<label class="drop" for="vs-file">'+
+        '<b id="vs-lbl">'+(v&&v.foto?esc(v.foto)+" · "+tamanhoLegivel(v.tamanho):"Tirar ou anexar foto")+'</b>'+
+        '<span>Foto do talhão · até 20 MB</span>'+
+        '<input id="vs-file" type="file" accept="image/*" capture="environment" onchange="escolherFotoVisita(this)">'+
+      '</label>'+
+    '</div>'+
+    '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
+      '<button class="btn-save" onclick="gravarVisita('+(v?"'"+v.id+"'":"null")+')">Salvar</button>'+
+    '</div></div></div>';
+}
+
+function escolherFotoVisita(input){
+  const a=input.files&&input.files[0]; const lbl=document.getElementById("vs-lbl");
+  if(!a){ window._visitaFoto=null; return; }
+  if(a.size>20*1024*1024){ toast("Foto acima de 20 MB — reduza antes"); input.value=""; window._visitaFoto=null; return; }
+  window._visitaFoto=a;
+  if(lbl) lbl.textContent=a.name+" · "+tamanhoLegivel(a.size);
+}
+
+async function gravarVisita(id){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const g=i=>String((document.getElementById(i)||{}).value||"").trim();
+  const talId=g("vs-tal");
+  const tal = talhoesDe(f.id).find(x=>x.id===talId);
+  const antiga = id ? visitasDe(f.id).find(x=>x.id===id) : null;
+  const foto = window._visitaFoto;
+  const dados = { talhao_id:talId, talhao_nome:tal?tal.nome:"",
+    data:g("vs-data"), estagio:g("vs-est"), clima:g("vs-clima"), texto:g("vs-txt"),
+    foto: foto?foto.name:(antiga?antiga.foto:null),
+    tamanho: foto?foto.size:(antiga?antiga.tamanho:0),
+    foto_path: antiga?antiga.foto_path:null };
+  if(!dados.data && !dados.texto && !dados.estagio && !foto){ toast("Preencha ao menos data ou observação"); return; }
+
+  const salvo = salvarVisita(f.id, dados, id);
+  if(foto && salvo){
+    const ext=(foto.name.match(/\.[a-z0-9]+$/i)||[".jpg"])[0].toLowerCase();
+    const caminho=f.id+"/visita-"+salvo.id+ext;
+    if(antiga && antiga.foto_path && antiga.foto_path!==caminho){ stApagar(antiga.foto_path); removerArquivo(antiga.foto_path); }
+    try{ await enviarArquivo(caminho, foto);
+      salvarVisita(f.id, Object.assign({},dados,{foto_path:caminho}), salvo.id); }
+    catch(e){ toast("Visita salva; a foto sobe quando houver internet"); }
+  }
+  window._visitaFoto=null; fecharModal();
+  toast(id?"Visita atualizada":"Visita registrada"); render();
+}
+
+async function verFotoVisita(caminho){ return abrirMapaCheia(caminho); }
+
+function excluirVisita(id){
+  const f=acharFazenda(App.fazendaId);
+  const v=visitasDe(f.id).find(x=>x.id===id); if(!v) return;
+  if(!confirm("Remover esta visita?"+(v.foto_path?"\nA foto também sai da nuvem.":""))) return;
+  apagarVisita(f.id,id); toast("Visita removida"); render();
+}
+
+/* ═══════════════════════════════════════════════════
+   CONTRATOS — venda de soja e arrendamentos a cumprir
+   O contrato é ligado a um armazém (destino). Ao baixar a
+   carga naquele destino, as sacas vão abatendo os contratos
+   dali, na ordem de vencimento. Sobra vira "soja a fixar".
+   ═══════════════════════════════════════════════════ */
+function kContratos(f){ return "faz_"+f+"_contratos"; }
+function contratosDe(f){ return Store.get(kContratos(f), []); }
+
+function salvarContrato(f, c, id){
+  const l = contratosDe(f);
+  const dados = { tipo:c.tipo||"venda", categoria:c.categoria||"Venda",
+    numero:(c.numero||"").trim(), parte:(c.parte||"").trim(), produtor:(c.produtor||"").trim(),
+    destino:c.destino||"", sacas:Number(c.sacas)||0, entregue:(c.entregue===""||c.entregue==null)?null:Number(c.entregue),
+    preco:Number(c.preco)||0, status:c.status||"", vencimento:c.vencimento||"", obs:(c.obs||"").trim() };
+  if(id){ const i=l.findIndex(x=>x.id===id); if(i<0) return null;
+    l[i]=Object.assign({},l[i],dados); Store.set(kContratos(f),l); return l[i]; }
+  const novo=Object.assign({id:"ct_"+Date.now().toString(36)+Math.random().toString(36).slice(2,4),
+    fazenda_id:f, criado_em:new Date().toISOString()}, dados);
+  l.push(novo); Store.set(kContratos(f),l); return novo;
+}
+const CT_CATEGORIAS = ["Venda","A fixar","Depósito","Arrendamento"];
+const CT_STATUS = ["Entregue","Entregando","Transferido","Cessão de Crédito","A comercializar"];
+function apagarContrato(f,id){ Store.set(kContratos(f), contratosDe(f).filter(x=>x.id!==id)); }
+
+/* Abate as cargas baixadas contra os contratos, por destino. */
+function conferenciaContratos(f){
+  const contratos = contratosDe(f);
+  const p = produtividade(f);
+  const entregue = {};                       // sacas entregues por armazém (só baixadas)
+  cargasDe(f).filter(cargaBaixada).forEach(c=>{
+    const d = c.destino || "—";
+    entregue[d] = (entregue[d]||0) + (c.baixa.sacas_final||0);
+  });
+  const grupos = {};
+  contratos.forEach(ct=>{ (grupos[ct.destino] = grupos[ct.destino]||[]).push(ct); });
+
+  const destinos = {};
+  const chaves = new Set([...Object.keys(entregue), ...Object.keys(grupos)]);
+  chaves.forEach(d=>{
+    const linha = { destino:d, entregue:entregue[d]||0, alocado:0, aFixar:0, itens:[] };
+    let disp = linha.entregue;
+    const ord = (grupos[d]||[]).slice().sort((a,b)=>
+      (a.vencimento||"9999-99-99").localeCompare(b.vencimento||"9999-99-99") ||
+      (a.criado_em||"").localeCompare(b.criado_em||""));
+    ord.forEach(ct=>{
+      const cumprido = Math.min(disp, ct.sacas);
+      disp -= cumprido; linha.alocado += cumprido;
+      linha.itens.push({ ct, cumprido, restante:Math.max(0,ct.sacas-cumprido),
+        pct: ct.sacas>0 ? cumprido/ct.sacas*100 : 0 });
+    });
+    linha.aFixar = Math.max(0, disp);
+    destinos[d] = linha;
+  });
+
+  const totContrato = contratos.reduce((s,c)=>s+c.sacas,0);
+  const totCumprido = Object.values(destinos).reduce((s,d)=>s+d.alocado,0);
+  const totEntregue = Object.values(entregue).reduce((s,v)=>s+v,0);
+  const totAFixar   = Object.values(destinos).reduce((s,d)=>s+d.aFixar,0);
+  return { p, contratos, destinos:Object.values(destinos),
+    totContrato, totCumprido, totEntregue, totAFixar,
+    sacasSilo:p.sacasSilo, totalColhido:p.totalSacas, sacasArmazem:p.sacasArmazem };
+}
+
+/* ═══════════════════════════════════════════════════
+   EXPORTAÇÃO DE RELATÓRIOS — PNG e PDF, sem CDN
+   Desenha a tabela num <canvas> (layout da Santa Angelina:
+   faixa verde, colunas, zebra, totais) e gera PNG direto ou
+   embute a imagem num PDF montado à mão. Funciona offline.
+   ═══════════════════════════════════════════════════ */
+const REL = {
+  verde:"#22392B", creme:"#F4F0E9", ouro:"#C3A95A", linha:"#C9C6BE",
+  txt:"#2B2B2B", branco:"#FFFFFF", vermelho:"#B23B2E",
+
+  /* spec = { titulo, sub, larguras:[px...], aligns:[l|r|c...],
+             linhas:[ {t:'cab'|'dado'|'total'|'secao', cs:[...], texto?, cor?} ] } */
+  desenhar(spec){
+    const S = 2;                          // retina
+    const padX = 10, rh = 30, thT = 46, margem = 18;
+    const larg = spec.larguras;
+    const Wtab = larg.reduce((a,b)=>a+b,0);
+    const W = Wtab + margem*2;
+    const H = margem*2 + thT + spec.linhas.length*rh + 10;
+
+    const cv = document.createElement("canvas");
+    cv.width = W*S; cv.height = H*S;
+    const c = cv.getContext("2d"); c.scale(S,S);
+    c.textBaseline = "middle";
+    c.fillStyle = this.branco; c.fillRect(0,0,W,H);
+
+    // Título (faixa verde)
+    c.fillStyle = this.verde; c.fillRect(margem, margem, Wtab, thT);
+    c.fillStyle = this.branco; c.font = "bold 15px -apple-system,Segoe UI,Arial";
+    c.textAlign = "center";
+    c.fillText(spec.titulo, margem + Wtab/2, margem + (spec.sub?16:thT/2));
+    if(spec.sub){ c.font = "12px -apple-system,Segoe UI,Arial";
+      c.fillText(spec.sub, margem + Wtab/2, margem + 32); }
+
+    let y = margem + thT;
+    spec.linhas.forEach((ln, idx)=>{
+      const x0 = margem;
+      if(ln.t==="secao"){
+        c.fillStyle = this.verde; c.fillRect(x0, y, Wtab, rh);
+        c.fillStyle = this.branco; c.font = "bold 12.5px -apple-system,Segoe UI,Arial";
+        c.textAlign = "left"; c.fillText(ln.texto||"", x0+padX, y+rh/2);
+        y += rh; return;
+      }
+      // fundo
+      if(ln.t==="cab"){ c.fillStyle = this.verde; }
+      else if(ln.t==="total"){ c.fillStyle = "#EBE7DD"; }
+      else { c.fillStyle = (idx%2===0) ? this.branco : this.creme; }
+      c.fillRect(x0, y, Wtab, rh);
+
+      // texto das células
+      let x = x0;
+      (ln.cs||[]).forEach((cel,i)=>{
+        const w = larg[i]||80, al = (spec.aligns&&spec.aligns[i])||"left";
+        c.font = (ln.t==="cab"||ln.t==="total") ? "bold 12px -apple-system,Segoe UI,Arial"
+                                                 : "12px -apple-system,Segoe UI,Arial";
+        c.fillStyle = ln.t==="cab" ? this.branco
+                    : (ln.cor && ln.cor[i]) ? ln.cor[i] : this.txt;
+        const texto = String(cel==null?"":cel);
+        c.save(); c.beginPath(); c.rect(x, y, w, rh); c.clip();
+        if(al==="right"){ c.textAlign="right"; c.fillText(texto, x+w-padX, y+rh/2); }
+        else if(al==="center"){ c.textAlign="center"; c.fillText(texto, x+w/2, y+rh/2); }
+        else { c.textAlign="left"; c.fillText(texto, x+padX, y+rh/2); }
+        c.restore();
+        x += w;
+      });
+      y += rh;
+    });
+
+    // grade
+    c.strokeStyle = this.linha; c.lineWidth = 0.6;
+    let gy = margem + thT;
+    for(let i=0;i<=spec.linhas.length;i++){ c.beginPath(); c.moveTo(margem,gy); c.lineTo(margem+Wtab,gy); c.stroke(); gy+=rh; }
+    let gx = margem;
+    for(let i=0;i<=larg.length;i++){ c.beginPath(); c.moveTo(gx,margem+thT); c.lineTo(gx,margem+thT+spec.linhas.length*rh); c.stroke(); gx += (larg[i]||0); }
+
+    return cv;
+  },
+
+  png(spec, nome){
+    const cv = this.desenhar(spec);
+    cv.toBlob(b=>{ if(!b){ toast("Falha ao gerar imagem"); return; }
+      const a=document.createElement("a"); a.href=URL.createObjectURL(b);
+      a.download=(nome||"relatorio")+".png"; a.click();
+      setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+    }, "image/png");
+  },
+
+  pdf(spec, nome){
+    const cv = this.desenhar(spec);
+    const jpeg = atob(cv.toDataURL("image/jpeg",0.94).split(",")[1]);
+    const w = cv.width, h = cv.height;
+    const objs = {};
+    objs[1] = "<< /Type /Catalog /Pages 2 0 R >>";
+    objs[2] = "<< /Type /Pages /Kids [3 0 R] /Count 1 >>";
+    objs[3] = "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 "+w+" "+h+"] "+
+              "/Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>";
+    objs[4] = "<< /Type /XObject /Subtype /Image /Width "+w+" /Height "+h+
+              " /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length "+jpeg.length+" >>\nstream\n"+jpeg+"\nendstream";
+    const cont = "q "+w+" 0 0 "+h+" 0 0 cm /Im0 Do Q";
+    objs[5] = "<< /Length "+cont.length+" >>\nstream\n"+cont+"\nendstream";
+
+    let pdf = "%PDF-1.4\n"; const off = {};
+    for(let i=1;i<=5;i++){ off[i]=pdf.length; pdf += i+" 0 obj\n"+objs[i]+"\nendobj\n"; }
+    const xref = pdf.length;
+    pdf += "xref\n0 6\n0000000000 65535 f \n";
+    for(let i=1;i<=5;i++){ pdf += String(off[i]).padStart(10,"0")+" 00000 n \n"; }
+    pdf += "trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n"+xref+"\n%%EOF";
+
+    const bytes = new Uint8Array(pdf.length);
+    for(let i=0;i<pdf.length;i++) bytes[i]=pdf.charCodeAt(i)&0xff;
+    const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([bytes],{type:"application/pdf"}));
+    a.download=(nome||"relatorio")+".pdf"; a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+  }
+};
+
+function telaContratos(){
+  const f = acharFazenda(App.fazendaId);
+  if(!f){ App.tela="fazendas"; return telaFazendas(); }
+  const C = conferenciaContratos(f);
+  const arm = armazensDe(f.id);
+
+  // mapa contrato → cumprido/restante, para exibir na lista
+  const info = {};
+  C.destinos.forEach(d=>d.itens.forEach(it=>{ info[it.ct.id]=it; }));
+
+  let h = '<div class="wrap wrap-wide">';
+  h += '<div class="farm-head">'+
+    '<button class="btn-back" onclick="irPara(\'fazenda\')">← '+esc(f.nome)+'</button>'+
+    '<div class="farm-head-mid"><h1>Contratos</h1>'+
+    '<p>Venda e arrendamento · abatidos conforme a soja entra no armazém</p></div></div>';
+
+  h += '<div class="kpis kpis-4">'+
+    kpi("Contratos", C.contratos.length, "")+
+    kpi("Sacas contratadas", nf(C.totContrato,0), "sc")+
+    kpi("Já cumprido", nf(C.totCumprido,0), "sc")+
+    kpi("Soja a fixar", nf(C.totAFixar,0), "sc")+
+  '</div>';
+
+  h += '<div class="acts"><button class="btn-act primary" onclick="modalContrato()">+ Novo contrato</button>'+
+    (C.contratos.length?'<button class="btn-act" onclick="exportarEntregas(\'png\')">Exportar imagem</button>'+
+      '<button class="btn-act" onclick="exportarEntregas(\'pdf\')">Exportar PDF</button>':'')+
+  '</div>';
+
+  if(!arm.length)
+    h += '<div class="empty" style="margin-bottom:16px"><strong>Cadastre um armazém primeiro</strong>'+
+      'O contrato é ligado a um armazém de destino. Cadastre em Colheita → Destinos.</div>';
+
+  if(!C.contratos.length){
+    h += '<div class="empty"><strong>Nenhum contrato cadastrado</strong>'+
+      'Cadastre os contratos de venda e os arrendamentos a cumprir. '+
+      'Conforme a soja é baixada no armazém, eles vão sendo abatidos.</div>';
+  }else{
+    const ord = C.contratos.slice().sort((a,b)=>
+      (a.vencimento||"9999-99-99").localeCompare(b.vencimento||"9999-99-99"));
+    h += '<div class="cts">';
+    ord.forEach(ct=>{
+      const it = info[ct.id] || {cumprido:0, restante:ct.sacas, pct:0};
+      const done = it.restante<=0 && ct.sacas>0;
+      const venc = diasAte(ct.vencimento);
+      h += '<div class="ct'+(done?" ok":"")+'">'+
+        '<div class="ct-cab">'+
+          '<div><span class="ct-tipo '+(ct.categoria==="Arrendamento"?"arr":"ven")+'">'+
+            esc(ct.categoria||(ct.tipo==="arrendamento"?"Arrendamento":"Venda"))+'</span>'+
+            '<b>'+esc(ct.parte||ct.numero||"Contrato")+'</b>'+
+            (ct.numero&&ct.parte?'<span class="ct-num">'+esc(ct.numero)+'</span>':'')+'</div>'+
+          '<div class="ct-acts">'+
+            '<button onclick="modalContrato(\''+ct.id+'\')">Editar</button>'+
+            '<button class="rm" onclick="excluirContrato(\''+ct.id+'\')">✕</button>'+
+          '</div></div>'+
+        '<div class="ct-barra"><i style="width:'+Math.min(100,it.pct).toFixed(1)+'%"></i></div>'+
+        '<div class="ct-meta">'+
+          '<span><i>Destino</i>'+esc(ct.destino||"—")+'</span>'+
+          '<span><i>Contratado</i>'+nf(ct.sacas,0)+' sc</span>'+
+          '<span><i>Cumprido</i>'+nf(it.cumprido,0)+' sc</span>'+
+          '<span class="'+(done?"ok":"")+'"><i>Restante</i>'+(done?"cumprido":nf(it.restante,0)+" sc")+'</span>'+
+          (ct.vencimento?'<span class="'+(venc!=null&&venc<0&&!done?"venc":"")+'"><i>Vencimento</i>'+dataBR(ct.vencimento)+'</span>':'')+
+          (ct.tipo==="venda"&&ct.preco>0?'<span><i>Preço saca</i>'+moeda(ct.preco)+'</span>':'')+
+        '</div>'+
+        (ct.obs?'<p class="ct-obs">'+esc(ct.obs)+'</p>':'')+
+      '</div>';
+    });
+    h += '</div>';
+  }
+
+  // ── Conferência: a soja tem que fechar ──
+  const entregueOK = Math.abs(C.totEntregue - C.sacasArmazem) < 1;
+  const somaOK = Math.abs(C.sacasArmazem - (C.totCumprido + C.totAFixar)) < 1;
+  const colhidoOK = Math.abs(C.totalColhido - (C.sacasArmazem + C.sacasSilo)) < 1;
+  const tudoOK = entregueOK && somaOK && colhidoOK;
+
+  h += '<div class="confere">'+
+    '<div class="confere-t">Conferência da soja '+
+      '<span class="sit '+(tudoOK?"ok":"tr")+'">'+(tudoOK?"fecha":"conferir")+'</span></div>'+
+    '<div class="confere-linha"><span>Total colhido (produtividade)</span><b>'+nf(C.totalColhido,0)+' sc</b></div>'+
+    '<div class="confere-sub"><span>= Entregue nos armazéns</span><b>'+nf(C.sacasArmazem,0)+' sc</b></div>'+
+    '<div class="confere-sub"><span>+ Em silo bolsa (ainda não entregue)</span><b>'+nf(C.sacasSilo,0)+' sc</b></div>'+
+    '<div class="confere-div"></div>'+
+    '<div class="confere-linha"><span>Entregue nos armazéns</span><b>'+nf(C.sacasArmazem,0)+' sc</b></div>'+
+    '<div class="confere-sub"><span>= Usado em contratos</span><b>'+nf(C.totCumprido,0)+' sc</b></div>'+
+    '<div class="confere-sub"><span>+ Soja a fixar (sem contrato)</span><b>'+nf(C.totAFixar,0)+' sc</b></div>'+
+    '<p class="resumo-obs">O silo bolsa conta como colhido, mas só abate contrato quando for entregue no armazém. '+
+      'A soja a fixar é o que já entrou no armazém e ainda não tem contrato.</p>'+
+  '</div>';
+
+  return h+'</div>';
+}
+
+function modalContrato(id){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const c = id ? contratosDe(f.id).find(x=>x.id===id) : null;
+  const arm = armazensDe(f.id);
+  const cat = c?(c.categoria||"Venda"):"Venda";
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal modal-lg">'+
+    '<h2>'+(c?"Editar contrato":"Novo contrato")+'</h2>'+
+    '<p class="sub">Alimenta o Relatório de Entregas. A quantidade entregue pode ser preenchida à mão ou puxada da colheita.</p>'+
+    '<div class="frm">'+
+      '<div class="g3">'+
+        '<div><label for="ct-prod">Produtor</label>'+
+          '<input id="ct-prod" value="'+esc(c?c.produtor:"Ivan")+'" placeholder="Ivan"></div>'+
+        '<div><label for="ct-cat">Categoria</label><select id="ct-cat" onchange="_ctCateg(this.value)">'+
+          CT_CATEGORIAS.map(k=>'<option '+(cat===k?"selected":"")+'>'+esc(k)+'</option>').join("")+
+        '</select></div>'+
+        '<div><label for="ct-dest">Armazém de destino</label><select id="ct-dest">'+
+          '<option value="">—</option>'+
+          arm.map(a=>'<option '+(c&&c.destino===a?"selected":"")+'>'+esc(a)+'</option>').join("")+
+        '</select></div>'+
+      '</div>'+
+      '<div class="g2">'+
+        '<div><label id="ct-parte-lbl" for="ct-parte">'+(cat==="Arrendamento"?"Arrendador":cat==="Depósito"?"Armazém / rótulo":"Comprador")+'</label>'+
+          '<input id="ct-parte" value="'+esc(c?c.parte:"")+'" placeholder="ALZ, Cargill, BGB, arrendador…"></div>'+
+        '<div><label for="ct-num">Número / referência</label>'+
+          '<input id="ct-num" value="'+esc(c?c.numero:"")+'" placeholder="CTR 175"></div>'+
+      '</div>'+
+      '<div class="g3">'+
+        '<div><label for="ct-sacas">Qtd vendida / contratada (SC)</label>'+
+          '<input id="ct-sacas" type="number" min="0" step="0.01" inputmode="decimal" value="'+(c&&c.sacas?c.sacas:"")+'" placeholder="20000"></div>'+
+        '<div><label for="ct-entr">Qtd entregue (SC)</label>'+
+          '<input id="ct-entr" type="number" min="0" step="0.01" inputmode="decimal" value="'+(c&&c.entregue!=null?c.entregue:"")+'" placeholder="deixe vazio p/ puxar da colheita"></div>'+
+        '<div><label for="ct-status">Status</label><select id="ct-status">'+
+          '<option value="">—</option>'+
+          CT_STATUS.map(s=>'<option '+(c&&c.status===s?"selected":"")+'>'+esc(s)+'</option>').join("")+
+        '</select></div>'+
+      '</div>'+
+      '<div class="g2">'+
+        '<div><label for="ct-venc">Vencimento</label><input type="date" id="ct-venc" value="'+(c?c.vencimento:"")+'"></div>'+
+        '<div id="ct-preco-box"'+(cat!=="Venda"?' style="display:none"':'')+'><label for="ct-preco">Preço da saca (R$)</label>'+
+          '<input id="ct-preco" type="number" step="0.01" inputmode="decimal" value="'+(c&&c.preco?c.preco:"")+'" placeholder="opcional"></div>'+
+      '</div>'+
+      '<div><label for="ct-obs">Observação</label>'+
+        '<input id="ct-obs" value="'+esc(c?c.obs:"")+'" placeholder="opcional"></div>'+
+    '</div>'+
+    '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
+      '<button class="btn-save" onclick="gravarContrato('+(c?"'"+c.id+"'":"null")+')">Salvar</button>'+
+    '</div></div></div>';
+}
+function _ctCateg(v){
+  const lbl=document.getElementById("ct-parte-lbl");
+  const box=document.getElementById("ct-preco-box");
+  if(lbl) lbl.textContent = v==="Arrendamento" ? "Arrendador" : v==="Depósito" ? "Armazém / rótulo" : "Comprador";
+  if(box) box.style.display = v==="Venda" ? "" : "none";
+}
+function gravarContrato(id){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const g=i=>String((document.getElementById(i)||{}).value||"").trim();
+  const cat=g("ct-cat");
+  const sacas=parseFloat(g("ct-sacas").replace(",","."))||0;
+  const entrRaw=g("ct-entr");
+  if(sacas<=0 && !entrRaw){ toast("Informe a quantidade vendida ou entregue"); return; }
+  if(!g("ct-dest")){ toast("Escolha o armazém de destino"); return; }
+  salvarContrato(f.id,{ categoria:cat, tipo:(cat==="Arrendamento"?"arrendamento":"venda"),
+    produtor:g("ct-prod"), numero:g("ct-num"), parte:g("ct-parte"), destino:g("ct-dest"),
+    sacas, entregue: entrRaw===""?null:parseFloat(entrRaw.replace(",","."))||0,
+    preco:parseFloat(g("ct-preco").replace(",","."))||0, status:g("ct-status"),
+    vencimento:g("ct-venc"), obs:g("ct-obs") }, id);
+  fecharModal(); toast(id?"Contrato atualizado":"Contrato cadastrado"); render();
+}
+function excluirContrato(id){
+  const f=acharFazenda(App.fazendaId);
+  const c=contratosDe(f.id).find(x=>x.id===id); if(!c) return;
+  if(!confirm('Remover o contrato "'+(c.parte||c.numero||"")+'"?')) return;
+  apagarContrato(f.id,id); toast("Contrato removido"); render();
+}
+
+/* Relatório de Entregas — formato da planilha usada há anos. */
+function relEntregas(f){
+  const C = conferenciaContratos(f.id);
+  const auto = {}; C.destinos.forEach(d=>d.itens.forEach(it=>{ auto[it.ct.id]=it.cumprido; }));
+  const entrDe = c => c.entregue!=null ? c.entregue : (auto[c.id]||0);
+  const cs = contratosDe(f.id);
+  const principais = cs.filter(c=>(c.categoria||"Venda")!=="Arrendamento");
+  const arrend     = cs.filter(c=>c.categoria==="Arrendamento");
+
+  const larguras=[110,215,150,150,120,150];
+  const aligns=['left','left','right','right','right','center'];
+  const linhas=[{t:'cab', cs:['Produtor','Armazém','Qtd Vendida / SC','Qtd Entregue / SC','Falta entregar','Status']}];
+
+  let totVend=0, totEntr=0, totFalta=0;
+  principais.forEach(c=>{
+    const cat=c.categoria||"Venda"; const entr=entrDe(c);
+    const arm = (c.parte||"") + (c.numero? " - "+c.numero : "");
+    const vendCell = cat==="Venda"? nf(c.sacas,2) : cat;
+    const falta = cat==="Venda"? Math.max(0,c.sacas-entr) : null;
+    linhas.push({t:'dado', cs:[c.produtor||"", arm||"—", vendCell, nf(entr,2),
+      falta==null?"-":nf(falta,2), c.status||""]});
+    if(cat==="Venda"){ totVend+=c.sacas; totFalta+=Math.max(0,c.sacas-entr); }
+    totEntr += entr;
+  });
+  linhas.push({t:'total', cs:['','TOTAL', totVend?nf(totVend,2):'', nf(totEntr,2), nf(totFalta,2), '']});
+
+  if(arrend.length){
+    linhas.push({t:'secao', texto:'Entregas — Arrendamentos'});
+    let totArr=0;
+    arrend.forEach(c=>{ const entr=entrDe(c); totArr+=entr;
+      linhas.push({t:'dado', cs:[c.produtor||"Arrendamento", c.parte||"—",
+        nf(c.sacas,2), nf(entr,2), "", c.status||"Transferido"]}); });
+    linhas.push({t:'total', cs:['','Total arrendamentos','', nf(totArr,2), '', '']});
+  }
+
+  return { titulo:"Relatório de Entregas · "+f.nome, sub:"Safra "+f.safra,
+           larguras, aligns, linhas };
+}
+function exportarEntregas(fmt){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  if(!contratosDe(f.id).length){ toast("Cadastre contratos primeiro"); return; }
+  const spec=relEntregas(f);
+  const nome="entregas-"+f.nome.toLowerCase().replace(/[^a-z0-9]+/g,"-");
+  fmt==="pdf" ? REL.pdf(spec,nome) : REL.png(spec,nome);
 }
 
 function telaModulo(){
