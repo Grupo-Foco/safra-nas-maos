@@ -379,6 +379,8 @@ input.silo:focus{border-color:var(--gold);outline:none}
 .cam span:nth-child(2){color:var(--muted)}
 .cam button{background:none;border:none;color:#CFCABD;font-size:13px;padding:3px 6px}
 .cam button:hover{color:var(--red)}
+.cam-acts{display:flex;gap:2px;justify-self:end}
+.cam-acts button[title="Editar"]:hover{color:var(--green)}
 .vazio{color:var(--muted);font-size:13px;padding:8px 0}
 .eq-row{display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid var(--line-soft)}
 .eq-row:last-child{border-bottom:none}
@@ -863,7 +865,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.19.0";
+const APP_VERSION = "2.21.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -1452,6 +1454,21 @@ function apagarHistSafra(f, safra){
 }
 function safraCurta(s){ const m=String(s).match(/^\d\d(\d\d)\/\d\d(\d\d)$/); return m?m[1]+"/"+m[2]:String(s); }
 function safraAnterior(s){ const m=String(s).match(/^(\d{4})\/(\d{4})$/); return m?(Number(m[1])-1)+"/"+(Number(m[2])-1):null; }
+/* A qual safra pertence uma DATA de pagamento.
+   Safra principal: 01/10 (ano Y) → 30/05 (ano Y+1)  ⇒  "SAFRA Y/Y+1"
+   Safrinha:        31/05 → 30/09  (do ano Y+1)       ⇒  "SAFRINHA Y/Y+1"
+   Ex.: um pagamento em fev/2026 cai na SAFRA 2025/2026, não na 2026/2027. */
+function safraDaData(iso){
+  if(!iso) return null;
+  const s=String(iso), m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  let y,mo,da;
+  if(m){ y=+m[1]; mo=+m[2]; da=+m[3]; }
+  else { const d=new Date(s); if(isNaN(d)) return null; y=d.getFullYear(); mo=d.getMonth()+1; da=d.getDate(); }
+  const md=mo*100+da;
+  if(md>=1001) return "SAFRA "+y+"/"+(y+1);        // out–dez
+  if(md<=530)  return "SAFRA "+(y-1)+"/"+y;         // jan–30/mai
+  return "SAFRINHA "+(y-1)+"/"+y;                   // 31/mai–30/set
+}
 /* Base de comparação: a safra imediatamente anterior à atual, se houver;
    senão a safra passada mais recente registrada. Sempre rotulada certo. */
 function baselineComp(fid, safraAtual){
@@ -3380,11 +3397,14 @@ function abaCadastros(f){
   h += '</div>';
 
   h += '<div class="bloco"><div class="bloco-h"><h3>Caminhões</h3>'+
-       '<button class="btn-act" onclick="modalCaminhao()">+ Novo</button></div>';
+       '<div style="display:flex;gap:6px">'+
+         '<button class="btn-act" onclick="modalCaminhoesLote()">Colar lista</button>'+
+         '<button class="btn-act" onclick="modalCaminhao()">+ Novo</button></div></div>';
   h += cam.length ? '<div class="lista-cam">'+cam.map(c=>
         '<div class="cam"><span class="mono">'+esc(c.placa)+'</span>'+
         '<span>'+esc(c.motorista||"—")+'</span>'+
-        '<button onclick="removerCaminhao(\''+c.id+'\')">✕</button></div>').join("")+'</div>'
+        '<span class="cam-acts"><button title="Editar" onclick="modalCaminhao(\''+c.id+'\')">✎</button>'+
+        '<button title="Remover" onclick="removerCaminhao(\''+c.id+'\')">✕</button></span></div>').join("")+'</div>'
       : '<p class="vazio">Nenhum caminhão cadastrado.</p>';
   h += '</div></div>';
   return h;
@@ -5028,8 +5048,20 @@ const REL = {
     return cv;
   },
 
-  png(spec, nome){
-    const cv = this.desenhar(spec);
+  desenharLado(specs){
+    const cvs = specs.map(s=>this.desenhar(s));
+    const gap = 48;                       // px de canvas (S=2 já embutido)
+    const W = cvs.reduce((a,c)=>a+c.width,0) + gap*(cvs.length-1);
+    const H = Math.max.apply(null, cvs.map(c=>c.height));
+    const out = document.createElement("canvas"); out.width=W; out.height=H;
+    const c = out.getContext("2d");
+    c.fillStyle = this.branco; c.fillRect(0,0,W,H);
+    let x=0; cvs.forEach(cv=>{ c.drawImage(cv,x,0); x += cv.width + gap; });
+    return out;
+  },
+
+  png(spec, nome){ this.pngCv(this.desenhar(spec), nome); },
+  pngCv(cv, nome){
     cv.toBlob(b=>{ if(!b){ toast("Falha ao gerar imagem"); return; }
       const a=document.createElement("a"); a.href=URL.createObjectURL(b);
       a.download=(nome||"relatorio")+".png"; a.click();
@@ -5037,8 +5069,8 @@ const REL = {
     }, "image/png");
   },
 
-  pdf(spec, nome){
-    const cv = this.desenhar(spec);
+  pdf(spec, nome){ this.pdfCv(this.desenhar(spec), nome); },
+  pdfCv(cv, nome){
     const jpeg = atob(cv.toDataURL("image/jpeg",0.94).split(",")[1]);
     const w = cv.width, h = cv.height;
     const objs = {};
@@ -5295,6 +5327,7 @@ function telaHistorico(){
   if(_histSafra!=="__nova" && !h[_histSafra]) _histSafra = safras[0] || "__nova";
   const tals=talhoesDe(f.id).slice().sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR",{numeric:true}));
   const mapa = (_histSafra==="__nova") ? {} : (h[_histSafra]||{});
+  const gestor = ehGestor(f.id);
 
   let out='<div class="wrap wrap-wide">';
   out+='<div class="farm-head"><button class="btn-back" onclick="irPara(\'fazenda\')">← '+esc(f.nome)+'</button>'+
@@ -5304,11 +5337,11 @@ function telaHistorico(){
   out+='<div class="acts">'+
     '<select class="sel-f" onchange="_histSafra=this.value;render()">'+
       safras.map(s=>'<option value="'+esc(s)+'" '+(_histSafra===s?"selected":"")+'>Safra '+esc(s)+'</option>').join("")+
-      '<option value="__nova" '+(_histSafra==="__nova"?"selected":"")+'>+ Nova safra…</option>'+
+      (gestor?'<option value="__nova" '+(_histSafra==="__nova"?"selected":"")+'>+ Nova safra…</option>':'')+
     '</select>'+
     (_histSafra!=="__nova"?'<button class="btn-act" onclick="exportarHist(\'png\')">Exportar imagem</button>'+
       '<button class="btn-act" onclick="exportarHist(\'pdf\')">Exportar PDF</button>'+
-      '<button class="btn-act" onclick="removerHistSafra()">Remover safra</button>':'')+
+      (gestor?'<button class="btn-act" onclick="removerHistSafra()">Remover safra</button>':''):'')+
   '</div>';
 
   if(_histSafra==="__nova"){
@@ -5338,10 +5371,8 @@ function telaHistorico(){
     out+='<tr><td class="forte">'+esc(k)+'</td>'+
       '<td class="num mono">'+(a!=null?nf(a,2):"—")+'</td>'+
       '<td class="num mono">'+(sacas!=null?nf(sacas,2):"—")+'</td>'+
-      '<td class="num"><input class="hist-in" type="number" step="0.01" inputmode="decimal" value="'+(v!=null?v:"")+'" '+
-        'onchange="gravarHistNome(this.value,\''+kEsc+'\')"></td>'+
-      '<td><input class="lv" value="'+esc(hCult(x))+'" placeholder="Olimpo, Neo 790…" '+
-        'onchange="gravarHistCultNome(this.value,\''+kEsc+'\')"></td></tr>';
+      '<td class="num mono">'+(v!=null?nf(v,2):"—")+'</td>'+
+      '<td>'+esc(hCult(x)||"—")+'</td></tr>';
   });
   if(chaves.length){
     const prodF = totA>0 ? totSc/totA : 0;
@@ -5351,14 +5382,15 @@ function telaHistorico(){
       '<td class="num mono forte">'+nf(prodF,2)+'</td><td></td></tr>';
   }
   out+='</tbody></table></div>';
-  if(disponiveis.length)
+  if(gestor && disponiveis.length)
     out+='<div class="acts" style="margin-top:12px"><select class="sel-f" onchange="if(this.value)adicionarHistTalhao(this.value)">'+
       '<option value="">+ Adicionar talhão…</option>'+
       disponiveis.sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR",{numeric:true}))
         .map(t=>'<option value="'+esc(t.nome).replace(/'/g,"&#39;")+'">'+esc(t.nome)+'</option>').join("")+
       '</select></div>';
-  out+='<p class="resumo-obs">Área e Sacas vêm da planilha da safra (Sacas = área × sc/ha). '+
-    'O sc/ha alimenta o comparativo da Produtividade e pode ser ajustado; a variedade também.</p>';
+  out+='<p class="resumo-obs">'+(gestor
+    ? 'Os números do ano passado são só leitura. Use "Nova safra" e "Adicionar talhão" para montar a base de um novo ano.'
+    : 'Registro somente leitura.')+'</p>';
   return out+'</div>';
 }
 function _histMapaEditavel(f){
@@ -5366,7 +5398,7 @@ function _histMapaEditavel(f){
   return { stored, mapa:Object.assign({}, histDe(f.id)[_histSafra]||{}, stored[_histSafra]||{}) };
 }
 function _histSet(nome, patch){
-  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const f=acharFazenda(App.fazendaId); if(!f || !ehGestor(f.id)) return;
   const {stored,mapa}=_histMapaEditavel(f);
   let cur = (mapa[nome] && typeof mapa[nome]==="object") ? Object.assign({},mapa[nome])
            : (mapa[nome]!=null ? {v:mapa[nome]} : {});
@@ -5378,20 +5410,20 @@ function gravarHistNome(val, nome){ const n=parseFloat(String(val).replace(",","
 function gravarHistCultNome(cult, nome){ _histSet(nome,{c:(cult||"").trim()}); }
 function gravarHistAreaNome(val, nome){ const n=parseFloat(String(val).replace(",",".")); _histSet(nome,{a:(isNaN(n)||n<=0)?null:n}); }
 function adicionarHistTalhao(nome){
-  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const f=acharFazenda(App.fazendaId); if(!f || !ehGestor(f.id)) return;
   const {stored,mapa}=_histMapaEditavel(f);
   if(!(nome in mapa)) mapa[nome]={v:null,c:""};
   stored[_histSafra]=mapa; Store.set(kHist(f.id),stored); render();
 }
 function criarHistSafra(){
-  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const f=acharFazenda(App.fazendaId); if(!f || !ehGestor(f.id)) return;
   const s=String((document.getElementById("hs-nova")||{}).value||"").trim();
   if(!/^\d{4}\/\d{4}$/.test(s)){ toast("Use o formato 2025/2026"); return; }
   const stored=Store.get(kHist(f.id),{}); if(!stored[s]) stored[s]={}; Store.set(kHist(f.id),stored);
   _histSafra=s; toast("Safra "+s+" criada"); render();
 }
 function removerHistSafra(){
-  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const f=acharFazenda(App.fazendaId); if(!f || !ehGestor(f.id)) return;
   if(!confirm("Remover a safra "+_histSafra+" do histórico desta fazenda?")) return;
   apagarHistSafra(f.id,_histSafra); _histSafra=""; toast("Safra removida"); render();
 }
@@ -5425,7 +5457,12 @@ async function carregarDiesel(f){
     if(!navigator.onLine) throw new Error("Sem internet — os gastos do financeiro precisam de conexão");
     const r = await Sync._comRetry(()=>api("rpc/safra_gastos_manut", { method:"POST",
       body:{ p_fazenda_id:f.id, p_grupo:_diesel.grupo } }), 5);
-    _diesel.dados = Array.isArray(r) ? r : [];
+    // Atribui cada gasto à safra pela DATA do pagamento (janela safra/safrinha),
+    // em vez de confiar no rótulo que veio do financeiro.
+    _diesel.dados = (Array.isArray(r)?r:[]).map(x=>{
+      const s=safraDaData(x.data);
+      return s ? Object.assign({}, x, {safra:s}) : x;
+    });
   }catch(e){ _diesel.erro = explicaErro(e.message||String(e)); _diesel.dados=[]; }
   _diesel.carregando=false; render();
 }
@@ -5838,28 +5875,71 @@ function removerArmazem(nome){
   toast("Destino removido"); render();
 }
 
-function modalCaminhao(){
+function modalCaminhao(id){
+  const f=acharFazenda(App.fazendaId);
+  const ed = id ? caminhoesDe(f.id).find(c=>c.id===id) : null;
   document.getElementById("modal-root").innerHTML=
   '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal">'+
-    '<h2>Novo caminhão</h2><p class="sub">Placa e motorista aparecem na hora de lançar a carga.</p>'+
+    '<h2>'+(ed?"Editar caminhão":"Novo caminhão")+'</h2><p class="sub">Placa e motorista aparecem na hora de lançar a carga.</p>'+
     '<div class="frm"><div><label for="cm-placa">Placa</label>'+
-      '<input id="cm-placa" placeholder="ABC1D23" maxlength="8"></div>'+
-      '<div><label for="cm-mot">Motorista</label><input id="cm-mot" placeholder="Nome"></div></div>'+
+      '<input id="cm-placa" placeholder="ABC1D23" maxlength="10" value="'+esc(ed?ed.placa:"")+'"></div>'+
+      '<div><label for="cm-mot">Motorista</label><input id="cm-mot" placeholder="Nome" value="'+esc(ed?(ed.motorista||""):"")+'"></div></div>'+
     '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
-      '<button class="btn-save" onclick="gravarCaminhao()">Adicionar</button></div></div></div>';
+      '<button class="btn-save" onclick="gravarCaminhao('+(ed?"'"+ed.id+"'":"")+')">'+(ed?"Salvar":"Adicionar")+'</button></div></div></div>';
   setTimeout(()=>{const e=document.getElementById("cm-placa"); if(e) e.focus();},60);
 }
-function gravarCaminhao(){
+function gravarCaminhao(id){
   const f=acharFazenda(App.fazendaId);
   const p=document.getElementById("cm-placa").value.trim().toUpperCase();
   if(!p){ toast("Informe a placa"); return; }
   const l=caminhoesDe(f.id);
-  if(l.some(c=>c.placa===p)){ toast("Essa placa já está cadastrada"); return; }
-  const novo={id:"cm_"+Date.now().toString(36), fazenda_id:f.id, placa:p,
-              motorista:document.getElementById("cm-mot").value.trim()};
-  l.push(novo); Store.set(kCam(f.id),l);
-  Sync.push("caminhoes","upsert",novo);
-  fecharModal(); toast("Caminhão adicionado"); render();
+  if(l.some(c=>c.placa===p && c.id!==id)){ toast("Essa placa já está cadastrada"); return; }
+  const mot=document.getElementById("cm-mot").value.trim();
+  if(id){
+    const c=l.find(x=>x.id===id); if(!c){ fecharModal(); return; }
+    c.placa=p; c.motorista=mot; Store.set(kCam(f.id),l);
+    Sync.push("caminhoes","upsert",c);
+    fecharModal(); toast("Caminhão atualizado"); render();
+  }else{
+    const novo={id:"cm_"+Date.now().toString(36), fazenda_id:f.id, placa:p, motorista:mot};
+    l.push(novo); Store.set(kCam(f.id),l);
+    Sync.push("caminhoes","upsert",novo);
+    fecharModal(); toast("Caminhão adicionado"); render();
+  }
+}
+/* Cadastro em lote: uma linha por caminhão ("placa - motorista") */
+function modalCaminhoesLote(){
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal">'+
+    '<h2>Colar lista de caminhões</h2>'+
+    '<p class="sub">Uma linha por caminhão, no formato <b>placa - motorista</b>. Também aceita tab, vírgula ou ponto e vírgula.</p>'+
+    '<div class="frm"><textarea id="cm-lote" rows="9" placeholder="ABC1D23 - João\nDEF4G56 - Maria"></textarea></div>'+
+    '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
+      '<button class="btn-save" onclick="gravarCaminhoesLote()">Adicionar todos</button></div></div></div>';
+  setTimeout(()=>{const e=document.getElementById("cm-lote"); if(e) e.focus();},60);
+}
+function gravarCaminhoesLote(){
+  const f=acharFazenda(App.fazendaId);
+  const txt=(document.getElementById("cm-lote").value||"").trim();
+  if(!txt){ toast("Cole a lista primeiro"); return; }
+  const l=caminhoesDe(f.id);
+  const existentes=new Set(l.map(c=>c.placa));
+  let add=0, dup=0, i=0;
+  txt.split(/\r?\n/).forEach(linha=>{
+    const s=linha.trim(); if(!s) return;
+    const m=s.split(/\s*[-\t,;]\s*|\s{2,}/);
+    const placa=(m[0]||"").trim().toUpperCase();
+    const mot=(m.slice(1).join(" ")||"").trim();
+    if(!placa) return;
+    if(existentes.has(placa)){ dup++; return; }
+    existentes.add(placa);
+    l.push({id:"cm_"+Date.now().toString(36)+"_"+(i++), fazenda_id:f.id, placa, motorista:mot});
+    add++;
+  });
+  if(!add){ toast(dup?"Todos já estavam cadastrados":"Nada reconhecido na lista"); return; }
+  Store.set(kCam(f.id),l);
+  l.slice(-add).forEach(c=>Sync.push("caminhoes","upsert",c));
+  fecharModal(); toast(add+" caminhão(ões) adicionados"+(dup?" · "+dup+" já existiam":"")); render();
 }
 function removerCaminhao(id){
   const f=acharFazenda(App.fazendaId);
@@ -6339,8 +6419,8 @@ function relProdutividade(f){
   if(temSilo){
     cols.push({n:'Silos',a:'right',w:64, v:t=>t.silos||"—"});
     cols.push({n:'Sacas silo',a:'right',w:104, v:t=>t.sc_silo>0?nf(t.sc_silo,0):"—"});
+    cols.push({n:'Total sc',a:'right',w:112, v:t=>t.total_sc>0?nf(t.total_sc,2):"—"});
   }
-  cols.push({n:'Total sc',a:'right',w:112, v:t=>t.total_sc>0?nf(t.total_sc,2):"—"});
   cols.push({n:'Sc/ha',a:'right',w:84, v:t=>t.colhido?nf(t.sc_ha,2):"—"});
   cols.push({n:rotBase,a:'right',w:96, v:t=>{const b=hVal(base[t.nome]); return b!=null?nf(b,2):"—";}});
   cols.push({n:'Variedade',a:'left',w:200, v:t=>{const lv=lav[t.id]; return (lv&&lv.variedade)?lv.variedade:"—";}});
@@ -6367,11 +6447,40 @@ function relProdutividade(f){
     sub:"Safra "+f.safra+(bc.safra?"  ·  comparativo com "+safraCurta(bc.safra):"  ·  sem safra anterior registrada"),
     larguras, aligns, linhas};
 }
+/* Tabela da safra anterior (do Histórico): talhão, área, produção, sc/ha, cultivar.
+   Área vem do histórico se houver; senão do talhão atual. Produção = área × sc/ha. */
+function relHistComparativo(f, safra){
+  const mapa = histDe(f.id)[safra]||{};
+  const tals = talhoesDe(f.id);
+  const areaDe = nome => { const t=tals.find(t=>t.nome===nome); return t?(Number(t.hectares)||null):null; };
+  const chaves = Object.keys(mapa).filter(k=>hVal(mapa[k])!=null)
+    .sort((a,b)=>a.localeCompare(b,"pt-BR",{numeric:true}));
+  const larguras=[190,80,112,80,190], aligns=['left','right','right','right','left'];
+  const linhas=[{t:'cab',cs:['Talhão','Área/ha','Produção sc','Sc/ha','Cultivar']}];
+  let totA=0, totSc=0;
+  chaves.forEach(k=>{ const x=mapa[k], v=hVal(x);
+    const a=hArea(x)!=null?hArea(x):areaDe(k);
+    const sc=(a!=null&&v!=null)?a*v:null;
+    if(a) totA+=a; if(sc) totSc+=sc;
+    linhas.push({t:'dado',cs:[k, a!=null?nf(a,2):"—", sc!=null?nf(sc,2):"—", v!=null?nf(v,2):"—", hCult(x)||"—"]});
+  });
+  const prod = totA>0? totSc/totA : 0;
+  linhas.push({t:'total',cs:['TOTAL / MÉDIA', nf(totA,2), nf(totSc,2), nf(prod,2), '']});
+  return {titulo:"Produtividade "+safraCurta(safra)+" · "+f.nome, sub:"Safra anterior · do histórico",
+    larguras, aligns, linhas};
+}
 function exportarProdutividadeImg(fmt){
   const f=acharFazenda(App.fazendaId); if(!f) return;
   if(!produtividade(f.id).linhas.length){ toast("Cadastre talhões primeiro"); return; }
   const spec=relProdutividade(f), nm="produtividade-"+f.nome.toLowerCase().replace(/[^a-z0-9]+/g,"-");
-  fmt==="pdf"?REL.pdf(spec,nm):REL.png(spec,nm);
+  const bc=baselineComp(f.id, f.safra);
+  const temAnterior = bc.safra && Object.keys(bc.mapa).some(k=>hVal(bc.mapa[k])!=null);
+  if(temAnterior){
+    const cv=REL.desenharLado([spec, relHistComparativo(f, bc.safra)]);
+    fmt==="pdf"?REL.pdfCv(cv,nm):REL.pngCv(cv,nm);
+  }else{
+    fmt==="pdf"?REL.pdf(spec,nm):REL.png(spec,nm);
+  }
 }
 
 function relChuva(f){
