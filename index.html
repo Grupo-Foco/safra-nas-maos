@@ -846,7 +846,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.15.0";
+const APP_VERSION = "2.15.1";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -5038,44 +5038,60 @@ function telaHistorico(){
   if(!tals.length)
     return out+'<div class="empty"><strong>Cadastre os talhões primeiro</strong>Eles são as linhas do histórico.</div></div>';
 
+  const nomesAtuais = tals.map(t=>t.nome);
+  const chaves = Object.keys(mapa);
+  const disponiveis = tals.filter(t=>!(t.nome in mapa));
   out+='<div class="tbl"><table><thead><tr><th>Talhão</th><th class="num">Sc/ha '+esc(safraCurta(_histSafra))+'</th><th>Variedade</th></tr></thead><tbody>';
-  tals.forEach(t=>{
-    const x=mapa[t.nome];
-    out+='<tr><td class="forte">'+esc(t.nome)+'</td>'+
+  if(!chaves.length){
+    out+='<tr><td colspan="3" class="vazio" style="padding:22px;text-align:center">Nenhum dado nesta safra. Use "Adicionar talhão" para lançar.</td></tr>';
+  }
+  chaves.forEach(k=>{
+    const x=mapa[k], agr=!nomesAtuais.includes(k);
+    const kEsc=esc(k).replace(/'/g,"\\'");
+    out+='<tr'+(agr?' class="pendente"':'')+'><td class="forte">'+esc(k)+
+      (agr?' <span class="pill">agrupado</span>':'')+'</td>'+
       '<td class="num"><input class="silo" type="number" step="0.01" inputmode="decimal" value="'+(hVal(x)!=null?hVal(x):"")+'" '+
-        'onchange="gravarHist(this.value,\''+esc(t.id)+'\')"></td>'+
+        'onchange="gravarHistNome(this.value,\''+kEsc+'\')"></td>'+
       '<td><input class="lv" value="'+esc(hCult(x))+'" placeholder="Olimpo, Neo 790…" '+
-        'onchange="gravarHistCult(this.value,\''+esc(t.id)+'\')"></td></tr>';
+        'onchange="gravarHistCultNome(this.value,\''+kEsc+'\')"></td></tr>';
   });
-  const extras=Object.keys(mapa).filter(k=>!tals.some(t=>t.nome===k));
-  extras.forEach(k=>{ out+='<tr class="pendente"><td>'+esc(k)+' <span class="pill">agrupado</span></td>'+
-    '<td class="num mono">'+nf(hVal(mapa[k]),2)+'</td><td>'+esc(hCult(mapa[k])||"—")+'</td></tr>'; });
   out+='</tbody></table></div>';
+  if(disponiveis.length)
+    out+='<div class="acts" style="margin-top:12px"><select class="sel-f" onchange="if(this.value)adicionarHistTalhao(this.value)">'+
+      '<option value="">+ Adicionar talhão…</option>'+
+      disponiveis.sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR",{numeric:true}))
+        .map(t=>'<option value="'+esc(t.nome).replace(/'/g,"&#39;")+'">'+esc(t.nome)+'</option>').join("")+
+      '</select></div>';
   out+='<p class="resumo-obs">Esses valores alimentam a coluna comparativa na Produtividade (a safra anterior à atual). '+
     'Talhões que na safra antiga vinham agrupados aparecem em cinza — não casam com o talhão atual.</p>';
   return out+'</div>';
 }
-function gravarHist(val, talId){
-  const f=acharFazenda(App.fazendaId); if(!f) return;
-  const t=talhoesDe(f.id).find(x=>x.id===talId); if(!t) return;
+function _histMapaEditavel(f){
   const stored=Store.get(kHist(f.id),{});
-  const mapa=Object.assign({}, histDe(f.id)[_histSafra]||{}, stored[_histSafra]||{});
+  return { stored, mapa:Object.assign({}, histDe(f.id)[_histSafra]||{}, stored[_histSafra]||{}) };
+}
+function gravarHistNome(val, nome){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const {stored,mapa}=_histMapaEditavel(f);
   const n=parseFloat(String(val).replace(",","."));
-  const cult=hCult(mapa[t.nome]);
-  if(isNaN(n)||n<=0){ if(cult) mapa[t.nome]={v:null,c:cult}; else delete mapa[t.nome]; }
-  else { mapa[t.nome]= cult ? {v:n,c:cult} : n; }
+  const cult=hCult(mapa[nome]);
+  if(isNaN(n)||n<=0){ if(cult) mapa[nome]={v:null,c:cult}; else delete mapa[nome]; }
+  else { mapa[nome]= cult ? {v:n,c:cult} : {v:n}; }
   stored[_histSafra]=mapa; Store.set(kHist(f.id),stored);
 }
-function gravarHistCult(cult, talId){
+function gravarHistCultNome(cult, nome){
   const f=acharFazenda(App.fazendaId); if(!f) return;
-  const t=talhoesDe(f.id).find(x=>x.id===talId); if(!t) return;
-  const stored=Store.get(kHist(f.id),{});
-  const mapa=Object.assign({}, histDe(f.id)[_histSafra]||{}, stored[_histSafra]||{});
-  const v=hVal(mapa[t.nome]); cult=(cult||"").trim();
-  if(!cult && v==null) delete mapa[t.nome];
-  else if(!cult) mapa[t.nome]=v;
-  else mapa[t.nome]={v:v, c:cult};
+  const {stored,mapa}=_histMapaEditavel(f);
+  const v=hVal(mapa[nome]); cult=(cult||"").trim();
+  if(!cult && v==null) delete mapa[nome];
+  else mapa[nome]={v:v, c:cult};
   stored[_histSafra]=mapa; Store.set(kHist(f.id),stored);
+}
+function adicionarHistTalhao(nome){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const {stored,mapa}=_histMapaEditavel(f);
+  if(!(nome in mapa)) mapa[nome]={v:null,c:""};
+  stored[_histSafra]=mapa; Store.set(kHist(f.id),stored); render();
 }
 function criarHistSafra(){
   const f=acharFazenda(App.fazendaId); if(!f) return;
