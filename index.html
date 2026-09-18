@@ -881,7 +881,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.25.0";
+const APP_VERSION = "2.26.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -3058,7 +3058,7 @@ function telaTalhoes(){
   // Ações
   h += '<div class="acts">'+
     '<button class="btn-act primary" onclick="modalTalhao()">+ Novo talhão</button>'+
-    (todos.length ? botaoExportar([{rotulo:"Planilha",fn:"exportarTalhoes()"}]) : '')+
+    (todos.length ? botaoExportar([{rotulo:"Planilha",fn:"exportarTalhoes('csv')"},{rotulo:"Imagem",fn:"exportarTalhoes('png')"},{rotulo:"PDF",fn:"exportarTalhoes('pdf')"}]) : '')+
     (todos.length ? '<input class="busca" placeholder="Buscar talhão…" value="'+esc(_buscaTal)+'" '+
        'oninput="clearTimeout(window._bt);window._bt=setTimeout(()=>{_buscaTal=this.value;render();},250)">' : '')+
   '</div>';
@@ -3173,20 +3173,14 @@ function removerTalhao(id){
   apagarTalhao(f.id,id); toast("Talhão removido"); render();
 }
 
-function exportarTalhoes(){
+function exportarTalhoes(fmt){
   const f = acharFazenda(App.fazendaId); if(!f) return;
   const l = talhoesDe(f.id).slice()
     .sort((a,z)=>a.nome.localeCompare(z.nome,"pt-BR",{numeric:true}));
-  const linhas = [["Talhao","Area_ha","Area_nova_ha"]]
-    .concat(l.map(t=>[t.nome, String(t.hectares).replace(".",","), String(t.abertura||0).replace(".",",")]));
-  const csv = "\ufeff"+linhas.map(r=>r.map(v=>{
-    const s=String(v); return /[;"\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s;
-  }).join(";")).join("\r\n");
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8;"}));
-  a.download = "talhoes-"+f.nome.toLowerCase().replace(/[^a-z0-9]+/g,"-")+".csv";
-  a.click(); URL.revokeObjectURL(a.href);
-  toast("Planilha baixada");
+  const linhas = [["Talhão","Área/ha","Área nova/ha"]]
+    .concat(l.map(t=>[t.nome, vBR(t.hectares), vBR(t.abertura||0)]));
+  exportarTabela(fmt, "Talhões · "+f.nome, linhas,
+    "talhoes-"+f.nome.toLowerCase().replace(/[^a-z0-9]+/g,"-"));
 }
 
 /* ═══════════════════════════════════════════════════
@@ -3479,7 +3473,7 @@ function telaChuva(){
       '<button class="'+(_modoChuva==="dia"?"on":"")+'" onclick="_modoChuva=\'dia\';render()">Por dia</button>'+
       '<button class="'+(_modoChuva==="planilha"?"on":"")+'" onclick="_modoChuva=\'planilha\';render()">Planilha</button>'+
     '</div>'+
-    botaoExportar([{rotulo:"Imagem",fn:"exportarChuvaImg('png')"},{rotulo:"PDF",fn:"exportarChuvaImg('pdf')"}])+
+    botaoExportar([{rotulo:"Planilha",fn:"exportarChuva()"},{rotulo:"Imagem",fn:"exportarChuvaImg('png')"},{rotulo:"PDF",fn:"exportarChuvaImg('pdf')"}])+
   '</div>';
 
   h += _modoChuva==="dia" ? chuvaPorDia(f,ano,mes,pts,r) : chuvaPlanilha(f,ano,mes,pts,r);
@@ -3690,7 +3684,7 @@ function abaRelatorio(f,R){
 
   let h = '<div class="acts">'+
     '<button class="btn-act primary" onclick="modalAplicacao()">+ Nova aplicação</button>'+
-    (R.aplicacoes.length?botaoExportar([{rotulo:"Planilha",fn:"exportarOperacoes()"}]):'')+
+    (R.aplicacoes.length?botaoExportar([{rotulo:"Planilha",fn:"exportarOperacoes('csv')"},{rotulo:"Imagem",fn:"exportarOperacoes('png')"},{rotulo:"PDF",fn:"exportarOperacoes('pdf')"}]):'')+
     '<select class="sel-f" onchange="_fTipo=this.value;render()">'+
       '<option value="">Todos os tipos</option>'+
       TIPOS_OP.map(t=>'<option '+(_fTipo===t?'selected':'')+'>'+esc(t)+'</option>').join("")+
@@ -3824,7 +3818,7 @@ function telaLavoura(){
   '</div>';
 
   h += '<div class="acts">'+
-    botaoExportar([{rotulo:"Planilha",fn:"exportarLavoura()"}])+
+    botaoExportar([{rotulo:"Planilha",fn:"exportarLavoura('csv')"},{rotulo:"Imagem",fn:"exportarLavoura('png')"},{rotulo:"PDF",fn:"exportarLavoura('pdf')"}])+
     (R.variedades.length?'<button class="btn-act" onclick="modalVariedades()">Ver por variedade</button>':'')+
   '</div>';
 
@@ -3886,7 +3880,7 @@ function modalVariedades(){
   '</div></div>';
 }
 
-function exportarLavoura(){
+function exportarLavoura(fmt){
   const f=acharFazenda(App.fazendaId); if(!f) return;
   const R=resumoLavoura(f.id);
   const linhas=[["RELATÓRIO DE PLANTIO · "+f.nome.toUpperCase()+" · SAFRA "+f.safra]];
@@ -3896,7 +3890,8 @@ function exportarLavoura(){
   linhas.push([]);
   linhas.push(["Total plantado","",vBR(R.areaPlantada.toFixed(2))]);
   R.variedades.forEach(v=>linhas.push([v.nome,"",vBR(v.area.toFixed(2))]));
-  baixarCSV(linhas,"plantio-"+f.nome.toLowerCase().replace(/[^a-z0-9]+/g,"-"));
+  exportarTabela(fmt, "Plantio · "+f.nome, linhas,
+    "plantio-"+f.nome.toLowerCase().replace(/[^a-z0-9]+/g,"-"));
 }
 
 /* ═══════════════════════════════════════════════════
@@ -3946,7 +3941,7 @@ function abaSaldo(f,E){
   let h = '<div class="acts">'+
     '<button class="btn-act primary" onclick="modalEntrada()">+ Receber produto</button>'+
     '<button class="btn-act" onclick="modalXml()">Importar XML da nota</button>'+
-    (ls.length?botaoExportar([{rotulo:"Planilha",fn:"exportarEstoque()"}]):'')+'</div>';
+    (ls.length?botaoExportar([{rotulo:"Planilha",fn:"exportarEstoque('csv')"},{rotulo:"Imagem",fn:"exportarEstoque('png')"},{rotulo:"PDF",fn:"exportarEstoque('pdf')"}]):'')+'</div>';
   if(!ls.length)
     return h+'<div class="empty"><strong>Estoque vazio</strong>'+
       'Lance o recebimento de um produto ou importe o XML da nota. O que for aplicado no talhão sai daqui sozinho.</div>';
@@ -4170,7 +4165,7 @@ function importarNfe(){
   _abaEst = "entradas"; render();
 }
 
-function exportarEstoque(){
+function exportarEstoque(fmt){
   const f=acharFazenda(App.fazendaId); if(!f) return;
   const E=estoqueDe(f.id);
   const linhas=[["ESTOQUE · "+f.nome.toUpperCase()+" · SAFRA "+f.safra]];
@@ -4182,7 +4177,8 @@ function exportarEstoque(){
   linhas.push(["Total comprado","","","","","",vBR(E.totalComprado.toFixed(2))]);
   linhas.push(["Total aplicado","","","","","",vBR(E.totalAplicado.toFixed(2))]);
   linhas.push(["Valor em estoque","","","","","",vBR(E.valorEstoque.toFixed(2))]);
-  baixarCSV(linhas,"estoque-"+f.nome.toLowerCase().replace(/[^a-z0-9]+/g,"-"));
+  exportarTabela(fmt, "Estoque · "+f.nome, linhas,
+    "estoque-"+f.nome.toLowerCase().replace(/[^a-z0-9]+/g,"-"));
 }
 
 /* ═══════════════════════════════════════════════════
@@ -5151,7 +5147,7 @@ function telaContratos(){
   '</div>';
 
   h += '<div class="acts"><button class="btn-act primary" onclick="modalContrato()">+ Novo contrato</button>'+
-    (C.contratos.length?botaoExportar([{rotulo:"Imagem",fn:"exportarEntregas('png')"},{rotulo:"PDF",fn:"exportarEntregas('pdf')"}]):'')+
+    (C.contratos.length?botaoExportar([{rotulo:"Planilha",fn:"exportarEntregas('csv')"},{rotulo:"Imagem",fn:"exportarEntregas('png')"},{rotulo:"PDF",fn:"exportarEntregas('pdf')"}]):'')+
   '</div>';
 
   if(!arm.length)
@@ -5348,6 +5344,7 @@ function exportarEntregas(fmt){
   if(!contratosDe(f.id).length){ toast("Cadastre contratos primeiro"); return; }
   const spec=relEntregas(f);
   const nome="entregas-"+f.nome.toLowerCase().replace(/[^a-z0-9]+/g,"-");
+  if(fmt==="csv"){ relParaCSV(spec, nome); return; }
   fmt==="pdf" ? REL.pdf(spec,nome) : REL.png(spec,nome);
 }
 
@@ -5371,7 +5368,7 @@ function telaHistorico(){
       safras.map(s=>'<option value="'+esc(s)+'" '+(_histSafra===s?"selected":"")+'>Safra '+esc(s)+'</option>').join("")+
       (gestor?'<option value="__nova" '+(_histSafra==="__nova"?"selected":"")+'>+ Nova safra…</option>':'')+
     '</select>'+
-    (_histSafra!=="__nova"?botaoExportar([{rotulo:"Imagem",fn:"exportarHist('png')"},{rotulo:"PDF",fn:"exportarHist('pdf')"}])+
+    (_histSafra!=="__nova"?botaoExportar([{rotulo:"Planilha",fn:"exportarHist('csv')"},{rotulo:"Imagem",fn:"exportarHist('png')"},{rotulo:"PDF",fn:"exportarHist('pdf')"}])+
       (gestor?'<button class="btn-act" onclick="removerHistSafra()">Remover safra</button>':''):'')+
   '</div>';
 
@@ -5474,6 +5471,7 @@ function relHist(f, safra){
 function exportarHist(fmt){
   const f=acharFazenda(App.fazendaId); if(!f||_histSafra==="__nova") return;
   const spec=relHist(f,_histSafra), nm="safra-"+_histSafra.replace("/","-")+"-"+f.nome.toLowerCase().replace(/[^a-z0-9]+/g,"-");
+  if(fmt==="csv"){ relParaCSV(spec, nm); return; }
   fmt==="pdf"?REL.pdf(spec,nm):REL.png(spec,nm);
 }
 
@@ -5541,7 +5539,7 @@ function telaDiesel(){
       safras.map(s=>'<option value="'+esc(s)+'" '+(_diesel.safraSel===s?"selected":"")+'>'+esc(s)+'</option>').join("")+
       '<option value="__todas" '+(_diesel.safraSel==="__todas"?"selected":"")+'>Todas as safras</option>'+
     '</select>'+
-    (d.length?botaoExportar([{rotulo:"Imagem",fn:"exportarDiesel('png')"},{rotulo:"PDF",fn:"exportarDiesel('pdf')"}]):'')+
+    (d.length?botaoExportar([{rotulo:"Planilha",fn:"exportarDiesel('csv')"},{rotulo:"Imagem",fn:"exportarDiesel('png')"},{rotulo:"PDF",fn:"exportarDiesel('pdf')"}]):'')+
   '</div>';
 
   if(_diesel.carregando)
@@ -5586,6 +5584,7 @@ function relDiesel(f){
 function exportarDiesel(fmt){
   const f=acharFazenda(App.fazendaId); if(!f||!dieselFiltrados(f).length) return;
   const spec=relDiesel(f), nm="diesel-"+f.nome.toLowerCase().replace(/[^a-z0-9]+/g,"-");
+  if(fmt==="csv"){ relParaCSV(spec, nm); return; }
   fmt==="pdf"?REL.pdf(spec,nm):REL.png(spec,nm);
 }
 
@@ -5991,7 +5990,7 @@ function abaDescontos(f){
   let h = '<div class="acts">'+
     '<button class="btn-act" onclick="modalBases()">Padrões: umidade '+nf(b.umidade,0)+
     '% · impureza '+nf(b.impureza,0)+'% · avariados '+nf(b.avariados,0)+'%</button>'+
-    botaoExportar([{rotulo:"Planilha",fn:"exportarDescontos()"}])+'</div>';
+    botaoExportar([{rotulo:"Planilha",fn:"exportarDescontos('csv')"},{rotulo:"Imagem",fn:"exportarDescontos('png')"},{rotulo:"PDF",fn:"exportarDescontos('pdf')"}])+'</div>';
 
   h += '<div class="kpis kpis-4">'+
     kpi("Umidade", nf(t.umidade/SACA_KG,1), "sc · "+n0(t.umidade)+" kg")+
@@ -6183,7 +6182,7 @@ function gravarBases(){
   fecharModal(); toast("Padrões salvos"); render();
 }
 
-function exportarDescontos(){
+function exportarDescontos(fmt){
   const f=acharFazenda(App.fazendaId); if(!f) return;
   const l=cargasDe(f.id).filter(cargaBaixada);
   if(!l.length){ toast("Nenhuma carga baixada"); return; }
@@ -6201,7 +6200,8 @@ function exportarDescontos(){
   linhas.push([]);
   linhas.push(["Total", "", "", "", "", "", vBR(R.bruto), "", vBR(R.umidade), "",
     vBR(R.impureza), "", vBR(R.avariados), vBR(R.total), vBR(R.final), vBR((R.final/SACA_KG).toFixed(2))]);
-  baixarCSV(linhas,"descontos-"+f.nome.toLowerCase().replace(/[^a-z0-9]+/g,"-"));
+  exportarTabela(fmt, "Descontos · "+f.nome, linhas,
+    "descontos-"+f.nome.toLowerCase().replace(/[^a-z0-9]+/g,"-"));
 }
 
 /* ── Modal: aplicação ────────────────────── */
@@ -6356,7 +6356,7 @@ function removerProduto(id){
   apagarProduto(f.id,id); toast("Produto removido"); render();
 }
 
-function exportarOperacoes(){
+function exportarOperacoes(fmt){
   const f=acharFazenda(App.fazendaId); if(!f) return;
   const R=resumoOperacoes(f.id,_fTipo), tals=talhoesDe(f.id);
   if(!R.aplicacoes.length){ toast("Nenhuma aplicação para exportar"); return; }
@@ -6374,7 +6374,8 @@ function exportarOperacoes(){
   });
   linhas.push([]);
   linhas.push(["Total geral","","","","","","","","",vBR(total.toFixed(2))]);
-  baixarCSV(linhas,"operacoes-"+f.nome.toLowerCase().replace(/[^a-z0-9]+/g,"-"));
+  exportarTabela(fmt, (_fTipo||"Operações")+" · "+f.nome, linhas,
+    "operacoes-"+f.nome.toLowerCase().replace(/[^a-z0-9]+/g,"-"));
 }
 
 /* ── Planilhas ───────────────────────────── */
@@ -6387,6 +6388,52 @@ function baixarCSV(linhas, nome){
   a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8;"}));
   a.download=nome+".csv"; a.click(); URL.revokeObjectURL(a.href);
   toast("Planilha baixada");
+}
+
+/* Ponte genérica: uma tabela (array de arrays) vira um spec do REL
+   para imagem/PDF. Linhas antes do cabeçalho (título) viram subtítulo;
+   linhas em branco são puladas; linhas que começam com "Total/Média"
+   viram linha de total. */
+function aoaParaRel(titulo, aoa){
+  aoa = (aoa||[]).filter(Boolean);
+  let hi = aoa.findIndex(r => r.filter(c=>String(c==null?"":c).trim()!=="").length >= 2);
+  if(hi < 0) hi = 0;
+  const sub = aoa.slice(0,hi).map(r=>r.join(" ")).filter(s=>s.trim()).join(" · ");
+  const header = (aoa[hi]||[]).map(c=>String(c==null?"":c));
+  const body = aoa.slice(hi+1);
+  const linhas = [{t:'cab', cs:header}];
+  body.forEach(r=>{
+    const cells = header.map((_,i)=>String(r[i]==null?"":r[i]));
+    if(cells.every(c=>c.trim()==="")) return;
+    const ehTotal = /^(total|m[ée]dia|valor em estoque)/i.test((cells[0]||"").trim());
+    linhas.push({t: ehTotal?'total':'dado', cs:cells});
+  });
+  const aligns = header.map((_,i)=>{
+    if(i===0) return 'left';
+    const vals = body.map(r=>String(r[i]==null?"":r[i]).trim()).filter(v=>v!=="");
+    if(!vals.length) return 'left';
+    const num = vals.filter(v=>/^[\d.,\-%]+$/.test(v)).length;
+    return num >= vals.length*0.6 ? 'right' : 'left';
+  });
+  const larguras = header.map((h,i)=>{
+    let m = String(h).length;
+    body.forEach(r=>{ const s=String(r[i]==null?"":r[i]); if(s.length>m) m=s.length; });
+    return Math.min(300, Math.max(60, 16 + m*8));
+  });
+  return { titulo, sub, larguras, aligns, linhas };
+}
+
+/* Ponte genérica: um spec do REL vira planilha (CSV). */
+function relParaCSV(spec, nome){
+  const linhas = (spec.linhas||[]).map(l => l.cs ? l.cs : [l.texto||""]);
+  baixarCSV(linhas, nome);
+}
+
+/* Exporta uma tabela (AOA) no formato pedido, reusando as pontes acima. */
+function exportarTabela(fmt, titulo, aoa, nome){
+  if(!fmt || fmt==="csv"){ baixarCSV(aoa, nome); return; }
+  const spec = aoaParaRel(titulo, aoa);
+  fmt==="pdf" ? REL.pdf(spec, nome) : REL.png(spec, nome);
 }
 const vBR = v => String(v==null?"":v).replace(".",",");
 
