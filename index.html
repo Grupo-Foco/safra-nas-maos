@@ -208,6 +208,20 @@ svg{display:block}
 
 /* ── Ações ───────────────────────────────── */
 .acts{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:18px}
+.exp{position:relative;display:inline-block}
+.exp>summary{list-style:none;cursor:pointer}
+.exp>summary::-webkit-details-marker{display:none}
+.exp-menu{position:absolute;z-index:40;top:calc(100% + 4px);right:0;background:var(--card);
+  border:1px solid var(--line);border-radius:9px;box-shadow:0 6px 20px rgba(34,57,43,.16);
+  padding:5px;min-width:158px;display:flex;flex-direction:column;gap:2px}
+.exp-menu button{background:none;border:none;text-align:left;padding:9px 11px;border-radius:6px;
+  font-size:13.5px;color:var(--text);font-weight:600;cursor:pointer;white-space:nowrap}
+.exp-menu button:hover{background:var(--leaf-soft);color:var(--green)}
+.dt-filtro{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;color:var(--muted)}
+.dtf{padding:8px 9px;border:1px solid var(--line);border-radius:8px;font:inherit;font-size:12px;color:var(--text);background:var(--card)}
+.dtf:focus{border-color:var(--gold);outline:none}
+.dt-limpa{background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;padding:2px 5px;border-radius:6px}
+.dt-limpa:hover{color:var(--red)}
 .btn-act{background:var(--card);border:1px solid var(--line);color:var(--green);
   border-radius:9px;padding:10px 16px;font-family:var(--mono);font-size:12.5px;font-weight:700}
 .btn-act:hover{border-color:var(--gold);background:#fff}
@@ -791,6 +805,8 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 .confere-sub{display:flex;justify-content:space-between;align-items:baseline;padding:3px 0 3px 18px;
   color:var(--green);font-size:14px}
 .confere-sub b{font-family:var(--mono)}
+.confere-sub2{display:flex;justify-content:space-between;align-items:baseline;padding:2px 0 2px 34px;color:var(--muted);font-size:12.5px}
+.confere-sub2 b{font-family:var(--mono)}
 .confere-div{height:1px;background:var(--line);margin:12px 0}
 .legenda{font-size:12.5px;color:var(--muted);margin:-4px 0 12px;display:flex;align-items:center;gap:7px}
 .legenda .sc-ha{font-size:15px;line-height:1}
@@ -865,7 +881,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.22.0";
+const APP_VERSION = "2.25.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -3042,7 +3058,7 @@ function telaTalhoes(){
   // Ações
   h += '<div class="acts">'+
     '<button class="btn-act primary" onclick="modalTalhao()">+ Novo talhão</button>'+
-    (todos.length ? '<button class="btn-act" onclick="exportarTalhoes()">Baixar planilha</button>' : '')+
+    (todos.length ? botaoExportar([{rotulo:"Planilha",fn:"exportarTalhoes()"}]) : '')+
     (todos.length ? '<input class="busca" placeholder="Buscar talhão…" value="'+esc(_buscaTal)+'" '+
        'oninput="clearTimeout(window._bt);window._bt=setTimeout(()=>{_buscaTal=this.value;render();},250)">' : '')+
   '</div>';
@@ -3177,7 +3193,7 @@ function exportarTalhoes(){
    TELA — Colheita
    ═══════════════════════════════════════════════════ */
 let _abaColh = "cargas";
-let _fCarga  = { destino:"", talhao:"", busca:"", situacao:"" };
+let _fCarga  = { destino:"", talhao:"", busca:"", situacao:"", de:"", ate:"" };
 
 const nf = (v,d=2)=>Number(v||0).toLocaleString("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d});
 const n0 = v=>Number(v||0).toLocaleString("pt-BR",{maximumFractionDigits:0});
@@ -3266,9 +3282,7 @@ function abaCargas(f, cargas){
 
   let h = '<div class="acts">'+
     '<button class="btn-act primary" onclick="modalCarga()">+ Lançar carga</button>'+
-    (cargas.length?'<button class="btn-act" onclick="exportarCargas()">Baixar planilha</button>':'')+
-    (cargas.length?'<button class="btn-act" onclick="exportarCaminhoes(\'png\')">Exportar imagem</button>':'')+
-    (cargas.length?'<button class="btn-act" onclick="exportarCaminhoes(\'pdf\')">Exportar PDF</button>':'')+
+    (cargas.length?botaoExportar([{rotulo:"Planilha",fn:"exportarCargas()"},{rotulo:"Imagem",fn:"exportarCaminhoes('png')"},{rotulo:"PDF",fn:"exportarCaminhoes('pdf')"}]):'')+
     (cargas.length?'<select class="sel-f" onchange="_fCarga.destino=this.value;render()">'+
       '<option value="">Todos os destinos</option>'+
       armazensDe(f.id).map(a=>'<option '+(_fCarga.destino===a?'selected':'')+'>'+esc(a)+'</option>').join("")+
@@ -3280,6 +3294,10 @@ function abaCargas(f, cargas){
       '</select>':'')+
     (cargas.length?'<input class="busca" placeholder="Romaneio, motorista ou placa…" value="'+esc(_fCarga.busca)+'" '+
       'oninput="clearTimeout(window._bc);window._bc=setTimeout(()=>{_fCarga.busca=this.value;render();},250)">':'')+
+    (cargas.length?'<span class="dt-filtro">De <input type="date" class="dtf" value="'+esc(_fCarga.de)+'" onchange="_fCarga.de=this.value;render()">'+
+      '<span>Até</span><input type="date" class="dtf" value="'+esc(_fCarga.ate)+'" onchange="_fCarga.ate=this.value;render()">'+
+      ((_fCarga.de||_fCarga.ate)?'<button class="dt-limpa" title="Limpar datas" onclick="_fCarga.de=\'\';_fCarga.ate=\'\';render()">✕</button>':'')+
+      '</span>':'')+
   '</div>';
 
   if(!cargas.length)
@@ -3338,9 +3356,7 @@ function abaProdutividade(f, p){
   let h = '<div class="acts">'+
     '<button class="btn-act'+(S?" primary":"")+'" onclick="_mostrarSilos=!_mostrarSilos;render()">'+(S?"Silos: mostrando":"Mostrar silos")+'</button>'+
     (S?'<button class="btn-act" onclick="modalSiloCap()">Saca por silo: '+n0(cap)+'</button>':'')+
-    '<button class="btn-act" onclick="exportarProdutividade()">Baixar planilha</button>'+
-    '<button class="btn-act" onclick="exportarProdutividadeImg(\'png\')">Exportar imagem</button>'+
-    '<button class="btn-act" onclick="exportarProdutividadeImg(\'pdf\')">Exportar PDF</button></div>';
+    botaoExportar([{rotulo:"Planilha",fn:"exportarProdutividade()"},{rotulo:"Imagem",fn:"exportarProdutividadeImg('png')"},{rotulo:"PDF",fn:"exportarProdutividadeImg('pdf')"}])+'</div>';
   if(temBase) h += '<p class="legenda"><span class="sc-ha supera">■</span> Sc/ha em dourado = superou a produtividade de '+safraCurta(_bc.safra)+' naquele talhão.</p>';
 
   h += '<div class="tbl"><table><thead><tr>'+
@@ -3463,8 +3479,7 @@ function telaChuva(){
       '<button class="'+(_modoChuva==="dia"?"on":"")+'" onclick="_modoChuva=\'dia\';render()">Por dia</button>'+
       '<button class="'+(_modoChuva==="planilha"?"on":"")+'" onclick="_modoChuva=\'planilha\';render()">Planilha</button>'+
     '</div>'+
-    '<button class="btn-act" onclick="exportarChuvaImg(\'png\')">Exportar imagem</button>'+
-    '<button class="btn-act" onclick="exportarChuvaImg(\'pdf\')">Exportar PDF</button>'+
+    botaoExportar([{rotulo:"Imagem",fn:"exportarChuvaImg('png')"},{rotulo:"PDF",fn:"exportarChuvaImg('pdf')"}])+
   '</div>';
 
   h += _modoChuva==="dia" ? chuvaPorDia(f,ano,mes,pts,r) : chuvaPlanilha(f,ano,mes,pts,r);
@@ -3675,7 +3690,7 @@ function abaRelatorio(f,R){
 
   let h = '<div class="acts">'+
     '<button class="btn-act primary" onclick="modalAplicacao()">+ Nova aplicação</button>'+
-    (R.aplicacoes.length?'<button class="btn-act" onclick="exportarOperacoes()">Baixar planilha</button>':'')+
+    (R.aplicacoes.length?botaoExportar([{rotulo:"Planilha",fn:"exportarOperacoes()"}]):'')+
     '<select class="sel-f" onchange="_fTipo=this.value;render()">'+
       '<option value="">Todos os tipos</option>'+
       TIPOS_OP.map(t=>'<option '+(_fTipo===t?'selected':'')+'>'+esc(t)+'</option>').join("")+
@@ -3809,7 +3824,7 @@ function telaLavoura(){
   '</div>';
 
   h += '<div class="acts">'+
-    '<button class="btn-act" onclick="exportarLavoura()">Baixar planilha</button>'+
+    botaoExportar([{rotulo:"Planilha",fn:"exportarLavoura()"}])+
     (R.variedades.length?'<button class="btn-act" onclick="modalVariedades()">Ver por variedade</button>':'')+
   '</div>';
 
@@ -3931,7 +3946,7 @@ function abaSaldo(f,E){
   let h = '<div class="acts">'+
     '<button class="btn-act primary" onclick="modalEntrada()">+ Receber produto</button>'+
     '<button class="btn-act" onclick="modalXml()">Importar XML da nota</button>'+
-    (ls.length?'<button class="btn-act" onclick="exportarEstoque()">Baixar planilha</button>':'')+'</div>';
+    (ls.length?botaoExportar([{rotulo:"Planilha",fn:"exportarEstoque()"}]):'')+'</div>';
   if(!ls.length)
     return h+'<div class="empty"><strong>Estoque vazio</strong>'+
       'Lance o recebimento de um produto ou importe o XML da nota. O que for aplicado no talhão sai daqui sozinho.</div>';
@@ -5098,6 +5113,20 @@ const REL = {
   }
 };
 
+/* Um único botão "Exportar" com menu de formatos.
+   opcoes: [{rotulo, fn}] — fn é a chamada onclick, ex.: "exportarCargas()".
+   Com uma opção só, vira botão direto; com várias, abre o menu. */
+function botaoExportar(opcoes){
+  opcoes=(opcoes||[]).filter(Boolean);
+  if(!opcoes.length) return "";
+  if(opcoes.length===1)
+    return '<button class="btn-act" onclick="'+opcoes[0].fn+'">Exportar</button>';
+  return '<details class="exp"><summary class="btn-act">Exportar ▾</summary>'+
+    '<div class="exp-menu">'+
+      opcoes.map(o=>'<button onclick="this.closest(\'details\').removeAttribute(\'open\');'+o.fn+'">'+esc(o.rotulo)+'</button>').join("")+
+    '</div></details>';
+}
+
 function telaContratos(){
   const f = acharFazenda(App.fazendaId);
   if(!f){ App.tela="fazendas"; return telaFazendas(); }
@@ -5122,8 +5151,7 @@ function telaContratos(){
   '</div>';
 
   h += '<div class="acts"><button class="btn-act primary" onclick="modalContrato()">+ Novo contrato</button>'+
-    (C.contratos.length?'<button class="btn-act" onclick="exportarEntregas(\'png\')">Exportar imagem</button>'+
-      '<button class="btn-act" onclick="exportarEntregas(\'pdf\')">Exportar PDF</button>':'')+
+    (C.contratos.length?botaoExportar([{rotulo:"Imagem",fn:"exportarEntregas('png')"},{rotulo:"PDF",fn:"exportarEntregas('pdf')"}]):'')+
   '</div>';
 
   if(!arm.length)
@@ -5180,11 +5208,15 @@ function telaContratos(){
       '<span class="sit '+(tudoOK?"ok":"tr")+'">'+(tudoOK?"fecha":"conferir")+'</span></div>'+
     '<div class="confere-linha"><span>Total colhido (produtividade)</span><b>'+nf(C.totalColhido,0)+' sc</b></div>'+
     '<div class="confere-sub"><span>= Entregue nos armazéns</span><b>'+nf(C.sacasArmazem,0)+' sc</b></div>'+
+    C.destinos.filter(d=>d.entregue>0).sort((a,b)=>b.entregue-a.entregue).map(d=>
+      '<div class="confere-sub2"><span>'+esc(d.destino)+'</span><b>'+nf(d.entregue,0)+' sc</b></div>').join("")+
     '<div class="confere-sub"><span>+ Em silo bolsa (ainda não entregue)</span><b>'+nf(C.sacasSilo,0)+' sc</b></div>'+
     '<div class="confere-div"></div>'+
     '<div class="confere-linha"><span>Entregue nos armazéns</span><b>'+nf(C.sacasArmazem,0)+' sc</b></div>'+
     '<div class="confere-sub"><span>= Usado em contratos</span><b>'+nf(C.totCumprido,0)+' sc</b></div>'+
     '<div class="confere-sub"><span>+ Soja a fixar (sem contrato)</span><b>'+nf(C.totAFixar,0)+' sc</b></div>'+
+    C.destinos.filter(d=>d.aFixar>0).sort((a,b)=>b.aFixar-a.aFixar).map(d=>
+      '<div class="confere-sub2"><span>'+esc(d.destino)+'</span><b>'+nf(d.aFixar,0)+' sc</b></div>').join("")+
     '<p class="resumo-obs">O silo bolsa conta como colhido, mas só abate contrato quando for entregue no armazém. '+
       'A soja a fixar é o que já entrou no armazém e ainda não tem contrato.</p>'+
   '</div>';
@@ -5339,8 +5371,7 @@ function telaHistorico(){
       safras.map(s=>'<option value="'+esc(s)+'" '+(_histSafra===s?"selected":"")+'>Safra '+esc(s)+'</option>').join("")+
       (gestor?'<option value="__nova" '+(_histSafra==="__nova"?"selected":"")+'>+ Nova safra…</option>':'')+
     '</select>'+
-    (_histSafra!=="__nova"?'<button class="btn-act" onclick="exportarHist(\'png\')">Exportar imagem</button>'+
-      '<button class="btn-act" onclick="exportarHist(\'pdf\')">Exportar PDF</button>'+
+    (_histSafra!=="__nova"?botaoExportar([{rotulo:"Imagem",fn:"exportarHist('png')"},{rotulo:"PDF",fn:"exportarHist('pdf')"}])+
       (gestor?'<button class="btn-act" onclick="removerHistSafra()">Remover safra</button>':''):'')+
   '</div>';
 
@@ -5510,8 +5541,7 @@ function telaDiesel(){
       safras.map(s=>'<option value="'+esc(s)+'" '+(_diesel.safraSel===s?"selected":"")+'>'+esc(s)+'</option>').join("")+
       '<option value="__todas" '+(_diesel.safraSel==="__todas"?"selected":"")+'>Todas as safras</option>'+
     '</select>'+
-    (d.length?'<button class="btn-act" onclick="exportarDiesel(\'png\')">Exportar imagem</button>'+
-      '<button class="btn-act" onclick="exportarDiesel(\'pdf\')">Exportar PDF</button>':'')+
+    (d.length?botaoExportar([{rotulo:"Imagem",fn:"exportarDiesel('png')"},{rotulo:"PDF",fn:"exportarDiesel('pdf')"}]):'')+
   '</div>';
 
   if(_diesel.carregando)
@@ -5961,7 +5991,7 @@ function abaDescontos(f){
   let h = '<div class="acts">'+
     '<button class="btn-act" onclick="modalBases()">Padrões: umidade '+nf(b.umidade,0)+
     '% · impureza '+nf(b.impureza,0)+'% · avariados '+nf(b.avariados,0)+'%</button>'+
-    '<button class="btn-act" onclick="exportarDescontos()">Baixar planilha</button></div>';
+    botaoExportar([{rotulo:"Planilha",fn:"exportarDescontos()"}])+'</div>';
 
   h += '<div class="kpis kpis-4">'+
     kpi("Umidade", nf(t.umidade/SACA_KG,1), "sc · "+n0(t.umidade)+" kg")+
@@ -6367,6 +6397,8 @@ function cargasFiltradas(fid){
   if(_fCarga.talhao)  l=l.filter(c=>(c.talhoes||[]).some(i=>i.talhao_id===_fCarga.talhao));
   if(_fCarga.situacao==="baixada") l=l.filter(cargaBaixada);
   else if(_fCarga.situacao==="transito") l=l.filter(c=>!cargaBaixada(c));
+  if(_fCarga.de)  l=l.filter(c=>(c.data||"")>=_fCarga.de);
+  if(_fCarga.ate) l=l.filter(c=>(c.data||"")<=_fCarga.ate);
   if(_fCarga.busca){ const b=_fCarga.busca.toLowerCase();
     l=l.filter(c=>(c.romaneio||"").toLowerCase().includes(b)||(c.motorista||"").toLowerCase().includes(b)||
       (c.placa||"").toLowerCase().includes(b)||(c.codigo||"").toLowerCase().includes(b)); }
@@ -6384,6 +6416,7 @@ function relCaminhoes(f){
   if(_fCarga.situacao==="baixada") filtro.push("só baixadas");
   else if(_fCarga.situacao==="transito") filtro.push("só a caminho");
   if(_fCarga.busca) filtro.push('"'+_fCarga.busca+'"');
+  if(_fCarga.de||_fCarga.ate) filtro.push("período "+(_fCarga.de?dataBR(_fCarga.de):"…")+"–"+(_fCarga.ate?dataBR(_fCarga.ate):"…"));
   const linhas=[{t:'cab',cs:['Controle','Data','Motorista','Placa','Talhão','Destino','Balança Faz.','Sc','Umidade']}];
   let totLiq=0, totSc=0;
   cargasFiltradas(f.id).forEach(c=>{
@@ -6412,7 +6445,6 @@ function relProdutividade(f){
   const bc=baselineComp(f.id, f.safra);
   const base=bc.mapa;
   const lav=lavouraDe(f.id);
-  const rotBase = bc.safra ? "Sc/ha "+safraCurta(bc.safra) : "Sc/ha anterior";
   const temSilo = _mostrarSilos && p.linhas.some(t=>(t.silos>0)||(t.sc_silo>0));
   const cols=[{n:'Talhão',a:'left',w:200, v:t=>t.nome},
               {n:'Área/ha',a:'right',w:84, v:t=>nf(t.hectares,2)},
@@ -6423,7 +6455,6 @@ function relProdutividade(f){
     cols.push({n:'Total sc',a:'right',w:112, v:t=>t.total_sc>0?nf(t.total_sc,2):"—"});
   }
   cols.push({n:'Sc/ha',a:'right',w:84, v:t=>t.colhido?nf(t.sc_ha,2):"—"});
-  cols.push({n:rotBase,a:'right',w:96, v:t=>{const b=hVal(base[t.nome]); return b!=null?nf(b,2):"—";}});
   cols.push({n:'Variedade',a:'left',w:200, v:t=>{const lv=lav[t.id]; return (lv&&lv.variedade)?lv.variedade:"—";}});
 
   const larguras=cols.map(c=>c.w), aligns=cols.map(c=>c.a);
