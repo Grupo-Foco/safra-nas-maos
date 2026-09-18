@@ -865,7 +865,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.21.0";
+const APP_VERSION = "2.22.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -5457,10 +5457,11 @@ async function carregarDiesel(f){
     if(!navigator.onLine) throw new Error("Sem internet — os gastos do financeiro precisam de conexão");
     const r = await Sync._comRetry(()=>api("rpc/safra_gastos_manut", { method:"POST",
       body:{ p_fazenda_id:f.id, p_grupo:_diesel.grupo } }), 5);
-    // Atribui cada gasto à safra pela DATA do pagamento (janela safra/safrinha),
-    // em vez de confiar no rótulo que veio do financeiro.
+    // A safra vem direcionada no financeiro (l.safra). Ela manda; a janela por
+    // data só entra quando o lançamento não foi direcionado a nenhuma safra.
     _diesel.dados = (Array.isArray(r)?r:[]).map(x=>{
-      const s=safraDaData(x.data);
+      const direcionada=(x.safra||"").trim();
+      const s = direcionada || safraDaData(x.data);
       return s ? Object.assign({}, x, {safra:s}) : x;
     });
   }catch(e){ _diesel.erro = explicaErro(e.message||String(e)); _diesel.dados=[]; }
