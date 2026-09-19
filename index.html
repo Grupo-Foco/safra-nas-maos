@@ -881,7 +881,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.26.0";
+const APP_VERSION = "2.27.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -6512,13 +6512,23 @@ function relProdutividade(f){
     if(b!=null && t.colhido && t.sc_ha>b) cor[idxSc]=REL.ouro;
     linhas.push({t:'dado', cor, cs:cols.map(c=>c.v(t))});
   });
+  const colhido=cols.map(c=>{
+    if(c.n==='Talhão') return 'COLHIDO ATÉ AGORA';
+    if(c.n==='Área/ha') return nf(p.haColhida,2);
+    if(c.n==='Sacas armazém') return nf(p.sacasArmazem,2);
+    if(c.n==='Sacas silo') return nf(p.sacasSilo,0);
+    if(c.n==='Total sc') return nf(p.totalSacas,2);
+    if(c.n==='Sc/ha') return nf(p.prodColhida,2);
+    return '';
+  });
+  linhas.push({t:'total', cs:colhido});
   const tot=cols.map(c=>{
     if(c.n==='Talhão') return 'TOTAL / MÉDIA';
     if(c.n==='Área/ha') return nf(p.haTotal,2);
     if(c.n==='Sacas armazém') return nf(p.sacasArmazem,2);
     if(c.n==='Sacas silo') return nf(p.sacasSilo,0);
     if(c.n==='Total sc') return nf(p.totalSacas,2);
-    if(c.n==='Sc/ha') return nf(p.prodColhida,2);
+    if(c.n==='Sc/ha') return '';   // produtividade momentânea fica na linha "colhido até agora"
     return '';
   });
   linhas.push({t:'total', cs:tot});
