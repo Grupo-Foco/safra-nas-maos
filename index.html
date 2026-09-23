@@ -807,6 +807,14 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 .confere-sub b{font-family:var(--mono)}
 .confere-sub2{display:flex;justify-content:space-between;align-items:baseline;padding:2px 0 2px 34px;color:var(--muted);font-size:12.5px}
 .confere-sub2 b{font-family:var(--mono)}
+.arm-tit{font-weight:800;font-size:13px;color:var(--green);margin:16px 0 8px}
+.arm-grid{width:100%;border-collapse:collapse;font-size:13px}
+.arm-grid th,.arm-grid td{border:1px solid var(--line);padding:8px 10px;text-align:right}
+.arm-grid th:first-child,.arm-grid td:first-child{text-align:left}
+.arm-grid thead th{background:var(--leaf-soft);color:var(--green);font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:.03em;font-weight:700}
+.arm-grid tbody td{font-family:var(--mono);color:var(--text)}
+.arm-grid tbody td:first-child{font-family:inherit;font-weight:600}
+.arm-grid .arm-tot td{font-weight:800;background:#F3F1E7}
 .confere-div{height:1px;background:var(--line);margin:12px 0}
 .legenda{font-size:12.5px;color:var(--muted);margin:-4px 0 12px;display:flex;align-items:center;gap:7px}
 .legenda .sc-ha{font-size:15px;line-height:1}
@@ -881,7 +889,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.27.0";
+const APP_VERSION = "2.28.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -3010,7 +3018,7 @@ function telaFazenda(){
   }
 
   MODULOS.forEach(g=>{
-    const itens = g.itens.filter(m=>podeModulo(f.id, m.id));
+    const itens = g.itens.filter(m=>m.id!=="colheita" && podeModulo(f.id, m.id));
     if(!itens.length) return;
     h+='<div class="sec-head"><span>'+esc(g.grupo.toUpperCase())+'</span><i></i></div><div class="mods">';
     itens.forEach(m=>{
@@ -5204,15 +5212,18 @@ function telaContratos(){
       '<span class="sit '+(tudoOK?"ok":"tr")+'">'+(tudoOK?"fecha":"conferir")+'</span></div>'+
     '<div class="confere-linha"><span>Total colhido (produtividade)</span><b>'+nf(C.totalColhido,0)+' sc</b></div>'+
     '<div class="confere-sub"><span>= Entregue nos armazéns</span><b>'+nf(C.sacasArmazem,0)+' sc</b></div>'+
-    C.destinos.filter(d=>d.entregue>0).sort((a,b)=>b.entregue-a.entregue).map(d=>
-      '<div class="confere-sub2"><span>'+esc(d.destino)+'</span><b>'+nf(d.entregue,0)+' sc</b></div>').join("")+
     '<div class="confere-sub"><span>+ Em silo bolsa (ainda não entregue)</span><b>'+nf(C.sacasSilo,0)+' sc</b></div>'+
     '<div class="confere-div"></div>'+
     '<div class="confere-linha"><span>Entregue nos armazéns</span><b>'+nf(C.sacasArmazem,0)+' sc</b></div>'+
     '<div class="confere-sub"><span>= Usado em contratos</span><b>'+nf(C.totCumprido,0)+' sc</b></div>'+
     '<div class="confere-sub"><span>+ Soja a fixar (sem contrato)</span><b>'+nf(C.totAFixar,0)+' sc</b></div>'+
-    C.destinos.filter(d=>d.aFixar>0).sort((a,b)=>b.aFixar-a.aFixar).map(d=>
-      '<div class="confere-sub2"><span>'+esc(d.destino)+'</span><b>'+nf(d.aFixar,0)+' sc</b></div>').join("")+
+    (C.destinos.filter(d=>d.entregue>0).length?
+     '<div class="arm-tit">Soja por armazém (sc)</div>'+
+     '<table class="arm-grid"><thead><tr><th>Armazém</th><th>Entregue</th><th>Em contrato</th><th>A fixar</th></tr></thead><tbody>'+
+       C.destinos.filter(d=>d.entregue>0).sort((a,b)=>b.entregue-a.entregue).map(d=>
+         '<tr><td>'+esc(d.destino)+'</td><td>'+nf(d.entregue,0)+'</td><td>'+nf(d.alocado,0)+'</td><td>'+nf(d.aFixar,0)+'</td></tr>').join("")+
+       '<tr class="arm-tot"><td>Total</td><td>'+nf(C.sacasArmazem,0)+'</td><td>'+nf(C.totCumprido,0)+'</td><td>'+nf(C.totAFixar,0)+'</td></tr>'+
+     '</tbody></table>' : '')+
     '<p class="resumo-obs">O silo bolsa conta como colhido, mas só abate contrato quando for entregue no armazém. '+
       'A soja a fixar é o que já entrou no armazém e ainda não tem contrato.</p>'+
   '</div>';
