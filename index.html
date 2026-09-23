@@ -890,7 +890,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.31.0";
+const APP_VERSION = "2.34.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -3543,13 +3543,29 @@ function modalImportarChuva(){
   document.getElementById("modal-root").innerHTML=
   '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal modal-lg">'+
     '<h2>Importar histórico de chuva</h2>'+
-    '<p class="sub">Cole a planilha (do Excel dá pra copiar e colar direto). Primeira coluna = <b>Data</b>; '+
-      'as outras = talhões/pontos, com o mesmo nome do cadastro. Cada célula é o mm daquele dia.</p>'+
-    '<div class="frm"><textarea id="ch-imp" rows="10" placeholder="Data⇥Talhão 01⇥Sede\n02/11/2023⇥85⇥110\n06/11/2023⇥12,5⇥4"></textarea></div>'+
+    '<p class="sub">Escolha um arquivo <b>CSV</b> ou cole a planilha (do Excel dá pra copiar e colar direto). '+
+      'Primeira coluna = <b>Data</b>; as outras = talhões/pontos, com o mesmo nome do cadastro. Cada célula é o mm daquele dia.</p>'+
+    '<div class="frm">'+
+      '<div><label for="ch-file">Arquivo (.csv)</label>'+
+        '<input id="ch-file" type="file" accept=".csv,.tsv,.txt,text/csv,text/plain" onchange="lerArquivoChuva(this)"></div>'+
+      '<div><label for="ch-imp">…ou cole aqui</label>'+
+        '<textarea id="ch-imp" rows="8" placeholder="Data;Talhão 01;Sede\n02/11/2023;85;110\n06/11/2023;12,5;4"></textarea></div>'+
+    '</div>'+
     '<span class="nota-pad">Pontos cadastrados nesta fazenda: '+esc(pts.map(p=>p.nome).join(", "))+'</span>'+
     '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
       '<button class="btn-save" onclick="importarChuva()">Importar</button></div></div></div>';
   setTimeout(()=>{const e=document.getElementById("ch-imp"); if(e) e.focus();},60);
+}
+function lerArquivoChuva(input){
+  const file=input.files && input.files[0]; if(!file) return;
+  if(/\.xlsx?$/i.test(file.name)){
+    toast("O app lê CSV. No Excel: Arquivo → Salvar Como → CSV, e escolha de novo"); input.value=""; return;
+  }
+  const rd=new FileReader();
+  rd.onload=()=>{ const ta=document.getElementById("ch-imp"); if(ta) ta.value=String(rd.result||"");
+    toast("Arquivo carregado — confira e clique Importar"); };
+  rd.onerror=()=>toast("Não consegui ler o arquivo");
+  rd.readAsText(file, "utf-8");
 }
 function _parseDataChuva(s){
   s=String(s).trim();
@@ -4070,45 +4086,57 @@ function estoqueVazio(){
 function abaPedidos(f, peds){
   let h='<div class="acts"><button class="btn-act primary" onclick="modalPedido()">+ Novo pedido</button></div>';
   if(!peds.length) return h+'<p class="vazio">Nenhum pedido ainda. Cadastre o que foi comprado — quando chegar na fazenda, registre a entrega.</p>';
-  h+='<table class="arm-grid"><thead><tr><th>Produto</th><th>Pedido</th><th>Entregue</th><th>Faltam</th><th></th></tr></thead><tbody>';
+  h+='<table class="arm-grid"><thead><tr><th>Produto</th><th>Pedido</th><th>Entregue</th><th>Faltam</th><th>Valor</th><th></th></tr></thead><tbody>';
   peds.forEach(p=>{
-    const ent=p.entregue||0, falta=p.qtd-ent;
+    const ent=p.entregue||0, falta=p.qtd-ent, val=p.qtd*(p.valor||0);
     h+='<tr><td>'+esc(p.produto)+(p.unidade?' <small style="color:var(--muted)">('+esc(p.unidade)+')</small>':'')+'</td>'+
        '<td>'+nf(p.qtd,0)+'</td><td>'+nf(ent,0)+'</td>'+
        '<td'+(falta>0.001?' style="color:var(--red);font-weight:800"':'')+'>'+nf(falta,0)+'</td>'+
+       '<td>'+(p.valor?moeda(val):"—")+'</td>'+
        '<td style="white-space:nowrap;text-align:right"><button class="mini" onclick="modalEntregaPedido(\''+p.id+'\')">+ Entrega</button> '+
+       '<button class="mini" onclick="modalPedido(\''+p.id+'\')">Editar</button> '+
        '<button class="mini" onclick="removerPedido(\''+p.id+'\')">✕</button></td></tr>';
   });
-  const totP=peds.reduce((s,p)=>s+p.qtd,0), totE=peds.reduce((s,p)=>s+(p.entregue||0),0);
-  h+='<tr class="arm-tot"><td>Total</td><td>'+nf(totP,0)+'</td><td>'+nf(totE,0)+'</td><td>'+nf(totP-totE,0)+'</td><td></td></tr>';
+  const totP=peds.reduce((s,p)=>s+p.qtd,0), totE=peds.reduce((s,p)=>s+(p.entregue||0),0),
+        totV=peds.reduce((s,p)=>s+p.qtd*(p.valor||0),0);
+  h+='<tr class="arm-tot"><td>Total</td><td>'+nf(totP,0)+'</td><td>'+nf(totE,0)+'</td><td>'+nf(totP-totE,0)+'</td><td>'+moeda(totV)+'</td><td></td></tr>';
   return h+'</tbody></table>';
 }
-function modalPedido(){
+function modalPedido(id){
+  const f=acharFazenda(App.fazendaId);
+  const ed=id?pedidosDe(f.id).find(p=>p.id===id):null;
   document.getElementById("modal-root").innerHTML=
   '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal">'+
-    '<h2>Novo pedido</h2><p class="sub">O que foi comprado. Quando chegar, você registra a entrega.</p>'+
+    '<h2>'+(ed?"Editar pedido":"Novo pedido")+'</h2><p class="sub">O que foi comprado. Quando chegar, você registra a entrega.</p>'+
     '<div class="frm">'+
-      '<div><label for="pd-prod">Produto</label><input id="pd-prod" placeholder="KCL, MAP, Ureia…"></div>'+
+      '<div><label for="pd-prod">Produto</label><input id="pd-prod" placeholder="KCL, MAP, Ureia…" value="'+esc(ed?ed.produto:"")+'"></div>'+
       '<div style="display:flex;gap:10px"><div style="flex:1"><label for="pd-qtd">Quantidade pedida</label>'+
-        '<input id="pd-qtd" type="number" inputmode="decimal" placeholder="0"></div>'+
-        '<div style="flex:1"><label for="pd-un">Unidade</label><input id="pd-un" placeholder="t, sc, L, kg"></div></div>'+
+        '<input id="pd-qtd" type="number" inputmode="decimal" placeholder="0" value="'+(ed&&ed.qtd!=null?ed.qtd:"")+'"></div>'+
+        '<div style="flex:1"><label for="pd-un">Unidade</label><input id="pd-un" placeholder="t, sc, L, kg" value="'+esc(ed?(ed.unidade||""):"")+'"></div></div>'+
+      '<div><label for="pd-val">Valor por unidade (R$)</label>'+
+        '<input id="pd-val" type="number" inputmode="decimal" placeholder="0,00" value="'+(ed&&ed.valor?ed.valor:"")+'"></div>'+
     '</div>'+
     '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
-      '<button class="btn-save" onclick="gravarPedido()">Adicionar</button></div></div></div>';
+      '<button class="btn-save" onclick="gravarPedido('+(ed?"'"+ed.id+"'":"")+')">'+(ed?"Salvar":"Adicionar")+'</button></div></div></div>';
   setTimeout(()=>{const e=document.getElementById("pd-prod"); if(e) e.focus();},60);
 }
-function gravarPedido(){
+function gravarPedido(id){
   const f=acharFazenda(App.fazendaId);
   const prod=(document.getElementById("pd-prod").value||"").trim();
   const qtd=Number((document.getElementById("pd-qtd").value||"").replace(",","."));
   if(!prod){ toast("Informe o produto"); return; }
   if(!qtd||qtd<=0){ toast("Informe a quantidade"); return; }
+  const un=(document.getElementById("pd-un").value||"").trim();
+  const valor=Number((document.getElementById("pd-val").value||"").replace(",","."))||0;
   const l=pedidosDe(f.id);
-  l.push({id:"pd_"+Date.now().toString(36), produto:prod,
-    unidade:(document.getElementById("pd-un").value||"").trim(), qtd:qtd, entregue:0,
-    criado_em:new Date().toISOString()});
+  if(id){ const p=l.find(x=>x.id===id); if(!p){fecharModal();return;}
+    p.produto=prod; p.qtd=qtd; p.unidade=un; p.valor=valor;
+  } else {
+    l.push({id:"pd_"+Date.now().toString(36), produto:prod, unidade:un, qtd:qtd, valor:valor,
+      entregue:0, criado_em:new Date().toISOString()});
+  }
   salvarPedidos(f.id,l);
-  fecharModal(); toast("Pedido adicionado"); render();
+  fecharModal(); toast(id?"Pedido atualizado":"Pedido adicionado"); render();
 }
 function modalEntregaPedido(id){
   const f=acharFazenda(App.fazendaId);
@@ -4161,6 +4189,7 @@ function telaMaquinario(){
   h+='<div class="farm-head"><button class="btn-back" onclick="irPara(\'fazenda\')">← '+esc(f.nome)+'</button>'+
      '<div class="farm-head-mid"><h1>Maquinário</h1><p>Máquinas, horímetro e abastecimento</p></div>'+
      '<div class="ch-head-acts"><button class="btn-act primary" onclick="modalMaquina()">+ Nova máquina</button>'+
+     '<button class="btn-act" onclick="modalImportarMaquinas()">Importar</button>'+
      botaoExportar([{rotulo:"Planilha",fn:"exportarMaquinario('csv')"},{rotulo:"Imagem",fn:"exportarMaquinario('png')"},{rotulo:"PDF",fn:"exportarMaquinario('pdf')"}])+
      '</div></div>';
   const tl=maqs.reduce((s,m)=>s+resumoMaquina(f.id,m).litros,0);
@@ -4266,6 +4295,56 @@ function exportarMaquinario(fmt){
     linhas.push([m.nome, m.tipo||"", vBR(R.hatual), vBR(R.horas), vBR(R.litros), R.consumo?vBR(R.consumo.toFixed(1)):"—"]); });
   exportarTabela(fmt, "Maquinário · "+f.nome, linhas,
     "maquinario-"+f.nome.toLowerCase().replace(/[^a-z0-9]+/g,"-"));
+}
+/* Leitor genérico: carrega um arquivo de texto/CSV no textarea alvo. */
+function lerArquivoNoCampo(input, alvoId){
+  const file=input.files && input.files[0]; if(!file) return;
+  if(/\.xlsx?$/i.test(file.name)){
+    toast("O app lê CSV. No Excel: Arquivo → Salvar Como → CSV, e escolha de novo"); input.value=""; return;
+  }
+  const rd=new FileReader();
+  rd.onload=()=>{ const ta=document.getElementById(alvoId); if(ta) ta.value=String(rd.result||"");
+    toast("Arquivo carregado — confira e clique Importar"); };
+  rd.onerror=()=>toast("Não consegui ler o arquivo");
+  rd.readAsText(file, "utf-8");
+}
+function modalImportarMaquinas(){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal modal-lg">'+
+    '<h2>Importar máquinas</h2>'+
+    '<p class="sub">Escolha um arquivo <b>CSV</b> ou cole a lista. Uma máquina por linha: <b>Nome ; Tipo ; Horímetro</b> — tipo e horímetro são opcionais.</p>'+
+    '<div class="frm">'+
+      '<div><label for="mq-file">Arquivo (.csv)</label>'+
+        '<input id="mq-file" type="file" accept=".csv,.tsv,.txt,text/csv,text/plain" onchange="lerArquivoNoCampo(this,\'mq-imp\')"></div>'+
+      '<div><label for="mq-imp">…ou cole aqui</label>'+
+        '<textarea id="mq-imp" rows="8" placeholder="Colheitadeira S680;Colheitadeira;3200\nTrator JD 6110;Trator;1500"></textarea></div>'+
+    '</div>'+
+    '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
+      '<button class="btn-save" onclick="importarMaquinas()">Importar</button></div></div></div>';
+  setTimeout(()=>{const e=document.getElementById("mq-imp");if(e)e.focus();},60);
+}
+function importarMaquinas(){
+  const f=acharFazenda(App.fazendaId);
+  const txt=(document.getElementById("mq-imp").value||"").trim();
+  if(!txt){ toast("Cole a lista ou escolha um arquivo"); return; }
+  const l=maquinasDe(f.id);
+  const existentes=new Set(l.map(m=>_normNome(m.nome)));
+  let add=0, dup=0, i=0;
+  txt.split(/\r?\n/).forEach(linha=>{
+    const c=linha.split(/\t|;/).map(x=>String(x).trim());
+    const nome=c[0]; if(!nome) return;
+    if(/^(nome|m[aá]quina)$/i.test(nome)) return;
+    if(existentes.has(_normNome(nome))){ dup++; return; }
+    existentes.add(_normNome(nome));
+    const hor=Number(String(c[2]||"").replace(/\./g,"").replace(",","."))||0;
+    l.push({id:"mq_"+Date.now().toString(36)+"_"+(i++), nome:nome, tipo:c[1]||"",
+      horimetro:hor, horimetro_ini:hor, criado_em:new Date().toISOString()});
+    add++;
+  });
+  if(!add){ toast(dup?"Todas já estavam cadastradas":"Nada reconhecido na lista"); return; }
+  salvarMaquinas(f.id,l);
+  fecharModal(); toast(add+" máquina(s) importada(s)"+(dup?" · "+dup+" já existiam":"")); render();
 }
 function abaEst(id,rot,n){
   return '<button class="ab'+(_abaEst===id?' on':'')+'" onclick="_abaEst=\''+id+'\';render()">'+
