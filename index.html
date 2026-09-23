@@ -890,7 +890,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.29.0";
+const APP_VERSION = "2.31.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -972,7 +972,7 @@ const SUPABASE = {
 
 /* Blocos de estado que sobem para a nuvem */
 const BLOCOS = ["talhoes","cargas","armazens","caminhoes","silocap","bases","chuva",
-                "lavoura","produtos","aplicacoes","entradas","docs","mapa","visitas","contratos","hist"];
+                "lavoura","produtos","aplicacoes","entradas","docs","mapa","visitas","contratos","hist","pedidos","maquinas","abastec"];
 
 /* ── Sessão ──────────────────────────────── */
 const Auth = {
@@ -1984,6 +1984,10 @@ function resumoLavoura(f){
    ═══════════════════════════════════════════════════ */
 function kEntradas(f){ return "faz_"+f+"_entradas"; }
 function entradasDe(f){ return Store.get(kEntradas(f), []); }
+/* Pedidos de compra: o que foi comprado, quanto já chegou, quanto falta. */
+function kPedidos(f){ return "faz_"+f+"_pedidos"; }
+function pedidosDe(f){ return Store.get(kPedidos(f), []); }
+function salvarPedidos(f,l){ Store.set(kPedidos(f), l); }
 
 function salvarEntrada(f, d, id){
   const l = entradasDe(f);
@@ -2342,7 +2346,9 @@ const MODULOS = [
     { id:"contratos",  ic:"documentos", nome:"Contratos", desc:"Venda e arrendamento · abatidos pela colheita", pronto:true,
       resumo:f=>{const n=contratosDe(f.id).length; return n? n+" contrato(s) a cumprir" : "Cadastre os contratos";} },
     { id:"financeiro", ic:"financeiro", nome:"Financeiro", desc:"Custos, planejamento, vendas e compras", pronto:false },
-    { id:"diesel",     ic:"diesel",     nome:"Diesel e manutenção", desc:"Gastos do financeiro · diesel, peças e serviços", pronto:true }
+    { id:"diesel",     ic:"diesel",     nome:"Diesel e manutenção", desc:"Gastos do financeiro · diesel, peças e serviços", pronto:true },
+    { id:"maquinario", ic:"diesel",     nome:"Maquinário", desc:"Máquinas, horímetro e abastecimento", pronto:true,
+      resumo:f=>{const n=maquinasDe(f.id).length; return n? n+" máquina(s)" : "Cadastre as máquinas";} }
   ]},
   { grupo:"Acompanhamento", itens:[
     { id:"visitas",    ic:"visitas",    nome:"Visitas técnicas", desc:"Diário de bordo da cultura: estágio, clima e recomendações", pronto:true,
@@ -2923,7 +2929,7 @@ function render(){
   if(App.tela==="fazendas")      h += telaFazendas();
   else if(App.tela==="fazenda")  h += telaFazenda();
   else if(App.tela==="modulo" && !podeModulo(App.fazendaId, App.moduloId)){ App.tela="fazenda"; h += telaFazenda(); }
-  else if(App.tela==="modulo")   h += (App.moduloId==="talhoes" ? telaTalhoes() : App.moduloId==="colheita" ? telaColheita() : App.moduloId==="chuva" ? telaChuva() : App.moduloId==="operacoes" ? telaOperacoes() : App.moduloId==="lavoura" ? telaLavoura() : App.moduloId==="estoque" ? telaEstoque() : App.moduloId==="ndvi" ? telaMapa() : App.moduloId==="tempo" ? telaTempo() : App.moduloId==="cotacoes" ? telaCotacoes() : App.moduloId==="documentos" ? telaDocumentos() : App.moduloId==="visitas" ? telaVisitas() : App.moduloId==="contratos" ? telaContratos() : App.moduloId==="safras" ? telaHistorico() : App.moduloId==="diesel" ? telaDiesel() : telaModulo());
+  else if(App.tela==="modulo")   h += (App.moduloId==="talhoes" ? telaTalhoes() : App.moduloId==="colheita" ? telaColheita() : App.moduloId==="chuva" ? telaChuva() : App.moduloId==="operacoes" ? telaOperacoes() : App.moduloId==="lavoura" ? telaLavoura() : App.moduloId==="estoque" ? telaEstoque() : App.moduloId==="ndvi" ? telaMapa() : App.moduloId==="tempo" ? telaTempo() : App.moduloId==="cotacoes" ? telaCotacoes() : App.moduloId==="documentos" ? telaDocumentos() : App.moduloId==="visitas" ? telaVisitas() : App.moduloId==="contratos" ? telaContratos() : App.moduloId==="safras" ? telaHistorico() : App.moduloId==="diesel" ? telaDiesel() : App.moduloId==="maquinario" ? telaMaquinario() : telaModulo());
   else if(App.tela==="panorama") h += telaPanorama();
   document.getElementById("root").innerHTML = h;
   Sync.render();
@@ -3582,6 +3588,7 @@ function importarChuva(){
   });
   if(!cells){ toast("Nada reconhecido — confira as datas e os nomes das colunas"); return; }
   Store.set(kChuva(f.id), todo);
+  if(typeof Sync!=="undefined" && Sync.marcar) Sync.marcar(kChuva(f.id));
   fecharModal();
   toast(cells+" medições em "+dias+" dias importadas"+(naoCasou.length?" · ignoradas: "+naoCasou.join(", "):""));
   render();
@@ -3608,6 +3615,7 @@ function limparChuva(){
   const todo=chuvaDe(f.id);
   Object.keys(todo).forEach(dia=>{ if(safraDaDataChuva(dia)===safra) delete todo[dia]; });
   Store.set(kChuva(f.id), todo);
+  if(typeof Sync!=="undefined" && Sync.marcar) Sync.marcar(kChuva(f.id));
   fecharModal(); toast("Chuva da safra "+safra+" apagada"); render();
 }
 
@@ -4025,33 +4033,239 @@ function telaEstoque(){
   const f = acharFazenda(App.fazendaId);
   if(!f){ App.tela="fazendas"; return telaFazendas(); }
   const E = estoqueDe(f.id);
+  const peds = pedidosDe(f.id);
+  const temProd = produtosDe(f.id).length>0;
 
   let h = '<div class="wrap wrap-wide">';
   h += '<div class="farm-head">'+
     '<button class="btn-back" onclick="irPara(\'fazenda\')">← '+esc(f.nome)+'</button>'+
     '<div class="farm-head-mid"><h1>Estoque</h1>'+
-    '<p>Entra pela nota, sai pela aplicação no talhão · safra '+esc(f.safra)+'</p></div></div>';
-
-  if(!produtosDe(f.id).length)
-    return h+'<div class="empty"><strong>Cadastre os produtos primeiro</strong>'+
-      'O estoque é montado em cima dos produtos de Operações no talhão.'+
-      '<div style="margin-top:16px"><button class="btn-act primary" '+
-      'onclick="irPara(\'modulo\',{moduloId:\'operacoes\'})">Ir para Operações</button></div></div></div>';
+    '<p>Pedido → entrada → aplicação no talhão · safra '+esc(f.safra)+'</p></div></div>';
 
   h += '<div class="kpis kpis-4">'+
     kpi("Comprado", moeda(E.totalComprado).replace("R$ ",""), "R$")+
     kpi("Aplicado", moeda(E.totalAplicado).replace("R$ ",""), "R$")+
     kpi("Em estoque", moeda(E.valorEstoque).replace("R$ ",""), "R$")+
-    kpi("Alertas", E.alertas, E.alertas?"saldo negativo":"tudo certo")+
+    kpi("Pedidos abertos", peds.filter(p=>(p.qtd-(p.entregue||0))>0.001).length, "a receber")+
   '</div>';
 
   h += '<div class="abas">'+
+    abaEst("pedidos","Pedidos", peds.length)+
     abaEst("saldo","Saldo", E.linhas.filter(l=>l.entrou>0||l.saiu>0).length)+
     abaEst("entradas","Recebimentos", entradasDe(f.id).length)+
   '</div>';
 
-  h += _abaEst==="entradas" ? abaEntradas(f) : abaSaldo(f,E);
+  if(_abaEst==="pedidos") h += abaPedidos(f, peds);
+  else if(_abaEst==="entradas") h += (temProd? abaEntradas(f) : estoqueVazio());
+  else h += (temProd? abaSaldo(f,E) : estoqueVazio());
   return h+'</div>';
+}
+function estoqueVazio(){
+  return '<div class="empty"><strong>Cadastre os produtos primeiro</strong>'+
+    'O saldo e os recebimentos vêm dos produtos usados em Operações no talhão.'+
+    '<div style="margin-top:16px"><button class="btn-act primary" '+
+    'onclick="irPara(\'modulo\',{moduloId:\'operacoes\'})">Ir para Operações</button></div></div>';
+}
+/* Aba Pedidos: cadastro de compras, com entregue e faltam */
+function abaPedidos(f, peds){
+  let h='<div class="acts"><button class="btn-act primary" onclick="modalPedido()">+ Novo pedido</button></div>';
+  if(!peds.length) return h+'<p class="vazio">Nenhum pedido ainda. Cadastre o que foi comprado — quando chegar na fazenda, registre a entrega.</p>';
+  h+='<table class="arm-grid"><thead><tr><th>Produto</th><th>Pedido</th><th>Entregue</th><th>Faltam</th><th></th></tr></thead><tbody>';
+  peds.forEach(p=>{
+    const ent=p.entregue||0, falta=p.qtd-ent;
+    h+='<tr><td>'+esc(p.produto)+(p.unidade?' <small style="color:var(--muted)">('+esc(p.unidade)+')</small>':'')+'</td>'+
+       '<td>'+nf(p.qtd,0)+'</td><td>'+nf(ent,0)+'</td>'+
+       '<td'+(falta>0.001?' style="color:var(--red);font-weight:800"':'')+'>'+nf(falta,0)+'</td>'+
+       '<td style="white-space:nowrap;text-align:right"><button class="mini" onclick="modalEntregaPedido(\''+p.id+'\')">+ Entrega</button> '+
+       '<button class="mini" onclick="removerPedido(\''+p.id+'\')">✕</button></td></tr>';
+  });
+  const totP=peds.reduce((s,p)=>s+p.qtd,0), totE=peds.reduce((s,p)=>s+(p.entregue||0),0);
+  h+='<tr class="arm-tot"><td>Total</td><td>'+nf(totP,0)+'</td><td>'+nf(totE,0)+'</td><td>'+nf(totP-totE,0)+'</td><td></td></tr>';
+  return h+'</tbody></table>';
+}
+function modalPedido(){
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal">'+
+    '<h2>Novo pedido</h2><p class="sub">O que foi comprado. Quando chegar, você registra a entrega.</p>'+
+    '<div class="frm">'+
+      '<div><label for="pd-prod">Produto</label><input id="pd-prod" placeholder="KCL, MAP, Ureia…"></div>'+
+      '<div style="display:flex;gap:10px"><div style="flex:1"><label for="pd-qtd">Quantidade pedida</label>'+
+        '<input id="pd-qtd" type="number" inputmode="decimal" placeholder="0"></div>'+
+        '<div style="flex:1"><label for="pd-un">Unidade</label><input id="pd-un" placeholder="t, sc, L, kg"></div></div>'+
+    '</div>'+
+    '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
+      '<button class="btn-save" onclick="gravarPedido()">Adicionar</button></div></div></div>';
+  setTimeout(()=>{const e=document.getElementById("pd-prod"); if(e) e.focus();},60);
+}
+function gravarPedido(){
+  const f=acharFazenda(App.fazendaId);
+  const prod=(document.getElementById("pd-prod").value||"").trim();
+  const qtd=Number((document.getElementById("pd-qtd").value||"").replace(",","."));
+  if(!prod){ toast("Informe o produto"); return; }
+  if(!qtd||qtd<=0){ toast("Informe a quantidade"); return; }
+  const l=pedidosDe(f.id);
+  l.push({id:"pd_"+Date.now().toString(36), produto:prod,
+    unidade:(document.getElementById("pd-un").value||"").trim(), qtd:qtd, entregue:0,
+    criado_em:new Date().toISOString()});
+  salvarPedidos(f.id,l);
+  fecharModal(); toast("Pedido adicionado"); render();
+}
+function modalEntregaPedido(id){
+  const f=acharFazenda(App.fazendaId);
+  const p=pedidosDe(f.id).find(x=>x.id===id); if(!p) return;
+  const falta=p.qtd-(p.entregue||0);
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal">'+
+    '<h2>Registrar entrega</h2><p class="sub">'+esc(p.produto)+' · faltam '+nf(falta,0)+(p.unidade?' '+esc(p.unidade):'')+'</p>'+
+    '<div class="frm"><div><label for="pe-qtd">Quantidade que chegou</label>'+
+      '<input id="pe-qtd" type="number" inputmode="decimal" placeholder="'+nf(falta,0)+'"></div></div>'+
+    '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
+      '<button class="btn-save" onclick="gravarEntregaPedido(\''+id+'\')">Registrar</button></div></div></div>';
+  setTimeout(()=>{const e=document.getElementById("pe-qtd"); if(e) e.focus();},60);
+}
+function gravarEntregaPedido(id){
+  const f=acharFazenda(App.fazendaId);
+  const l=pedidosDe(f.id), p=l.find(x=>x.id===id); if(!p){ fecharModal(); return; }
+  const q=Number((document.getElementById("pe-qtd").value||"").replace(",","."));
+  if(!q||q<=0){ toast("Informe a quantidade"); return; }
+  p.entregue=(p.entregue||0)+q;
+  salvarPedidos(f.id,l);
+  fecharModal(); toast("Entrega registrada"); render();
+}
+function removerPedido(id){
+  const f=acharFazenda(App.fazendaId);
+  if(!confirm("Remover este pedido?")) return;
+  salvarPedidos(f.id, pedidosDe(f.id).filter(p=>p.id!==id));
+  toast("Pedido removido"); render();
+}
+
+/* ── Maquinário: máquinas, horímetro e abastecimento ───────── */
+function kMaquinas(f){ return "faz_"+f+"_maquinas"; }
+function maquinasDe(f){ return Store.get(kMaquinas(f), []); }
+function salvarMaquinas(f,l){ Store.set(kMaquinas(f), l); }
+function kAbastec(f){ return "faz_"+f+"_abastec"; }
+function abastecDe(f){ return Store.get(kAbastec(f), []); }
+function salvarAbastec(f,l){ Store.set(kAbastec(f), l); }
+function resumoMaquina(f, maq){
+  const ab = abastecDe(f).filter(a=>a.maquina_id===maq.id);
+  const litros = ab.reduce((s,a)=>s+(Number(a.litros)||0),0);
+  const hini = Number(maq.horimetro_ini)||0;
+  const hatual = Number(maq.horimetro)||hini;
+  const horas = Math.max(0, hatual-hini);
+  return { litros, horas, consumo: horas>0? litros/horas : 0, abast: ab.length, hatual };
+}
+function telaMaquinario(){
+  const f=acharFazenda(App.fazendaId); if(!f){ App.tela="fazendas"; return telaFazendas(); }
+  const maqs=maquinasDe(f.id), abast=abastecDe(f.id);
+  let h='<div class="wrap wrap-wide">';
+  h+='<div class="farm-head"><button class="btn-back" onclick="irPara(\'fazenda\')">← '+esc(f.nome)+'</button>'+
+     '<div class="farm-head-mid"><h1>Maquinário</h1><p>Máquinas, horímetro e abastecimento</p></div>'+
+     '<div class="ch-head-acts"><button class="btn-act primary" onclick="modalMaquina()">+ Nova máquina</button>'+
+     botaoExportar([{rotulo:"Planilha",fn:"exportarMaquinario('csv')"},{rotulo:"Imagem",fn:"exportarMaquinario('png')"},{rotulo:"PDF",fn:"exportarMaquinario('pdf')"}])+
+     '</div></div>';
+  const tl=maqs.reduce((s,m)=>s+resumoMaquina(f.id,m).litros,0);
+  const th=maqs.reduce((s,m)=>s+resumoMaquina(f.id,m).horas,0);
+  h+='<div class="kpis kpis-4">'+
+    kpi("Máquinas", maqs.length, "cadastradas")+
+    kpi("Abastecido", nf(tl,0), "litros")+
+    kpi("Horas", nf(th,0), "trabalhadas")+
+    kpi("Consumo médio", th>0?nf(tl/th,1):"—", "L/h")+
+  '</div>';
+  if(!maqs.length) return h+'<p class="vazio">Nenhuma máquina. Cadastre a primeira para controlar horímetro e combustível.</p></div>';
+  h+='<table class="arm-grid"><thead><tr><th>Máquina</th><th>Tipo</th><th>Horímetro</th><th>Horas</th><th>Litros</th><th>L/h</th><th></th></tr></thead><tbody>';
+  maqs.forEach(m=>{ const R=resumoMaquina(f.id,m);
+    h+='<tr><td>'+esc(m.nome)+'</td><td>'+esc(m.tipo||"—")+'</td>'+
+       '<td>'+nf(R.hatual,0)+'</td><td>'+nf(R.horas,0)+'</td><td>'+nf(R.litros,0)+'</td><td>'+(R.consumo?nf(R.consumo,1):"—")+'</td>'+
+       '<td style="white-space:nowrap;text-align:right"><button class="mini" onclick="modalAbastecer(\''+m.id+'\')">Abastecer</button> '+
+       '<button class="mini" onclick="modalMaquina(\''+m.id+'\')">Editar</button> '+
+       '<button class="mini" onclick="removerMaquina(\''+m.id+'\')">✕</button></td></tr>';
+  });
+  h+='</tbody></table>';
+  if(abast.length){
+    const nome={}; maqs.forEach(m=>nome[m.id]=m.nome);
+    const recent=abast.slice().sort((a,b)=>String(b.data||"").localeCompare(String(a.data||""))).slice(0,20);
+    h+='<div class="resumo"><div class="resumo-t">Abastecimentos recentes</div>'+
+      '<table class="arm-grid"><thead><tr><th>Data</th><th>Máquina</th><th>Litros</th><th>Horímetro</th></tr></thead><tbody>'+
+      recent.map(a=>'<tr><td>'+esc(dataBR(a.data))+'</td><td>'+esc(nome[a.maquina_id]||"—")+'</td><td>'+nf(a.litros,0)+'</td><td>'+nf(a.horimetro||0,0)+'</td></tr>').join("")+
+      '</tbody></table></div>';
+  }
+  return h+'</div>';
+}
+function modalMaquina(id){
+  const f=acharFazenda(App.fazendaId);
+  const ed=id?maquinasDe(f.id).find(m=>m.id===id):null;
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal">'+
+    '<h2>'+(ed?"Editar máquina":"Nova máquina")+'</h2>'+
+    '<div class="frm">'+
+      '<div><label for="mq-nome">Nome</label><input id="mq-nome" placeholder="Colheitadeira, Trator JD 6110…" value="'+esc(ed?ed.nome:"")+'"></div>'+
+      '<div style="display:flex;gap:10px"><div style="flex:1"><label for="mq-tipo">Tipo</label><input id="mq-tipo" placeholder="Colheitadeira, trator…" value="'+esc(ed?(ed.tipo||""):"")+'"></div>'+
+      '<div style="flex:1"><label for="mq-hor">Horímetro atual</label><input id="mq-hor" type="number" inputmode="decimal" placeholder="0" value="'+(ed&&ed.horimetro!=null?ed.horimetro:"")+'"></div></div>'+
+    '</div>'+
+    '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
+      '<button class="btn-save" onclick="gravarMaquina('+(ed?"'"+ed.id+"'":"")+')">'+(ed?"Salvar":"Adicionar")+'</button></div></div></div>';
+  setTimeout(()=>{const e=document.getElementById("mq-nome");if(e)e.focus();},60);
+}
+function gravarMaquina(id){
+  const f=acharFazenda(App.fazendaId);
+  const nome=(document.getElementById("mq-nome").value||"").trim();
+  if(!nome){ toast("Informe o nome"); return; }
+  const tipo=(document.getElementById("mq-tipo").value||"").trim();
+  const hor=Number((document.getElementById("mq-hor").value||"").replace(",","."))||0;
+  const l=maquinasDe(f.id);
+  if(id){ const m=l.find(x=>x.id===id); if(!m){fecharModal();return;}
+    m.nome=nome; m.tipo=tipo; m.horimetro=hor; if(m.horimetro_ini==null) m.horimetro_ini=hor;
+  } else {
+    l.push({id:"mq_"+Date.now().toString(36), nome:nome, tipo:tipo, horimetro:hor, horimetro_ini:hor, criado_em:new Date().toISOString()});
+  }
+  salvarMaquinas(f.id,l); fecharModal(); toast(id?"Máquina atualizada":"Máquina adicionada"); render();
+}
+function removerMaquina(id){
+  const f=acharFazenda(App.fazendaId);
+  if(!confirm("Remover esta máquina? Os abastecimentos dela também saem.")) return;
+  salvarMaquinas(f.id, maquinasDe(f.id).filter(m=>m.id!==id));
+  salvarAbastec(f.id, abastecDe(f.id).filter(a=>a.maquina_id!==id));
+  toast("Máquina removida"); render();
+}
+function modalAbastecer(id){
+  const f=acharFazenda(App.fazendaId);
+  const m=maquinasDe(f.id).find(x=>x.id===id); if(!m) return;
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal">'+
+    '<h2>Abastecer</h2><p class="sub">'+esc(m.nome)+' · horímetro atual '+nf(Number(m.horimetro)||0,0)+'</p>'+
+    '<div class="frm">'+
+      '<div style="display:flex;gap:10px"><div style="flex:1"><label for="ab-data">Data</label><input id="ab-data" type="date" value="'+new Date().toISOString().slice(0,10)+'"></div>'+
+      '<div style="flex:1"><label for="ab-litros">Litros</label><input id="ab-litros" type="number" inputmode="decimal" placeholder="0"></div></div>'+
+      '<div><label for="ab-hor">Horímetro no abastecimento</label><input id="ab-hor" type="number" inputmode="decimal" placeholder="'+nf(Number(m.horimetro)||0,0)+'"></div>'+
+    '</div>'+
+    '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
+      '<button class="btn-save" onclick="gravarAbastecer(\''+id+'\')">Registrar</button></div></div></div>';
+  setTimeout(()=>{const e=document.getElementById("ab-litros");if(e)e.focus();},60);
+}
+function gravarAbastecer(id){
+  const f=acharFazenda(App.fazendaId);
+  const l=maquinasDe(f.id), m=l.find(x=>x.id===id); if(!m){fecharModal();return;}
+  const litros=Number((document.getElementById("ab-litros").value||"").replace(",","."));
+  if(!litros||litros<=0){ toast("Informe os litros"); return; }
+  const data=document.getElementById("ab-data").value||new Date().toISOString().slice(0,10);
+  const horStr=(document.getElementById("ab-hor").value||"").replace(",",".");
+  const hor= horStr!=="" ? Number(horStr) : (Number(m.horimetro)||0);
+  const ab=abastecDe(f.id);
+  ab.push({id:"ab_"+Date.now().toString(36), maquina_id:id, data:data, litros:litros,
+    horimetro:(isNaN(hor)?null:hor), criado_em:new Date().toISOString()});
+  salvarAbastec(f.id,ab);
+  if(!isNaN(hor) && hor>(Number(m.horimetro)||0)){ m.horimetro=hor; salvarMaquinas(f.id,l); }
+  fecharModal(); toast("Abastecimento registrado"); render();
+}
+function exportarMaquinario(fmt){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const maqs=maquinasDe(f.id);
+  if(!maqs.length){ toast("Cadastre máquinas primeiro"); return; }
+  const linhas=[["Máquina","Tipo","Horímetro","Horas","Litros","L/h"]];
+  maqs.forEach(m=>{ const R=resumoMaquina(f.id,m);
+    linhas.push([m.nome, m.tipo||"", vBR(R.hatual), vBR(R.horas), vBR(R.litros), R.consumo?vBR(R.consumo.toFixed(1)):"—"]); });
+  exportarTabela(fmt, "Maquinário · "+f.nome, linhas,
+    "maquinario-"+f.nome.toLowerCase().replace(/[^a-z0-9]+/g,"-"));
 }
 function abaEst(id,rot,n){
   return '<button class="ab'+(_abaEst===id?' on':'')+'" onclick="_abaEst=\''+id+'\';render()">'+
