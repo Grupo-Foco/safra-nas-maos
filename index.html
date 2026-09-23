@@ -815,6 +815,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 .arm-grid tbody td{font-family:var(--mono);color:var(--text)}
 .arm-grid tbody td:first-child{font-family:inherit;font-weight:600}
 .arm-grid .arm-tot td{font-weight:800;background:#F3F1E7}
+.arm-grid .arm-sub td{font-weight:700;background:#FAF8F0;color:var(--green)}
 .ch-head-acts{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-left:auto}
 .confere-div{height:1px;background:var(--line);margin:12px 0}
 .legenda{font-size:12.5px;color:var(--muted);margin:-4px 0 12px;display:flex;align-items:center;gap:7px}
@@ -890,7 +891,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.34.0";
+const APP_VERSION = "2.37.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -4086,84 +4087,195 @@ function estoqueVazio(){
 function abaPedidos(f, peds){
   let h='<div class="acts"><button class="btn-act primary" onclick="modalPedido()">+ Novo pedido</button></div>';
   if(!peds.length) return h+'<p class="vazio">Nenhum pedido ainda. Cadastre o que foi comprado — quando chegar na fazenda, registre a entrega.</p>';
-  h+='<table class="arm-grid"><thead><tr><th>Produto</th><th>Pedido</th><th>Entregue</th><th>Faltam</th><th>Valor</th><th></th></tr></thead><tbody>';
-  peds.forEach(p=>{
-    const ent=p.entregue||0, falta=p.qtd-ent, val=p.qtd*(p.valor||0);
-    h+='<tr><td>'+esc(p.produto)+(p.unidade?' <small style="color:var(--muted)">('+esc(p.unidade)+')</small>':'')+'</td>'+
-       '<td>'+nf(p.qtd,0)+'</td><td>'+nf(ent,0)+'</td>'+
-       '<td'+(falta>0.001?' style="color:var(--red);font-weight:800"':'')+'>'+nf(falta,0)+'</td>'+
-       '<td>'+(p.valor?moeda(val):"—")+'</td>'+
-       '<td style="white-space:nowrap;text-align:right"><button class="mini" onclick="modalEntregaPedido(\''+p.id+'\')">+ Entrega</button> '+
-       '<button class="mini" onclick="modalPedido(\''+p.id+'\')">Editar</button> '+
-       '<button class="mini" onclick="removerPedido(\''+p.id+'\')">✕</button></td></tr>';
+  const grupos={};
+  peds.forEach(p=>{ const k=_normNome(p.produto); (grupos[k]=grupos[k]||{nome:p.produto, itens:[]}).itens.push(p); });
+  h+='<table class="arm-grid"><thead><tr><th>Produto</th><th>Em nome de</th><th>Pedido</th><th>Entregue</th><th>Faltam</th><th>Valor</th><th></th></tr></thead><tbody>';
+  let gP=0,gE=0,gV=0;
+  Object.keys(grupos).sort().forEach(k=>{
+    const g=grupos[k]; let sP=0,sE=0,sV=0;
+    g.itens.forEach(p=>{
+      const ent=p.entregue||0, falta=p.qtd-ent, val=p.qtd*(p.valor||0);
+      sP+=p.qtd; sE+=ent; sV+=val;
+      h+='<tr><td>'+esc(p.produto)+(p.unidade?' <small style="color:var(--muted)">('+esc(p.unidade)+')</small>':'')+
+         (p.anexo_path?' <a href="#" onclick="verAnexoPedido(\''+p.id+'\');return false" title="Ver comprovante/nota" style="text-decoration:none">📎</a>':'')+'</td>'+
+         '<td>'+esc(p.responsavel||"—")+'</td>'+
+         '<td>'+nf(p.qtd,0)+'</td><td>'+((p.entregas&&p.entregas.length)?'<a href="#" onclick="modalEntregas(\''+p.id+'\');return false" style="text-decoration:none;border-bottom:1px dotted var(--muted)">'+nf(ent,0)+'</a>':nf(ent,0))+'</td>'+
+         '<td'+(falta>0.001?' style="color:var(--red);font-weight:800"':'')+'>'+nf(falta,0)+'</td>'+
+         '<td>'+(p.valor?moeda(val):"—")+'</td>'+
+         '<td style="white-space:nowrap;text-align:right"><button class="mini" onclick="modalEntregaPedido(\''+p.id+'\')">+ Entrega</button> '+
+         '<button class="mini" onclick="modalPedido(\''+p.id+'\')">Editar</button> '+
+         '<button class="mini" onclick="removerPedido(\''+p.id+'\')">✕</button></td></tr>';
+    });
+    if(g.itens.length>1)
+      h+='<tr class="arm-sub"><td>'+esc(g.nome)+' — total</td><td></td><td>'+nf(sP,0)+'</td><td>'+nf(sE,0)+'</td><td>'+nf(sP-sE,0)+'</td><td>'+moeda(sV)+'</td><td></td></tr>';
+    gP+=sP; gE+=sE; gV+=sV;
   });
-  const totP=peds.reduce((s,p)=>s+p.qtd,0), totE=peds.reduce((s,p)=>s+(p.entregue||0),0),
-        totV=peds.reduce((s,p)=>s+p.qtd*(p.valor||0),0);
-  h+='<tr class="arm-tot"><td>Total</td><td>'+nf(totP,0)+'</td><td>'+nf(totE,0)+'</td><td>'+nf(totP-totE,0)+'</td><td>'+moeda(totV)+'</td><td></td></tr>';
+  h+='<tr class="arm-tot"><td>Total geral</td><td></td><td>'+nf(gP,0)+'</td><td>'+nf(gE,0)+'</td><td>'+nf(gP-gE,0)+'</td><td>'+moeda(gV)+'</td><td></td></tr>';
   return h+'</tbody></table>';
+}
+function respSugestoes(f){
+  const base=["Neila","João","Ivan","Adriana"];
+  const usados=pedidosDe(f.id).map(p=>p.responsavel).filter(Boolean);
+  return [...new Set([...base,...usados])];
 }
 function modalPedido(id){
   const f=acharFazenda(App.fazendaId);
   const ed=id?pedidosDe(f.id).find(p=>p.id===id):null;
+  window._pedArq=null;
   document.getElementById("modal-root").innerHTML=
   '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal">'+
-    '<h2>'+(ed?"Editar pedido":"Novo pedido")+'</h2><p class="sub">O que foi comprado. Quando chegar, você registra a entrega.</p>'+
+    '<h2>'+(ed?"Editar pedido":"Novo pedido")+'</h2><p class="sub">O que foi comprado e em nome de quem. Quando chegar, você registra a entrega.</p>'+
     '<div class="frm">'+
       '<div><label for="pd-prod">Produto</label><input id="pd-prod" placeholder="KCL, MAP, Ureia…" value="'+esc(ed?ed.produto:"")+'"></div>'+
+      '<div><label for="pd-resp">Em nome de</label>'+
+        '<input id="pd-resp" list="pd-resp-list" placeholder="Neila, João, Ivan, Adriana…" value="'+esc(ed?(ed.responsavel||""):"")+'">'+
+        '<datalist id="pd-resp-list">'+respSugestoes(f).map(n=>'<option value="'+esc(n)+'"></option>').join("")+'</datalist></div>'+
       '<div style="display:flex;gap:10px"><div style="flex:1"><label for="pd-qtd">Quantidade pedida</label>'+
         '<input id="pd-qtd" type="number" inputmode="decimal" placeholder="0" value="'+(ed&&ed.qtd!=null?ed.qtd:"")+'"></div>'+
         '<div style="flex:1"><label for="pd-un">Unidade</label><input id="pd-un" placeholder="t, sc, L, kg" value="'+esc(ed?(ed.unidade||""):"")+'"></div></div>'+
       '<div><label for="pd-val">Valor por unidade (R$)</label>'+
         '<input id="pd-val" type="number" inputmode="decimal" placeholder="0,00" value="'+(ed&&ed.valor?ed.valor:"")+'"></div>'+
+      '<div><label for="pd-file">Comprovante / nota (opcional)</label>'+
+        '<input id="pd-file" type="file" accept="image/*,application/pdf" onchange="escolherArquivoPedido(this)">'+
+        '<span class="nota-pad" id="pd-arq-lbl">'+(ed&&ed.anexo?esc(ed.anexo)+" (anexado — escolha outro para trocar)":"")+'</span></div>'+
     '</div>'+
     '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
       '<button class="btn-save" onclick="gravarPedido('+(ed?"'"+ed.id+"'":"")+')">'+(ed?"Salvar":"Adicionar")+'</button></div></div></div>';
   setTimeout(()=>{const e=document.getElementById("pd-prod"); if(e) e.focus();},60);
 }
-function gravarPedido(id){
+function escolherArquivoPedido(input){
+  const a=input.files && input.files[0];
+  const lbl=document.getElementById("pd-arq-lbl");
+  if(!a){ window._pedArq=null; return; }
+  if(a.size > 20*1024*1024){ toast("Arquivo acima de 20 MB — reduza antes de anexar"); input.value=""; window._pedArq=null; return; }
+  window._pedArq=a;
+  if(lbl) lbl.textContent = a.name+" · "+tamanhoLegivel(a.size);
+}
+async function gravarPedido(id){
   const f=acharFazenda(App.fazendaId);
   const prod=(document.getElementById("pd-prod").value||"").trim();
   const qtd=Number((document.getElementById("pd-qtd").value||"").replace(",","."));
   if(!prod){ toast("Informe o produto"); return; }
   if(!qtd||qtd<=0){ toast("Informe a quantidade"); return; }
   const un=(document.getElementById("pd-un").value||"").trim();
+  const resp=(document.getElementById("pd-resp").value||"").trim();
   const valor=Number((document.getElementById("pd-val").value||"").replace(",","."))||0;
   const l=pedidosDe(f.id);
+  let pid=id;
   if(id){ const p=l.find(x=>x.id===id); if(!p){fecharModal();return;}
-    p.produto=prod; p.qtd=qtd; p.unidade=un; p.valor=valor;
+    p.produto=prod; p.responsavel=resp; p.qtd=qtd; p.unidade=un; p.valor=valor;
   } else {
-    l.push({id:"pd_"+Date.now().toString(36), produto:prod, unidade:un, qtd:qtd, valor:valor,
+    pid="pd_"+Date.now().toString(36);
+    l.push({id:pid, produto:prod, responsavel:resp, unidade:un, qtd:qtd, valor:valor,
       entregue:0, criado_em:new Date().toISOString()});
   }
   salvarPedidos(f.id,l);
-  fecharModal(); toast(id?"Pedido atualizado":"Pedido adicionado"); render();
+  const arq=window._pedArq;
+  if(arq){
+    const atual=pedidosDe(f.id).find(x=>x.id===pid);
+    const ext=(arq.name.match(/\.[a-z0-9]+$/i)||[""])[0].toLowerCase();
+    const caminho=f.id+"/pedido-"+pid+ext;
+    if(atual && atual.anexo_path && atual.anexo_path!==caminho){ stApagar(atual.anexo_path); removerArquivo(atual.anexo_path); }
+    try{
+      await enviarArquivo(caminho, arq);
+      const l2=pedidosDe(f.id), p2=l2.find(x=>x.id===pid);
+      if(p2){ p2.anexo=arq.name; p2.anexo_path=caminho; salvarPedidos(f.id,l2); }
+    }catch(e){ toast("Pedido salvo, mas não consegui guardar o anexo"); }
+  }
+  window._pedArq=null; fecharModal(); toast(id?"Pedido atualizado":"Pedido adicionado"); render();
+}
+async function abrirArquivoPath(path){
+  if(!path){ toast("Sem anexo"); return; }
+  try{
+    let blob=await pegarArquivo(path);
+    if(!blob && navigator.onLine){ blob=await stBaixar(path); if(blob) guardarArquivo(path,blob); }
+    if(!blob){ toast(navigator.onLine?"Arquivo não encontrado":"Sem internet e sem cópia no aparelho"); return; }
+    window.open(URL.createObjectURL(blob),"_blank","noopener");
+  }catch(e){ toast("Não consegui abrir o arquivo"); }
+}
+async function verAnexoPedido(id){
+  const f=acharFazenda(App.fazendaId);
+  const p=pedidosDe(f.id).find(x=>x.id===id); if(!p){ toast("Sem anexo"); return; }
+  abrirArquivoPath(p.anexo_path);
 }
 function modalEntregaPedido(id){
   const f=acharFazenda(App.fazendaId);
   const p=pedidosDe(f.id).find(x=>x.id===id); if(!p) return;
   const falta=p.qtd-(p.entregue||0);
+  window._entArq={};
   document.getElementById("modal-root").innerHTML=
   '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal">'+
     '<h2>Registrar entrega</h2><p class="sub">'+esc(p.produto)+' · faltam '+nf(falta,0)+(p.unidade?' '+esc(p.unidade):'')+'</p>'+
-    '<div class="frm"><div><label for="pe-qtd">Quantidade que chegou</label>'+
-      '<input id="pe-qtd" type="number" inputmode="decimal" placeholder="'+nf(falta,0)+'"></div></div>'+
+    '<div class="frm">'+
+      '<div style="display:flex;gap:10px"><div style="flex:1"><label for="pe-data">Dia da entrega</label>'+
+        '<input id="pe-data" type="date" value="'+new Date().toISOString().slice(0,10)+'"></div>'+
+        '<div style="flex:1"><label for="pe-qtd">Quantidade que chegou</label>'+
+        '<input id="pe-qtd" type="number" inputmode="decimal" placeholder="'+nf(falta,0)+'"></div></div>'+
+      '<div><label for="pe-f1">Nota 1 (opcional)</label>'+
+        '<input id="pe-f1" type="file" accept="image/*,application/pdf" onchange="escolherArquivoEntrega(this,1)">'+
+        '<span class="nota-pad" id="pe-f1-lbl"></span></div>'+
+      '<div><label for="pe-f2">Nota 2 (opcional)</label>'+
+        '<input id="pe-f2" type="file" accept="image/*,application/pdf" onchange="escolherArquivoEntrega(this,2)">'+
+        '<span class="nota-pad" id="pe-f2-lbl"></span></div>'+
+    '</div>'+
     '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
       '<button class="btn-save" onclick="gravarEntregaPedido(\''+id+'\')">Registrar</button></div></div></div>';
   setTimeout(()=>{const e=document.getElementById("pe-qtd"); if(e) e.focus();},60);
 }
-function gravarEntregaPedido(id){
+function escolherArquivoEntrega(input, slot){
+  const a=input.files && input.files[0];
+  const lbl=document.getElementById("pe-f"+slot+"-lbl");
+  window._entArq=window._entArq||{};
+  if(!a){ delete window._entArq[slot]; if(lbl) lbl.textContent=""; return; }
+  if(a.size>20*1024*1024){ toast("Arquivo acima de 20 MB — reduza antes de anexar"); input.value=""; delete window._entArq[slot]; return; }
+  window._entArq[slot]=a;
+  if(lbl) lbl.textContent=a.name+" · "+tamanhoLegivel(a.size);
+}
+async function gravarEntregaPedido(id){
   const f=acharFazenda(App.fazendaId);
-  const l=pedidosDe(f.id), p=l.find(x=>x.id===id); if(!p){ fecharModal(); return; }
+  const p=pedidosDe(f.id).find(x=>x.id===id); if(!p){ fecharModal(); return; }
   const q=Number((document.getElementById("pe-qtd").value||"").replace(",","."));
   if(!q||q<=0){ toast("Informe a quantidade"); return; }
-  p.entregue=(p.entregue||0)+q;
-  salvarPedidos(f.id,l);
-  fecharModal(); toast("Entrega registrada"); render();
+  const data=document.getElementById("pe-data").value||new Date().toISOString().slice(0,10);
+  const entId="en_"+Date.now().toString(36);
+  const anexos=[], arqs=window._entArq||{};
+  for(const slot of [1,2]){
+    const arq=arqs[slot]; if(!arq) continue;
+    const ext=(arq.name.match(/\.[a-z0-9]+$/i)||[""])[0].toLowerCase();
+    const caminho=f.id+"/entrega-"+entId+"-"+slot+ext;
+    try{ await enviarArquivo(caminho, arq); anexos.push({nome:arq.name, path:caminho}); }
+    catch(e){ toast("Entrega salva, mas não consegui guardar a nota "+slot); }
+  }
+  const l2=pedidosDe(f.id), p2=l2.find(x=>x.id===id); if(!p2){ fecharModal(); return; }
+  p2.entregas=p2.entregas||[];
+  p2.entregas.push({id:entId, qtd:q, data:data, anexos:anexos});
+  p2.entregue=(p2.entregue||0)+q;
+  salvarPedidos(f.id,l2);
+  window._entArq={}; fecharModal(); toast("Entrega registrada"); render();
+}
+function modalEntregas(id){
+  const f=acharFazenda(App.fazendaId);
+  const p=pedidosDe(f.id).find(x=>x.id===id); if(!p) return;
+  const ents=(p.entregas||[]).slice().sort((a,b)=>String(b.data).localeCompare(String(a.data)));
+  const body= ents.length ? '<div class="lista-cam">'+ents.map(e=>
+      '<div class="eq-row"><div class="who"><b>'+esc(dataBR(e.data))+' · '+nf(e.qtd,0)+(p.unidade?' '+esc(p.unidade):'')+'</b>'+
+      '<small>'+((e.anexos&&e.anexos.length)? e.anexos.map((a,i)=>'<a href="#" onclick="abrirArquivoPath(\''+esc(a.path)+'\');return false" style="text-decoration:none">📎 nota '+(i+1)+'</a>').join(" · ") : 'sem nota')+'</small>'+
+      '</div></div>').join("")+'</div>'
+    : '<p class="vazio">Entregas antigas não têm detalhe. As novas ficam registradas aqui com data e nota.</p>';
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal">'+
+    '<h2>Entregas · '+esc(p.produto)+'</h2>'+
+    '<p class="sub">Total entregue: '+nf(p.entregue||0,0)+(p.unidade?' '+esc(p.unidade):'')+' · faltam '+nf(p.qtd-(p.entregue||0),0)+'</p>'+
+    body+
+    '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Fechar</button>'+
+      '<button class="btn-save" onclick="modalEntregaPedido(\''+id+'\')">+ Nova entrega</button></div></div></div>';
 }
 function removerPedido(id){
   const f=acharFazenda(App.fazendaId);
-  if(!confirm("Remover este pedido?")) return;
-  salvarPedidos(f.id, pedidosDe(f.id).filter(p=>p.id!==id));
+  const p=pedidosDe(f.id).find(x=>x.id===id);
+  if(!confirm("Remover este pedido?"+(p&&p.anexo?"\nO anexo também sai.":""))) return;
+  if(p && p.anexo_path){ stApagar(p.anexo_path); removerArquivo(p.anexo_path); }
+  salvarPedidos(f.id, pedidosDe(f.id).filter(x=>x.id!==id));
   toast("Pedido removido"); render();
 }
 
