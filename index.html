@@ -815,6 +815,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 .arm-grid tbody td{font-family:var(--mono);color:var(--text)}
 .arm-grid tbody td:first-child{font-family:inherit;font-weight:600}
 .arm-grid .arm-tot td{font-weight:800;background:#F3F1E7}
+.ch-head-acts{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-left:auto}
 .confere-div{height:1px;background:var(--line);margin:12px 0}
 .legenda{font-size:12.5px;color:var(--muted);margin:-4px 0 12px;display:flex;align-items:center;gap:7px}
 .legenda .sc-ha{font-size:15px;line-height:1}
@@ -889,7 +890,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.28.0";
+const APP_VERSION = "2.29.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -1722,6 +1723,18 @@ const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho",
 
 function kChuva(f){ return "faz_"+f+"_chuva"; }
 function chuvaDe(f){ return Store.get(kChuva(f), {}); }
+/* A qual safra ("AAAA/AAAA+1") pertence um dia de chuva (out→set). */
+function safraDaDataChuva(dia){
+  const p=String(dia).match(/^(\d{4})-(\d{2})/); if(!p) return null;
+  const y=+p[1], m=+p[2];
+  return (m>=10) ? y+"/"+(y+1) : (y-1)+"/"+y;
+}
+/* Safras que já têm chuva lançada, mais recente primeiro. */
+function safrasComChuva(f){
+  const set=new Set();
+  Object.keys(chuvaDe(f)).forEach(dia=>{ const s=safraDaDataChuva(dia); if(s) set.add(s); });
+  return [...set].sort().reverse();
+}
 
 /* A chuva é medida por talhão — os mesmos do cadastro da fazenda. */
 function pontosDe(f){
@@ -3433,11 +3446,13 @@ function abaCadastros(f){
    ═══════════════════════════════════════════════════ */
 let _mesIdx = null;      // posição dentro da safra
 let _modoChuva = "dia";  // dia | planilha
+let _chuvaSafra = null;  // safra em visualização (null = a da fazenda)
 
 function telaChuva(){
   const f = acharFazenda(App.fazendaId);
   if(!f){ App.tela="fazendas"; return telaFazendas(); }
-  const meses = mesesDaSafra(f.safra);
+  const safra = _chuvaSafra || f.safra;
+  const meses = mesesDaSafra(safra);
   if(_mesIdx==null){
     const hoje=new Date(), i=meses.findIndex(m=>m.ano===hoje.getFullYear()&&m.mes===hoje.getMonth());
     _mesIdx = i>=0 ? i : 0;
@@ -3446,13 +3461,21 @@ function telaChuva(){
   const {ano,mes} = meses[_mesIdx];
   const pts = pontosDe(f.id);
   const r = resumoMes(f.id,ano,mes);
-  const ac = acumuladoSafra(f.id,f.safra);
+  const ac = acumuladoSafra(f.id,safra);
+  const safrasVer = [...new Set([f.safra, ...safrasComChuva(f.id)])].sort().reverse();
 
   let h = '<div class="wrap wrap-wide">';
   h += '<div class="farm-head">'+
        '<button class="btn-back" onclick="irPara(\'fazenda\')">← '+esc(f.nome)+'</button>'+
        '<div class="farm-head-mid"><h1>Pluviometria</h1>'+
-       '<p>Chuva por dia e ponto de medição · safra '+esc(f.safra)+'</p></div></div>';
+       '<p>Chuva por dia e ponto de medição</p></div>'+
+       '<div class="ch-head-acts">'+
+         '<select class="mn-s" onchange="_chuvaSafra=this.value;_mesIdx=null;render()">'+
+           safrasVer.map(s=>'<option value="'+esc(s)+'"'+(s===safra?" selected":"")+'>Safra '+esc(s)+'</option>').join("")+
+         '</select>'+
+         (ehGestor(f.id)?'<button class="btn-act" onclick="modalImportarChuva()">Importar</button>'+
+           '<button class="btn-act" onclick="modalLimparChuva()">Limpar</button>':'')+
+       '</div></div>';
 
   if(!pts.length)
     return h+'<div class="empty"><strong>Cadastre os talhões primeiro</strong>'+
@@ -3494,7 +3517,98 @@ function telaChuva(){
     '<p class="resumo-obs">Total lançado na safra: '+nf(ac.total,0)+' mm somando todos os pontos. '+
     'A média entre os '+pts.length+' pontos é '+nf(ac.media,0)+' mm.</p></div>';
 
+  const comp = safrasVer.map(s=>{const a=acumuladoSafra(f.id,s); return {safra:s, media:a.media, total:a.total};})
+                        .filter(x=>x.total>0);
+  if(comp.length>1){
+    h+='<div class="resumo"><div class="resumo-t">Comparativo entre safras</div>'+
+      '<table class="arm-grid"><thead><tr><th>Safra</th><th>Média (mm)</th><th>Total lançado (mm)</th></tr></thead><tbody>'+
+      comp.map(x=>'<tr'+(x.safra===safra?' class="arm-tot"':'')+'><td>'+esc(x.safra)+
+        '</td><td>'+nf(x.media,0)+'</td><td>'+nf(x.total,0)+'</td></tr>').join("")+
+      '</tbody></table><p class="resumo-obs">Suba os anos anteriores em “Importar” para o comparativo ficar completo.</p></div>';
+  }
+
   return h+'</div>';
+}
+
+/* Importar histórico de chuva (colar planilha do Excel) */
+function modalImportarChuva(){
+  const f=acharFazenda(App.fazendaId); if(!f||!ehGestor(f.id)) return;
+  const pts=pontosDe(f.id);
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal modal-lg">'+
+    '<h2>Importar histórico de chuva</h2>'+
+    '<p class="sub">Cole a planilha (do Excel dá pra copiar e colar direto). Primeira coluna = <b>Data</b>; '+
+      'as outras = talhões/pontos, com o mesmo nome do cadastro. Cada célula é o mm daquele dia.</p>'+
+    '<div class="frm"><textarea id="ch-imp" rows="10" placeholder="Data⇥Talhão 01⇥Sede\n02/11/2023⇥85⇥110\n06/11/2023⇥12,5⇥4"></textarea></div>'+
+    '<span class="nota-pad">Pontos cadastrados nesta fazenda: '+esc(pts.map(p=>p.nome).join(", "))+'</span>'+
+    '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
+      '<button class="btn-save" onclick="importarChuva()">Importar</button></div></div></div>';
+  setTimeout(()=>{const e=document.getElementById("ch-imp"); if(e) e.focus();},60);
+}
+function _parseDataChuva(s){
+  s=String(s).trim();
+  let m=s.match(/^(\d{4})-(\d{2})-(\d{2})/); if(m) return m[1]+"-"+m[2]+"-"+m[3];
+  m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  if(m){ let y=m[3]; if(y.length===2) y="20"+y; return y+"-"+m[2].padStart(2,"0")+"-"+m[1].padStart(2,"0"); }
+  return null;
+}
+function _normNome(s){ return String(s).toLowerCase().trim().replace(/\s+/g," ")
+  .normalize("NFD").replace(/[\u0300-\u036f]/g,""); }
+function importarChuva(){
+  const f=acharFazenda(App.fazendaId); if(!f||!ehGestor(f.id)) return;
+  const txt=(document.getElementById("ch-imp").value||"").trim();
+  if(!txt){ toast("Cole a planilha primeiro"); return; }
+  const linhas=txt.split(/\r?\n/).map(l=>l.split(/\t|;/));
+  let hi=linhas.findIndex(r=>r.some(c=>/^data$/i.test(String(c).trim())));
+  if(hi<0){ toast("Não achei o cabeçalho (precisa de uma coluna \"Data\")"); return; }
+  const header=linhas[hi].map(c=>String(c).trim());
+  const idxData=header.findIndex(c=>/^data$/i.test(c));
+  const mapaPt={}; pontosDe(f.id).forEach(p=>mapaPt[_normNome(p.nome)]=p.id);
+  const colPonto=header.map((c,i)=> i===idxData ? null : (mapaPt[_normNome(c)]||null));
+  const naoCasou=header.filter((c,i)=>i!==idxData && c && !colPonto[i]);
+  const todo=chuvaDe(f.id);
+  let cells=0, dias=0;
+  linhas.forEach((r,i)=>{
+    if(i===hi) return;
+    const dia=_parseDataChuva(r[idxData]||""); if(!dia) return;
+    let algum=false;
+    colPonto.forEach((pid,ci)=>{ if(!pid) return;
+      const raw=String(r[ci]==null?"":r[ci]).trim(); if(raw==="") return;
+      const v=Number(raw.replace(",",".")); if(isNaN(v)||v<0) return;
+      if(!todo[dia]) todo[dia]={};
+      todo[dia][pid]=v; cells++; algum=true;
+    });
+    if(algum) dias++;
+  });
+  if(!cells){ toast("Nada reconhecido — confira as datas e os nomes das colunas"); return; }
+  Store.set(kChuva(f.id), todo);
+  fecharModal();
+  toast(cells+" medições em "+dias+" dias importadas"+(naoCasou.length?" · ignoradas: "+naoCasou.join(", "):""));
+  render();
+}
+/* Limpar a chuva da safra em visualização (mantém talhões e as outras safras) */
+function modalLimparChuva(){
+  const f=acharFazenda(App.fazendaId); if(!f||!ehGestor(f.id)) return;
+  const safra=_chuvaSafra||f.safra;
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal">'+
+    '<h2>Limpar dados de chuva</h2>'+
+    '<p class="sub">Isto apaga os registros de chuva da <b>safra '+esc(safra)+'</b> desta fazenda, no aparelho e na nuvem. '+
+      'Os talhões e as outras safras não são tocados. Não dá para desfazer.</p>'+
+    '<div class="frm"><div><label for="ch-lim">Digite LIMPAR para confirmar</label>'+
+      '<input id="ch-lim" autocomplete="off" oninput="document.getElementById(\'ch-lim-b\').disabled=(this.value.trim().toUpperCase()!==\'LIMPAR\')"></div></div>'+
+    '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
+      '<button class="btn-save" id="ch-lim-b" style="background:var(--red);color:#fff" disabled onclick="limparChuva()">Limpar safra '+esc(safra)+'</button></div></div></div>';
+}
+function limparChuva(){
+  const f=acharFazenda(App.fazendaId); if(!f||!ehGestor(f.id)) return;
+  const inp=document.getElementById("ch-lim");
+  if(!inp || inp.value.trim().toUpperCase()!=="LIMPAR"){ toast("Digite LIMPAR"); return; }
+  const safra=_chuvaSafra||f.safra;
+  const todo=chuvaDe(f.id);
+  Object.keys(todo).forEach(dia=>{ if(safraDaDataChuva(dia)===safra) delete todo[dia]; });
+  Store.set(kChuva(f.id), todo);
+  fecharModal(); toast("Chuva da safra "+safra+" apagada"); render();
 }
 
 /* Modo celular: escolhe o dia, digita ponto a ponto */
