@@ -816,6 +816,8 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 .arm-grid tbody td:first-child{font-family:inherit;font-weight:600}
 .arm-grid .arm-tot td{font-weight:800;background:#F3F1E7}
 .arm-grid .arm-sub td{font-weight:700;background:#FAF8F0;color:var(--green)}
+.mq-grid th,.mq-grid td{text-align:center !important}
+.mq-grid td:first-child,.mq-grid th:first-child{text-align:center !important}
 .ch-head-acts{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-left:auto}
 .confere-div{height:1px;background:var(--line);margin:12px 0}
 .legenda{font-size:12.5px;color:var(--muted);margin:-4px 0 12px;display:flex;align-items:center;gap:7px}
@@ -891,7 +893,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.39.0";
+const APP_VERSION = "2.41.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -1187,23 +1189,29 @@ const Sync = {
       try{
         if(chave === "fazendas"){
           const l = fazendas();
+          const novas = new Set(Store.get("novasFazendas", []));
           for(const f of l){
             const corpo = { id:f.id, nome:f.nome, produtor:f.produtor||null,
                      municipio:f.municipio||null, uf:f.uf||null, safra:f.safra||null,
                      lat:f.lat??null, lon:f.lon??null };
-            // INSERT puro (sem merge-duplicates). Numa fazenda nova só a política de
-            // INSERT é avaliada, e o gatilho cria o vínculo de dono. Com merge-duplicates
-            // o Postgres avaliaria também a política de UPDATE (safra_pode_editar), que
-            // exige um vínculo que ainda não existe no 1º envio — e recusaria com 42501.
-            try{
-              await this._comRetry(()=>api("safra_fazendas", { method:"POST",
-                prefer:"return=minimal", body:corpo }));
-            }catch(e){
-              // Já está na nuvem e você é membro dela: atualiza os campos por PATCH.
-              if(/duplicate|already exists|conflict|23505|409/i.test(String(e && e.message || e))){
-                await this._comRetry(()=>api("safra_fazendas?id=eq."+encodeURIComponent(f.id),
-                  { method:"PATCH", prefer:"return=minimal", body:corpo }));
-              } else throw e;
+            if(novas.has(f.id)){
+              // Fazenda NOVA: INSERT puro (o gatilho cria o vínculo de dono).
+              try{
+                await this._comRetry(()=>api("safra_fazendas", { method:"POST",
+                  prefer:"return=minimal", body:corpo }));
+                novas.delete(f.id); Store.set("novasFazendas",[...novas]);
+              }catch(e){
+                if(/duplicate|already exists|conflict|23505|409/i.test(String(e && e.message || e))){
+                  await this._comRetry(()=>api("safra_fazendas?id=eq."+encodeURIComponent(f.id),
+                    { method:"PATCH", prefer:"return=minimal", body:corpo }));
+                  novas.delete(f.id); Store.set("novasFazendas",[...novas]);
+                } else throw e;
+              }
+            }else{
+              // Já sincronizada: só PATCH. Se foi apagada na nuvem, o PATCH não
+              // recria nada (0 linhas) — a fazenda excluída não ressuscita.
+              await this._comRetry(()=>api("safra_fazendas?id=eq."+encodeURIComponent(f.id),
+                { method:"PATCH", prefer:"return=minimal", body:corpo }));
             }
           }
         }else{
@@ -1229,7 +1237,12 @@ const Sync = {
     try{
     const fz = await api("safra_fazendas?select=*");
     const locais = fazendas();
-    const mapa = {}; locais.forEach(f=>mapa[f.id]=f);
+    const idsNuvem = new Set((fz||[]).map(r=>r.id));
+    const novas = new Set(Store.get("novasFazendas", []));
+    const mapa = {};
+    // mantém no aparelho só o que está na nuvem OU ainda é nova (não enviada).
+    // Assim uma fazenda apagada na nuvem some daqui — e não volta a subir.
+    locais.forEach(f=>{ if(idsNuvem.has(f.id) || novas.has(f.id)) mapa[f.id]=f; });
     (fz||[]).forEach(r=>{
       const atual = mapa[r.id] || {};
       mapa[r.id] = Object.assign({}, atual, {
@@ -1317,7 +1330,9 @@ function criarFazenda(d){
     uf:(d.uf||"").trim().toUpperCase(), safra:d.safra||safraAtual(),
     lat:d.lat!=null?Number(d.lat):null, lon:d.lon!=null?Number(d.lon):null,
     talhoes:0, hectares:0, criado_em:new Date().toISOString() };
-  l.push(f); salvarFazendas(l); Sync.push("fazendas","upsert",f);
+  l.push(f); salvarFazendas(l);
+  const nv=Store.get("novasFazendas", []); if(!nv.includes(f.id)){ nv.push(f.id); Store.set("novasFazendas", nv); }
+  Sync.push("fazendas","upsert",f);
   return f;
 }
 async function removerFazenda(id){
@@ -1327,6 +1342,7 @@ async function removerFazenda(id){
     await Sync._comRetry(()=>api("safra_fazendas?id=eq."+encodeURIComponent(id), {method:"DELETE"}));
   }
   salvarFazendas(fazendas().filter(f=>f.id!==id));
+  Store.set("novasFazendas", Store.get("novasFazendas", []).filter(x=>x!==id));
   BLOCOS.forEach(b=>Store.del("faz_"+id+"_"+b));
 }
 
@@ -4054,10 +4070,11 @@ function telaEstoque(){
 
   const valorPedido = peds.reduce((s,p)=>s+(p.qtd||0)*(p.valor||0),0);       // total encomendado
   const valorEntregue = peds.reduce((s,p)=>s+(p.entregue||0)*(p.valor||0),0); // o que já chegou
+  const emEstoque = Math.max(0, valorEntregue - E.totalAplicado);             // baixa conforme aplica
   h += '<div class="kpis kpis-4">'+
     kpi("Comprado", moeda(E.totalComprado+valorPedido).replace("R$ ",""), "R$")+
-    kpi("Aplicado", moeda(E.totalAplicado).replace("R$ ",""), "R$")+
-    kpi("Em estoque", moeda(E.valorEstoque+valorEntregue).replace("R$ ",""), "R$")+
+    kpi("Entregue", moeda(valorEntregue).replace("R$ ",""), "R$")+
+    kpi("Em estoque", moeda(emEstoque).replace("R$ ",""), "R$")+
     kpi("Pedidos abertos", peds.filter(p=>(p.qtd-(p.entregue||0))>0.001).length, "a receber")+
   '</div>';
 
@@ -4392,7 +4409,7 @@ function telaMaquinario(){
     kpi("Consumo médio", th>0?nf(tl/th,1):"—", "L/h")+
   '</div>';
   if(!maqs.length) return h+'<p class="vazio">Nenhuma máquina. Cadastre a primeira para controlar horímetro e combustível.</p></div>';
-  h+='<table class="arm-grid"><thead><tr><th>Máquina</th><th>Tipo</th><th>Horímetro</th><th>Horas</th><th>Litros</th><th>L/h</th><th></th></tr></thead><tbody>';
+  h+='<table class="arm-grid mq-grid"><thead><tr><th>Máquina</th><th>Tipo</th><th>Horímetro</th><th>Horas</th><th>Litros</th><th>L/h</th><th></th></tr></thead><tbody>';
   maqs.forEach(m=>{ const R=resumoMaquina(f.id,m);
     h+='<tr><td>'+esc(m.nome)+'</td><td>'+esc(m.tipo||"—")+'</td>'+
        '<td>'+nf(R.hatual,0)+'</td><td>'+nf(R.horas,0)+'</td><td>'+nf(R.litros,0)+'</td><td>'+(R.consumo?nf(R.consumo,1):"—")+'</td>'+
