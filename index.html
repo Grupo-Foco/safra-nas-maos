@@ -893,7 +893,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.42.0";
+const APP_VERSION = "2.46.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -1207,12 +1207,14 @@ const Sync = {
                   novas.delete(f.id); Store.set("novasFazendas",[...novas]);
                 } else throw e;
               }
-            }else{
-              // Já sincronizada: só PATCH. Se foi apagada na nuvem, o PATCH não
-              // recria nada (0 linhas) — a fazenda excluída não ressuscita.
+            }else if(ehGestor(f.id)){
+              // Já sincronizada e você gerencia (dono/admin): PATCH atualiza os
+              // campos. Se foi apagada na nuvem, o PATCH não recria nada.
               await this._comRetry(()=>api("safra_fazendas?id=eq."+encodeURIComponent(f.id),
                 { method:"PATCH", prefer:"return=minimal", body:corpo }));
             }
+            // membro comum (operador/leitura): NÃO empurra os dados da fazenda —
+            // ele não é dono, então o banco recusaria (42501). Só lê.
           }
         }else{
           const [_, fid, bloco] = chave.match(/^faz_(.+)_([a-z]+)$/) || [];
@@ -1272,6 +1274,7 @@ const Sync = {
     if(this._rodando) return;
     this._rodando = true;
     try{
+      await Acesso.carregar();   // papel por fazenda antes de decidir o que empurrar
       await this.subir();
       await this.baixar();
       await flushArquivos();
@@ -2701,7 +2704,7 @@ async function enviarLogin(){
     err.textContent =
         /Invalid login/i.test(m) ? "E-mail ou senha não conferem"
       : /already registered|already been registered/i.test(m) ? "Esse e-mail já tem conta. Use Entrar."
-      : /signups? (are |is )?disabled/i.test(m) ? "O cadastro está fechado. Peça ao administrador para criar sua conta."
+      : /signups? (are |is )?disabled|signups? not allowed|not allowed for this instance/i.test(m) ? "O cadastro de novos usuários está desligado no servidor. O administrador precisa ligar isso no Supabase (Authentication → permitir cadastro)."
       : /Email not confirmed/i.test(m) ? "Confirme o e-mail que você recebeu e tente de novo."
       : /rate limit|too many/i.test(m) ? "Muitas tentativas. Espere um minuto."
       : /relation .* does not exist/i.test(m) ? "O banco ainda não foi preparado. Rode o schema no Supabase."
@@ -2851,7 +2854,7 @@ async function salvarAcessoPessoa(){
       const conv=_acessosData.convites.find(x=>(x.email||"").toLowerCase()===email && x.fazenda_id===f.id);
       if(conv) await api("safra_convites?id=eq."+conv.id, {method:"DELETE", prefer:"return=minimal"});
     }
-    toast("Acessos salvos");
+    toast("Acessos salvos. Quem foi convidado precisa entrar no app e criar a conta com o mesmo e-mail.");
     const meu=Auth.usuario();
     if(meu && itensSaoMeus(email,meu)) await Acesso.carregar();
     modalAcessos();
@@ -2870,7 +2873,7 @@ function modalEquipe(){
     '<p class="sub">Quem entra nesta fazenda e o que cada um enxerga.</p>'+
     '<div id="eq-lista"><p class="vazio">Carregando…</p></div>'+
     '<div class="frm" style="margin-top:16px">'+
-      '<div><label for="eq-email">Convidar por e-mail</label>'+
+      '<div><label for="eq-email">Convidar por e-mail</label><span class="nota-pad">Não enviamos e-mail: a pessoa entra no app e cria a conta com esse e-mail; o acesso libera ao entrar.</span>'+
         '<input id="eq-email" type="email" inputmode="email" placeholder="pessoa@exemplo.com"></div>'+
       '<div><label for="eq-perfil">Perfil</label><select id="eq-perfil">'+opcoesPerfil("geral")+'</select>'+
         '<span class="pad" id="eq-perfil-desc">'+esc(PERFIS.geral.desc)+'</span></div>'+
@@ -2932,7 +2935,7 @@ async function convidar(){
       prefer:"resolution=merge-duplicates,return=minimal",
       body:{ fazenda_id:f.id, email:email.toLowerCase(), papel:p.papel, modulos:p.modulos } });
     document.getElementById("eq-email").value="";
-    toast("Convite registrado");
+    toast("Convite salvo. Peça para a pessoa ENTRAR no app e criar a conta com esse e-mail — o acesso libera sozinho.");
     carregarEquipe();
   }catch(e){ toast(/permiss|42501/i.test(String(e.message||e))?"Sem permissão para convidar":"Não consegui convidar agora"); }
 }
@@ -3107,12 +3110,18 @@ function banners(){
   return h;
 }
 
+function podeCriarFazenda(){
+  if(!SUPABASE.ligado() || !Auth.logado()) return true;   // modo local / uso simples
+  return fazendas().some(f=>ehGestor(f.id));               // dono/admin de alguma fazenda
+}
 function telaFazendas(){
   const l = fazendas();
   let h='<div class="wrap">';
-  h+='<label class="lbl" for="nova-faz">Nome da fazenda</label>';
-  h+='<input id="nova-faz" class="field-lg" placeholder="Ex: Fazenda Santa Angelina" onkeydown="if(event.key===\'Enter\')cadastrarRapido()">';
-  h+='<button class="btn-primary" onclick="cadastrarRapido()">Cadastrar nova fazenda</button>';
+  if(podeCriarFazenda()){
+    h+='<label class="lbl" for="nova-faz">Nome da fazenda</label>';
+    h+='<input id="nova-faz" class="field-lg" placeholder="Ex: Fazenda Santa Angelina" onkeydown="if(event.key===\'Enter\')cadastrarRapido()">';
+    h+='<button class="btn-primary" onclick="cadastrarRapido()">Cadastrar nova fazenda</button>';
+  }
   if(SUPABASE.ligado() && Auth.logado() && fazendas().some(f=>ehGestor(f.id)))
     h+='<button class="btn-back" style="width:100%;margin-top:10px;justify-content:center" onclick="modalAcessos()">Acessos da equipe</button>';
 
@@ -6428,6 +6437,7 @@ function telaPanorama(){
    AÇÕES
    ═══════════════════════════════════════════════════ */
 function cadastrarRapido(){
+  if(!podeCriarFazenda()){ toast("Só o dono ou admin cadastra fazenda"); return; }
   const i=document.getElementById("nova-faz"), n=(i.value||"").trim();
   if(!n){ i.focus(); toast("Digite o nome da fazenda"); return; }
   abrirCadastro(n);
