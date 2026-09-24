@@ -893,7 +893,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.47.0";
+const APP_VERSION = "2.48.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -1241,6 +1241,15 @@ const Sync = {
     const locais = fazendas();
     const idsNuvem = new Set((fz||[]).map(r=>r.id));
     const novas = new Set(Store.get("novasFazendas", []));
+    // fazendas que sumiram da nuvem (e não são novas) saem de vez: some da lista,
+    // apaga os blocos locais e tira as pendências presas dela da fila de envio.
+    const removidas = locais.filter(f=> !idsNuvem.has(f.id) && !novas.has(f.id)).map(f=>f.id);
+    if(removidas.length){
+      const set=new Set(removidas);
+      const sujos=this.sujos().filter(ch=>{ const m=ch.match(/^faz_(.+)_([a-z]+)$/); return !(m && set.has(m[1])); });
+      Store.set("sync_sujo", sujos);
+      removidas.forEach(id=>BLOCOS.forEach(b=>Store.del("faz_"+id+"_"+b)));
+    }
     const mapa = {};
     // mantém no aparelho só o que está na nuvem OU ainda é nova (não enviada).
     // Assim uma fazenda apagada na nuvem some daqui — e não volta a subir.
@@ -2568,6 +2577,11 @@ async function tentarSync(){
   toast(n ? n+" ainda pendente(s)" : "Tudo sincronizado");
   render();
 }
+function descartarPendencias(){
+  if(!confirm("Descartar os lançamentos presos na fila de envio?\n\nUse quando o banco recusa (permissão) e eles não sobem. Isso limpa a fila; os dados que já estão na nuvem e no aparelho continuam.")) return;
+  Store.set("sync_sujo", []); Store.del("sync_erro");
+  toast("Fila de envio limpa"); render();
+}
 
 /* Testa cada peça e diz onde travou */
 let _verTimer=null;
@@ -3103,6 +3117,7 @@ function banners(){
       Sync.pending()+' lançamento(s) aguardando envio.'+
       (e?' <b>'+esc(explicaErro(e))+'</b>':'')+
       ' <button class="banner-btn" onclick="tentarSync()">Tentar agora</button>'+
+      (e?' <button class="banner-btn" onclick="descartarPendencias()">Descartar presos</button>':'')+
     '</div>';
   }
   if(!Store.persistent())
