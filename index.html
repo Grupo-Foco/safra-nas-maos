@@ -891,7 +891,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.38.0";
+const APP_VERSION = "2.39.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -3544,11 +3544,11 @@ function modalImportarChuva(){
   document.getElementById("modal-root").innerHTML=
   '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal modal-lg">'+
     '<h2>Importar histórico de chuva</h2>'+
-    '<p class="sub">Escolha um arquivo <b>CSV</b> ou cole a planilha (do Excel dá pra copiar e colar direto). '+
+    '<p class="sub">Escolha um arquivo <b>CSV ou Excel (.xlsx)</b> ou cole a planilha (do Excel dá pra copiar e colar direto). '+
       'Primeira coluna = <b>Data</b>; as outras = talhões/pontos, com o mesmo nome do cadastro. Cada célula é o mm daquele dia.</p>'+
     '<div class="frm">'+
-      '<div><label for="ch-file">Arquivo (.csv)</label>'+
-        '<input id="ch-file" type="file" accept=".csv,.tsv,.txt,text/csv,text/plain" onchange="lerArquivoChuva(this)"></div>'+
+      '<div><label for="ch-file">Arquivo (CSV ou Excel)</label>'+
+        '<input id="ch-file" type="file" accept=".csv,.tsv,.txt,.xlsx,text/csv,text/plain" onchange="lerArquivoChuva(this)"></div>'+
       '<div><label for="ch-imp">…ou cole aqui</label>'+
         '<textarea id="ch-imp" rows="8" placeholder="Data;Talhão 01;Sede\n02/11/2023;85;110\n06/11/2023;12,5;4"></textarea></div>'+
     '</div>'+
@@ -3557,22 +3557,15 @@ function modalImportarChuva(){
       '<button class="btn-save" onclick="importarChuva()">Importar</button></div></div></div>';
   setTimeout(()=>{const e=document.getElementById("ch-imp"); if(e) e.focus();},60);
 }
-function lerArquivoChuva(input){
-  const file=input.files && input.files[0]; if(!file) return;
-  if(/\.xlsx?$/i.test(file.name)){
-    toast("O app lê CSV. No Excel: Arquivo → Salvar Como → CSV, e escolha de novo"); input.value=""; return;
-  }
-  const rd=new FileReader();
-  rd.onload=()=>{ const ta=document.getElementById("ch-imp"); if(ta) ta.value=String(rd.result||"");
-    toast("Arquivo carregado — confira e clique Importar"); };
-  rd.onerror=()=>toast("Não consegui ler o arquivo");
-  rd.readAsText(file, "utf-8");
-}
+function lerArquivoChuva(input){ return lerArquivoNoCampo(input, "ch-imp"); }
 function _parseDataChuva(s){
   s=String(s).trim();
   let m=s.match(/^(\d{4})-(\d{2})-(\d{2})/); if(m) return m[1]+"-"+m[2]+"-"+m[3];
   m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
   if(m){ let y=m[3]; if(y.length===2) y="20"+y; return y+"-"+m[2].padStart(2,"0")+"-"+m[1].padStart(2,"0"); }
+  if(/^\d{4,6}$/.test(s)){ const n=+s;         // número de série do Excel (dias desde 30/12/1899)
+    if(n>=20000 && n<=60000){ const d=new Date(Date.UTC(1899,11,30)+n*86400000);
+      return d.getUTCFullYear()+"-"+String(d.getUTCMonth()+1).padStart(2,"0")+"-"+String(d.getUTCDate()).padStart(2,"0"); } }
   return null;
 }
 function _normNome(s){ return String(s).toLowerCase().trim().replace(/\s+/g," ")
@@ -4059,11 +4052,12 @@ function telaEstoque(){
     '<div class="farm-head-mid"><h1>Estoque</h1>'+
     '<p>Pedido → entrada → aplicação no talhão · safra '+esc(f.safra)+'</p></div></div>';
 
-  const entregueVal = peds.reduce((s,p)=>s+(p.entregue||0)*(p.valor||0),0);
+  const valorPedido = peds.reduce((s,p)=>s+(p.qtd||0)*(p.valor||0),0);       // total encomendado
+  const valorEntregue = peds.reduce((s,p)=>s+(p.entregue||0)*(p.valor||0),0); // o que já chegou
   h += '<div class="kpis kpis-4">'+
-    kpi("Comprado", moeda(E.totalComprado+entregueVal).replace("R$ ",""), "R$")+
+    kpi("Comprado", moeda(E.totalComprado+valorPedido).replace("R$ ",""), "R$")+
     kpi("Aplicado", moeda(E.totalAplicado).replace("R$ ",""), "R$")+
-    kpi("Em estoque", moeda(E.valorEstoque+entregueVal).replace("R$ ",""), "R$")+
+    kpi("Em estoque", moeda(E.valorEstoque+valorEntregue).replace("R$ ",""), "R$")+
     kpi("Pedidos abertos", peds.filter(p=>(p.qtd-(p.entregue||0))>0.001).length, "a receber")+
   '</div>';
 
@@ -4100,7 +4094,7 @@ function abaPedidos(f, peds){
       h+='<tr><td>'+esc(p.produto)+(p.unidade?' <small style="color:var(--muted)">('+esc(p.unidade)+')</small>':'')+
          (p.anexo_path?' <a href="#" onclick="verAnexoPedido(\''+p.id+'\');return false" title="Ver comprovante/nota" style="text-decoration:none">📎</a>':'')+'</td>'+
          '<td>'+esc(p.responsavel||"—")+'</td>'+
-         '<td>'+nf(p.qtd,0)+'</td><td>'+((p.entregas&&p.entregas.length)?'<a href="#" onclick="modalEntregas(\''+p.id+'\');return false" style="text-decoration:none;border-bottom:1px dotted var(--muted)">'+nf(ent,0)+'</a>':nf(ent,0))+'</td>'+
+         '<td>'+nf(p.qtd,0)+'</td><td>'+(((p.entregas&&p.entregas.length)||(p.entregue||0)>0)?'<a href="#" onclick="modalEntregas(\''+p.id+'\');return false" style="text-decoration:none;border-bottom:1px dotted var(--muted)">'+nf(ent,0)+'</a>':nf(ent,0))+'</td>'+
          '<td'+(falta>0.001?' style="color:var(--red);font-weight:800"':'')+'>'+nf(falta,0)+'</td>'+
          '<td>'+(p.valor?moeda(val):"—")+'</td>'+
          '<td style="white-space:nowrap;text-align:right"><button class="mini" onclick="modalEntregaPedido(\''+p.id+'\')">+ Entrega</button> '+
@@ -4270,7 +4264,29 @@ function modalEntregas(id){
     '<p class="sub">Total entregue: '+nf(p.entregue||0,0)+(p.unidade?' '+esc(p.unidade):'')+' · faltam '+nf(p.qtd-(p.entregue||0),0)+'</p>'+
     body+
     '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Fechar</button>'+
+      '<button class="btn-act" onclick="modalAjustarEntregue(\''+id+'\')">Ajustar total</button>'+
       '<button class="btn-save" onclick="modalEntregaPedido(\''+id+'\')">+ Nova entrega</button></div></div></div>';
+}
+function modalAjustarEntregue(pid){
+  const f=acharFazenda(App.fazendaId);
+  const p=pedidosDe(f.id).find(x=>x.id===pid); if(!p) return;
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal">'+
+    '<h2>Ajustar total entregue</h2><p class="sub">'+esc(p.produto)+' · para corrigir entregas antigas, sem mexer no detalhe.</p>'+
+    '<div class="frm"><div><label for="aj-qtd">Total entregue'+(p.unidade?" ("+esc(p.unidade)+")":"")+'</label>'+
+      '<input id="aj-qtd" type="number" inputmode="decimal" value="'+(p.entregue||0)+'"></div></div>'+
+    '<div class="modal-acts"><button class="btn-cancel" onclick="modalEntregas(\''+pid+'\')">Voltar</button>'+
+      '<button class="btn-save" onclick="gravarAjusteEntregue(\''+pid+'\')">Salvar</button></div></div></div>';
+  setTimeout(()=>{const e=document.getElementById("aj-qtd");if(e)e.focus();},60);
+}
+function gravarAjusteEntregue(pid){
+  const f=acharFazenda(App.fazendaId);
+  const l=pedidosDe(f.id), p=l.find(x=>x.id===pid); if(!p) return;
+  const q=Number((document.getElementById("aj-qtd").value||"").replace(",","."));
+  if(isNaN(q)||q<0){ toast("Valor inválido"); return; }
+  p.entregue=q;
+  salvarPedidos(f.id,l);
+  toast("Total ajustado"); modalEntregas(pid);
 }
 function modalEditarEntrega(pid, eid){
   const f=acharFazenda(App.fazendaId);
@@ -4472,14 +4488,71 @@ function exportarMaquinario(fmt){
     "maquinario-"+f.nome.toLowerCase().replace(/[^a-z0-9]+/g,"-"));
 }
 /* Leitor genérico: carrega um arquivo de texto/CSV no textarea alvo. */
-function lerArquivoNoCampo(input, alvoId){
-  const file=input.files && input.files[0]; if(!file) return;
-  if(/\.xlsx?$/i.test(file.name)){
-    toast("O app lê CSV. No Excel: Arquivo → Salvar Como → CSV, e escolha de novo"); input.value=""; return;
+/* Leitor de .xlsx embutido (ZIP + deflate nativo). Devolve o conteúdo
+   da primeira planilha como texto separado por ; (uma linha por linha). */
+async function xlsxParaTexto(buf){
+  const dv=new DataView(buf), u8=new Uint8Array(buf);
+  let eocd=-1;
+  for(let i=u8.length-22;i>=0;i--){ if(dv.getUint32(i,true)===0x06054b50){ eocd=i; break; } }
+  if(eocd<0) throw new Error("zip");
+  const cdOff=dv.getUint32(eocd+16,true), cdCnt=dv.getUint16(eocd+10,true);
+  const files={}; let p=cdOff;
+  for(let n=0;n<cdCnt;n++){
+    if(dv.getUint32(p,true)!==0x02014b50) break;
+    const nL=dv.getUint16(p+28,true), eL=dv.getUint16(p+30,true), cL=dv.getUint16(p+32,true);
+    files[new TextDecoder().decode(u8.subarray(p+46,p+46+nL))]=dv.getUint32(p+42,true);
+    p+=46+nL+eL+cL;
   }
+  async function extrair(nome){
+    const off=files[nome]; if(off==null) return null;
+    if(dv.getUint32(off,true)!==0x04034b50) return null;
+    const method=dv.getUint16(off+8,true), nL=dv.getUint16(off+26,true), eL=dv.getUint16(off+28,true);
+    const size=dv.getUint32(off+18,true), start=off+30+nL+eL;
+    const comp=u8.subarray(start, start+size);
+    if(method===0) return new TextDecoder().decode(comp);
+    if(typeof DecompressionStream==="undefined") throw new Error("sem descompressor");
+    const ab=await new Response(new Blob([comp]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).arrayBuffer();
+    return new TextDecoder().decode(new Uint8Array(ab));
+  }
+  const desx=s=>String(s).replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&amp;/g,"&");
+  const shared=[]; const ss=await extrair("xl/sharedStrings.xml");
+  if(ss){ let m; const re=/<si>([\s\S]*?)<\/si>/g;
+    while((m=re.exec(ss))){ const t=(m[1].match(/<t[^>]*>([\s\S]*?)<\/t>/g)||[]).map(x=>x.replace(/<[^>]+>/g,"")).join(""); shared.push(desx(t)); } }
+  let sheet=await extrair("xl/worksheets/sheet1.xml");
+  if(!sheet){ const k=Object.keys(files).find(n=>/^xl\/worksheets\/sheet\d+\.xml$/.test(n)); if(k) sheet=await extrair(k); }
+  if(!sheet) throw new Error("planilha");
+  const colIdx=ref=>{ const m=String(ref).match(/^([A-Z]+)/); if(!m) return 0; let c=0; for(const ch of m[1]) c=c*26+(ch.charCodeAt(0)-64); return c-1; };
+  const linhas=[]; const rowRe=/<row[^>]*>([\s\S]*?)<\/row>/g; let rm;
+  while((rm=rowRe.exec(sheet))){
+    const cells=[]; let max=-1;
+    const cRe=/<c\b([^>]*)>([\s\S]*?)<\/c>|<c\b([^>]*)\/>/g; let cm;
+    while((cm=cRe.exec(rm[1]))){
+      const attrs=(cm[1]||cm[3]||""), inner=cm[2]||"";
+      const rM=attrs.match(/r="([A-Z]+\d+)"/); const idx=rM?colIdx(rM[1]):(max+1);
+      const tM=attrs.match(/t="([^"]+)"/); const type=tM?tM[1]:"n";
+      let val="";
+      if(type==="s"){ const v=(inner.match(/<v>([\s\S]*?)<\/v>/)||[])[1]; if(v!=null) val=shared[+v]||""; }
+      else if(type==="inlineStr"){ val=desx((inner.match(/<t[^>]*>([\s\S]*?)<\/t>/)||[])[1]||""); }
+      else { val=desx((inner.match(/<v>([\s\S]*?)<\/v>/)||[])[1]||""); }
+      cells[idx]=val; if(idx>max) max=idx;
+    }
+    const arr=[]; for(let i=0;i<=max;i++) arr.push(cells[i]!=null?cells[i]:"");
+    linhas.push(arr);
+  }
+  return linhas.map(r=>r.join(";")).join("\n");
+}
+async function lerArquivoNoCampo(input, alvoId){
+  const file=input.files && input.files[0]; if(!file) return;
+  const ta=document.getElementById(alvoId);
+  if(/\.xlsx$/i.test(file.name)){
+    try{ const txt=await xlsxParaTexto(await file.arrayBuffer()); if(ta) ta.value=txt;
+      toast("Excel lido — confira e clique Importar"); }
+    catch(e){ toast("Não consegui ler o Excel — salve como CSV e tente"); input.value=""; }
+    return;
+  }
+  if(/\.xls$/i.test(file.name)){ toast("Formato .xls antigo — salve como .xlsx ou CSV"); input.value=""; return; }
   const rd=new FileReader();
-  rd.onload=()=>{ const ta=document.getElementById(alvoId); if(ta) ta.value=String(rd.result||"");
-    toast("Arquivo carregado — confira e clique Importar"); };
+  rd.onload=()=>{ if(ta) ta.value=String(rd.result||""); toast("Arquivo carregado — confira e clique Importar"); };
   rd.onerror=()=>toast("Não consegui ler o arquivo");
   rd.readAsText(file, "utf-8");
 }
@@ -4488,10 +4561,10 @@ function modalImportarMaquinas(){
   document.getElementById("modal-root").innerHTML=
   '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal modal-lg">'+
     '<h2>Importar máquinas</h2>'+
-    '<p class="sub">Escolha um arquivo <b>CSV</b> ou cole a lista. Uma máquina por linha: <b>Nome ; Tipo ; Horímetro</b> — tipo e horímetro são opcionais.</p>'+
+    '<p class="sub">Escolha um arquivo <b>CSV ou Excel (.xlsx)</b> ou cole a lista. Uma máquina por linha: <b>Nome ; Tipo ; Horímetro</b> — tipo e horímetro são opcionais.</p>'+
     '<div class="frm">'+
-      '<div><label for="mq-file">Arquivo (.csv)</label>'+
-        '<input id="mq-file" type="file" accept=".csv,.tsv,.txt,text/csv,text/plain" onchange="lerArquivoNoCampo(this,\'mq-imp\')"></div>'+
+      '<div><label for="mq-file">Arquivo (CSV ou Excel)</label>'+
+        '<input id="mq-file" type="file" accept=".csv,.tsv,.txt,.xlsx,text/csv,text/plain" onchange="lerArquivoNoCampo(this,\'mq-imp\')"></div>'+
       '<div><label for="mq-imp">…ou cole aqui</label>'+
         '<textarea id="mq-imp" rows="8" placeholder="Colheitadeira S680;Colheitadeira;3200\nTrator JD 6110;Trator;1500"></textarea></div>'+
     '</div>'+
