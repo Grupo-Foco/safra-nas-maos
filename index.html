@@ -893,7 +893,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.46.0";
+const APP_VERSION = "2.47.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -3110,10 +3110,12 @@ function banners(){
   return h;
 }
 
-function podeCriarFazenda(){
+function souGestorDeAlguma(){
   if(!SUPABASE.ligado() || !Auth.logado()) return true;   // modo local / uso simples
-  return fazendas().some(f=>ehGestor(f.id));               // dono/admin de alguma fazenda
+  const mapa = Acesso.mapa();
+  return Object.keys(mapa).some(fid=>{ const a=mapa[fid]; return a && (a.papel==="dono"||a.papel==="admin"); });
 }
+function podeCriarFazenda(){ return souGestorDeAlguma(); }
 function telaFazendas(){
   const l = fazendas();
   let h='<div class="wrap">';
@@ -3122,7 +3124,7 @@ function telaFazendas(){
     h+='<input id="nova-faz" class="field-lg" placeholder="Ex: Fazenda Santa Angelina" onkeydown="if(event.key===\'Enter\')cadastrarRapido()">';
     h+='<button class="btn-primary" onclick="cadastrarRapido()">Cadastrar nova fazenda</button>';
   }
-  if(SUPABASE.ligado() && Auth.logado() && fazendas().some(f=>ehGestor(f.id)))
+  if(SUPABASE.ligado() && Auth.logado() && souGestorDeAlguma())
     h+='<button class="btn-back" style="width:100%;margin-top:10px;justify-content:center" onclick="modalAcessos()">Acessos da equipe</button>';
 
   if(l.length>1)
