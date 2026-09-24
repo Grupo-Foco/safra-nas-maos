@@ -893,7 +893,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.48.0";
+const APP_VERSION = "2.50.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -4537,6 +4537,7 @@ function resumoMaquina(f, maq){
   const horas = Math.max(0, hatual-hini);
   return { litros, horas, consumo: horas>0? litros/horas : 0, abast: ab.length, hatual };
 }
+let _buscaMaq="";
 function telaMaquinario(){
   const f=acharFazenda(App.fazendaId); if(!f){ App.tela="fazendas"; return telaFazendas(); }
   const maqs=maquinasDe(f.id), abast=abastecDe(f.id);
@@ -4556,8 +4557,12 @@ function telaMaquinario(){
     kpi("Consumo médio", th>0?nf(tl/th,1):"—", "L/h")+
   '</div>';
   if(!maqs.length) return h+'<p class="vazio">Nenhuma máquina. Cadastre a primeira para controlar horímetro e combustível.</p></div>';
+  const bq=(_buscaMaq||"").toLowerCase().trim();
+  const mostrar = bq ? maqs.filter(m=>((m.nome||"")+" "+(m.tipo||"")).toLowerCase().includes(bq)) : maqs;
+  h+='<div class="acts"><input class="busca" placeholder="Buscar máquina ou tipo…" value="'+esc(_buscaMaq)+'" '+
+     'oninput="clearTimeout(window._bmq);window._bmq=setTimeout(()=>{_buscaMaq=this.value;render();},200)"></div>';
   h+='<table class="arm-grid mq-grid"><thead><tr><th>Máquina</th><th>Tipo</th><th>Horímetro</th><th>Horas</th><th>Litros</th><th>L/h</th><th></th></tr></thead><tbody>';
-  maqs.forEach(m=>{ const R=resumoMaquina(f.id,m);
+  mostrar.forEach(m=>{ const R=resumoMaquina(f.id,m);
     h+='<tr><td>'+esc(m.nome)+'</td><td>'+esc(m.tipo||"—")+'</td>'+
        '<td>'+nf(R.hatual,0)+'</td><td>'+nf(R.horas,0)+'</td><td>'+nf(R.litros,0)+'</td><td>'+(R.consumo?nf(R.consumo,1):"—")+'</td>'+
        '<td style="white-space:nowrap;text-align:right"><button class="mini" onclick="modalAbastecer(\''+m.id+'\')">Abastecer</button> '+
@@ -4569,8 +4574,8 @@ function telaMaquinario(){
     const nome={}; maqs.forEach(m=>nome[m.id]=m.nome);
     const recent=abast.slice().sort((a,b)=>String(b.data||"").localeCompare(String(a.data||""))).slice(0,20);
     h+='<div class="resumo"><div class="resumo-t">Abastecimentos recentes</div>'+
-      '<table class="arm-grid"><thead><tr><th>Data</th><th>Máquina</th><th>Litros</th><th>Horímetro</th></tr></thead><tbody>'+
-      recent.map(a=>'<tr><td>'+esc(dataBR(a.data))+'</td><td>'+esc(nome[a.maquina_id]||"—")+'</td><td>'+nf(a.litros,0)+'</td><td>'+nf(a.horimetro||0,0)+'</td></tr>').join("")+
+      '<table class="arm-grid mq-grid"><thead><tr><th>Data</th><th>Máquina</th><th>Operador</th><th>Litros</th><th>Horímetro</th></tr></thead><tbody>'+
+      recent.map(a=>'<tr><td>'+esc(dataBR(a.data))+'</td><td>'+esc(nome[a.maquina_id]||"—")+'</td><td>'+esc(a.operador||"—")+'</td><td>'+nf(a.litros,0)+'</td><td>'+nf(a.horimetro||0,0)+'</td></tr>').join("")+
       '</tbody></table></div>';
   }
   return h+'</div>';
@@ -4621,6 +4626,7 @@ function modalAbastecer(id){
       '<div style="display:flex;gap:10px"><div style="flex:1"><label for="ab-data">Data</label><input id="ab-data" type="date" value="'+new Date().toISOString().slice(0,10)+'"></div>'+
       '<div style="flex:1"><label for="ab-litros">Litros</label><input id="ab-litros" type="number" inputmode="decimal" placeholder="0"></div></div>'+
       '<div><label for="ab-hor">Horímetro no abastecimento</label><input id="ab-hor" type="number" inputmode="decimal" placeholder="'+nf(Number(m.horimetro)||0,0)+'"></div>'+
+      '<div><label for="ab-op">Operador</label><input id="ab-op" placeholder="Quem operou / abasteceu"></div>'+
     '</div>'+
     '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
       '<button class="btn-save" onclick="gravarAbastecer(\''+id+'\')">Registrar</button></div></div></div>';
@@ -4634,9 +4640,10 @@ function gravarAbastecer(id){
   const data=document.getElementById("ab-data").value||new Date().toISOString().slice(0,10);
   const horStr=(document.getElementById("ab-hor").value||"").replace(",",".");
   const hor= horStr!=="" ? Number(horStr) : (Number(m.horimetro)||0);
+  const operador=(document.getElementById("ab-op").value||"").trim();
   const ab=abastecDe(f.id);
   ab.push({id:"ab_"+Date.now().toString(36), maquina_id:id, data:data, litros:litros,
-    horimetro:(isNaN(hor)?null:hor), criado_em:new Date().toISOString()});
+    horimetro:(isNaN(hor)?null:hor), operador:operador, criado_em:new Date().toISOString()});
   salvarAbastec(f.id,ab);
   if(!isNaN(hor) && hor>(Number(m.horimetro)||0)){ m.horimetro=hor; salvarMaquinas(f.id,l); }
   fecharModal(); toast("Abastecimento registrado"); render();
@@ -5667,21 +5674,20 @@ function modalVisita(id){
     '<h2>'+(v?"Editar visita":"Nova visita")+'</h2>'+
     '<p class="sub">Registro do talhão para o diário de bordo. As fotos sobem para a nuvem.</p>'+
     '<div class="frm">'+
+      '<div><label>Talhões</label><div class="tsel">'+
+        tals.map(t=>{ const on = v && (v.talhao_ids? v.talhao_ids.indexOf(t.id)>=0 : v.talhao_id===t.id);
+          return '<label class="tc'+(on?" on":"")+'"><input type="checkbox" value="'+t.id+'" '+(on?"checked":"")+' '+
+          'onchange="this.parentNode.classList.toggle(\'on\',this.checked);_somaVisita()"> '+esc(t.nome)+'</label>'; }).join("")+
+      '</div><p class="dica" id="vs-soma"></p></div>'+
       '<div class="g2">'+
-        '<div><label for="vs-tal">Talhão</label><select id="vs-tal">'+
-          '<option value="">Fazenda toda</option>'+
-          tals.map(t=>'<option value="'+t.id+'" '+(v&&v.talhao_id===t.id?"selected":"")+'>'+esc(t.nome)+'</option>').join("")+
-        '</select></div>'+
         '<div><label for="vs-data">Data</label><input type="date" id="vs-data" value="'+(v&&v.data?v.data:hoje)+'"></div>'+
-      '</div>'+
-      '<div class="g2">'+
         '<div><label for="vs-est">Estágio da cultura</label><select id="vs-est">'+
           '<option value="">—</option>'+
           ESTAGIOS.map(e=>'<option '+(v&&v.estagio===e?"selected":"")+'>'+esc(e)+'</option>').join("")+
         '</select></div>'+
-        '<div><label for="vs-clima">Clima</label>'+
-          '<input id="vs-clima" value="'+esc(v?v.clima:"")+'" placeholder="Ensolarado, nublado, pós-chuva…"></div>'+
       '</div>'+
+      '<div><label for="vs-clima">Clima</label>'+
+        '<input id="vs-clima" value="'+esc(v?v.clima:"")+'" placeholder="Ensolarado, nublado, pós-chuva…"></div>'+
       '<div><label for="vs-txt">Recomendação / observação</label>'+
         '<textarea id="vs-txt" rows="4" placeholder="O que foi visto no talhão e o que fazer">'+esc(v?v.texto:"")+'</textarea></div>'+
       '<label class="drop" for="vs-file">'+
@@ -5693,6 +5699,14 @@ function modalVisita(id){
     '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
       '<button class="btn-save" onclick="gravarVisita('+(v?"'"+v.id+"'":"null")+')">Salvar</button>'+
     '</div></div></div>';
+  _somaVisita();
+}
+function _somaVisita(){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const ids=[...document.querySelectorAll('.tsel input:checked')].map(x=>x.value);
+  const soma=talhoesDe(f.id).filter(t=>ids.indexOf(t.id)>=0).reduce((s,t)=>s+(t.hectares||0),0);
+  const el=document.getElementById("vs-soma");
+  if(el) el.textContent = ids.length? (ids.length+" talhão(ões) marcado(s) · "+nf(soma,2)+" ha no total") : "Nenhum talhão marcado — registro geral da fazenda.";
 }
 
 function escolherFotoVisita(input, jaTem){
@@ -5709,12 +5723,15 @@ function escolherFotoVisita(input, jaTem){
 async function gravarVisita(id){
   const f=acharFazenda(App.fazendaId); if(!f) return;
   const g=i=>String((document.getElementById(i)||{}).value||"").trim();
-  const talId=g("vs-tal");
-  const tal = talhoesDe(f.id).find(x=>x.id===talId);
+  const ids=[...document.querySelectorAll('.tsel input:checked')].map(x=>x.value);
+  const tals=talhoesDe(f.id).filter(t=>ids.indexOf(t.id)>=0);
+  const nomes=tals.map(t=>t.nome).join(", ");
+  const area=tals.reduce((s,t)=>s+(t.hectares||0),0);
   const antiga = id ? visitasDe(f.id).find(x=>x.id===id) : null;
   const novas = window._visitaFotos||[];
   const fotosAntigas = antiga ? fotosDaVisita(antiga) : [];
-  const dados = { talhao_id:talId, talhao_nome:tal?tal.nome:"",
+  const dados = { talhao_ids:ids, talhao_nomes:nomes, area:area,
+    talhao_id:ids[0]||"", talhao_nome:nomes,
     data:g("vs-data"), estagio:g("vs-est"), clima:g("vs-clima"), texto:g("vs-txt"),
     fotos: fotosAntigas.slice() };
   if(!dados.data && !dados.texto && !dados.estagio && !novas.length && !fotosAntigas.length){
@@ -6164,6 +6181,14 @@ function relEntregas(f){
       linhas.push({t:'dado', cs:[c.produtor||"Arrendamento", c.parte||"—",
         nf(c.sacas,2), nf(entr,2), "", c.status||"Transferido"]}); });
     linhas.push({t:'total', cs:['','Total arrendamentos','', nf(totArr,2), '', '']});
+  }
+
+  const dest = C.destinos.filter(d=>d.entregue>0).sort((a,b)=>b.entregue-a.entregue);
+  if(dest.length){
+    linhas.push({t:'secao', texto:'Soja por armazém (sc) — entregue, em contrato e a fixar'});
+    linhas.push({t:'cab', cs:['Armazém','','Entregue','Em contrato','A fixar','']});
+    dest.forEach(d=>linhas.push({t:'dado', cs:[d.destino,'', nf(d.entregue,0), nf(d.alocado,0), nf(d.aFixar,0), '']}));
+    linhas.push({t:'total', cs:['Total','', nf(C.sacasArmazem,0), nf(C.totCumprido,0), nf(C.totAFixar,0), '']});
   }
 
   return { titulo:"Relatório de Entregas · "+f.nome, sub:"Safra "+f.safra,
@@ -7097,10 +7122,11 @@ function remItemApl(i){ _itensApl.splice(i,1); desenharItensApl(); recalcApl(); 
 
 function sugerirArea(){
   const f=acharFazenda(App.fazendaId);
-  const el=document.getElementById("ap-ha"); if(!el||el.value) return;
+  const el=document.getElementById("ap-ha"); if(!el) return;
   const ids=[...document.querySelectorAll('.tsel input:checked')].map(x=>x.value);
   const soma=talhoesDe(f.id).filter(t=>ids.includes(t.id)).reduce((s,t)=>s+t.hectares,0);
-  if(soma>0){ el.value=soma.toFixed(2); recalcApl(); }
+  el.value = soma>0 ? soma.toFixed(2) : "";   // soma dos talhões marcados; dá pra editar depois
+  recalcApl();
 }
 
 function recalcApl(){
