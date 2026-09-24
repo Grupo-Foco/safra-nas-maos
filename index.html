@@ -893,7 +893,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.41.0";
+const APP_VERSION = "2.42.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -2389,18 +2389,18 @@ function nomeModulo(id){ const m=acharModulo(id); return m?m.nome:id; }
    offline. Convenção: modulos null ou [] => TODOS os módulos.
    dono/admin sempre veem tudo (o campo modulos é ignorado). */
 const PERFIS = {
+  administrador: { nome:"Administrador", papel:"admin", modulos:null,
+                   desc:"Gerencia a equipe e vê todos os módulos" },
   geral:         { nome:"Geral",         papel:"operador", modulos:null,
-                   desc:"Vê todos os módulos" },
-  produtividade: { nome:"Produtividade", papel:"operador",
-                   modulos:["colheita","talhoes","lavoura","safras"],
-                   desc:"Colheita, Dados da fazenda, Lavoura e Histórico" },
-  pluviometro:   { nome:"Pluviômetro",   papel:"operador",
-                   modulos:["chuva","tempo"],
-                   desc:"Só Pluviometria e Previsão do tempo" },
+                   desc:"Vê e edita todos os módulos" },
+  producao:      { nome:"Produção",      papel:"operador",
+                   modulos:["colheita","talhoes","lavoura","operacoes","estoque","safras"],
+                   desc:"Módulos de produção (colheita, lavoura, operações, estoque…)" },
+  operador:      { nome:"Operador",      papel:"operador",
+                   modulos:["colheita","chuva"],
+                   desc:"Lançamentos de campo (colheita e pluviometria)" },
   leitura:       { nome:"Só leitura",    papel:"leitura",  modulos:null,
-                   desc:"Vê tudo, não edita (edição travada no servidor)" },
-  admin:         { nome:"Administrador", papel:"admin",    modulos:null,
-                   desc:"Gerencia a equipe e vê todos os módulos" }
+                   desc:"Vê tudo, não edita" }
 };
 function mesmoConjunto(a,b){
   const A=(a&&a.length)?a.slice().sort():null, B=(b&&b.length)?b.slice().sort():null;
@@ -2736,10 +2736,129 @@ function sairDaConta(){
 /* ── Equipe e acessos ──────────────────────── */
 let _equipe = { membros:[], convites:[] };
 let _editAcesso = null;
-const PERFIL_ORDEM = ["geral","produtividade","pluviometro","admin","leitura"];
+const PERFIL_ORDEM = ["administrador","geral","producao","operador","leitura"];
 function opcoesPerfil(sel){
   return PERFIL_ORDEM.map(k=>'<option value="'+k+'"'+(k===sel?" selected":"")+'>'+
     esc(PERFIS[k].nome)+'</option>').join("");
+}
+
+/* ── Acessos da equipe (central, várias fazendas) ──────────── */
+let _acessosData = { membros:[], convites:[] };
+function fazendasGeridas(){ return fazendas().filter(f=>ehGestor(f.id)); }
+function modalAcessos(){
+  if(!fazendasGeridas().length){ toast("Você não gerencia nenhuma fazenda"); return; }
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal modal-lg">'+
+    '<h2>Acessos da equipe</h2>'+
+    '<p class="sub">Convide por e-mail (a pessoa cria a própria senha ao entrar), escolha o perfil, de quais fazendas ela participa e o que enxerga.</p>'+
+    '<div id="ac-lista"><p class="vazio">Carregando…</p></div>'+
+    '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Fechar</button>'+
+      '<button class="btn-save" onclick="modalConvidarPessoa()">+ Convidar pessoa</button></div></div></div>';
+  carregarAcessos();
+}
+async function carregarAcessos(){
+  const box=document.getElementById("ac-lista"); if(!box) return;
+  const geridas=fazendasGeridas(); const idsGer=new Set(geridas.map(f=>f.id));
+  const nomeFaz={}; geridas.forEach(f=>nomeFaz[f.id]=f.nome);
+  try{
+    const m=await api("safra_membros?select=fazenda_id,email,papel,user_id,modulos");
+    const c=await api("safra_convites?select=id,fazenda_id,email,papel,modulos");
+    _acessosData={ membros:(m||[]).filter(x=>idsGer.has(x.fazenda_id)),
+                   convites:(c||[]).filter(x=>idsGer.has(x.fazenda_id)) };
+    const pessoas={};
+    _acessosData.membros.forEach(x=>{ const e=(x.email||"").toLowerCase(); (pessoas[e]=pessoas[e]||{email:x.email,itens:[]}).itens.push(Object.assign({},x,{conv:false})); });
+    _acessosData.convites.forEach(x=>{ const e=(x.email||"").toLowerCase(); (pessoas[e]=pessoas[e]||{email:x.email,itens:[]}).itens.push(Object.assign({},x,{conv:true})); });
+    const eu=Auth.usuario();
+    let h='<div class="lista-cam">';
+    Object.values(pessoas).sort((a,b)=>String(a.email).localeCompare(String(b.email))).forEach(p=>{
+      const souEu=eu && p.itens.some(i=>i.user_id===eu.id);
+      const resumo=p.itens.map(i=>esc(nomeFaz[i.fazenda_id]||"?")+(i.conv?" (convite)":"")).join(", ");
+      h+='<div class="eq-row"><div class="who"><b>'+esc(p.email||"—")+(souEu?" · você":"")+'</b>'+
+         '<small>'+esc(p.itens.length+" fazenda(s): "+resumo)+'</small></div>'+
+         '<button class="mini" onclick="modalConvidarPessoa(\''+esc((p.email||"").replace(/\x27/g,"\\\x27"))+'\')">Editar</button></div>';
+    });
+    h+='</div>';
+    box.innerHTML=Object.keys(pessoas).length? h : '<p class="vazio">Ainda só você. Convide alguém no botão abaixo.</p>';
+  }catch(e){ box.innerHTML='<p class="vazio">Não consegui carregar agora.</p>'; }
+}
+function modalConvidarPessoa(email){
+  const geridas=fazendasGeridas();
+  const emailN=(email||"").toLowerCase();
+  const itens=[].concat(_acessosData.membros, _acessosData.convites).filter(x=>(x.email||"").toLowerCase()===emailN);
+  const jaTem=new Set(itens.map(x=>x.fazenda_id));
+  const base=itens[0]||null;
+  const perfilAtual=base?(perfilDe(base.papel, base.modulos)||"geral"):"geral";
+  const modBase=base?(base.modulos||null):null;
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal modal-lg">'+
+    '<h2>'+(email?"Editar acesso":"Convidar pessoa")+'</h2>'+
+    '<p class="sub">Perfil, fazendas e módulos. Mudanças valem para as fazendas marcadas.</p>'+
+    '<div class="frm">'+
+      '<div><label for="ac-email">E-mail</label><input id="ac-email" type="email" inputmode="email" placeholder="pessoa@exemplo.com" value="'+esc(email||"")+'"'+(email?" readonly":"")+'></div>'+
+      '<div><label for="ac-perfil">Perfil</label><select id="ac-perfil" onchange="_acPerfilMudou()">'+opcoesPerfil(perfilAtual)+'</select></div>'+
+    '</div>'+
+    '<label class="lbl" style="margin-top:12px">Fazendas</label>'+
+    '<div class="acc-grid">'+geridas.map(f=>'<label class="acc-chk"><input type="checkbox" data-fid="'+esc(f.id)+'"'+(jaTem.has(f.id)?" checked":"")+'> '+esc(f.nome)+'</label>').join("")+'</div>'+
+    '<label class="lbl" style="margin-top:12px">Módulos que aparecem</label>'+
+    '<div class="acc-grid" id="ac-mods">'+todosModulos().map(m=>{ const on=!modBase||!modBase.length||modBase.indexOf(m.id)>=0; return '<label class="acc-chk"><input type="checkbox" data-mid="'+m.id+'"'+(on?" checked":"")+'> '+esc(m.nome)+'</label>'; }).join("")+'</div>'+
+    '<span class="nota-pad" id="ac-nota"></span>'+
+    '<div class="modal-acts"><button class="btn-cancel" onclick="modalAcessos()">Voltar</button>'+
+      '<button class="btn-save" onclick="salvarAcessoPessoa()">Salvar</button></div></div></div>';
+  _acPerfilMudou();
+}
+function _acPerfilMudou(){
+  const k=(document.getElementById("ac-perfil")||{}).value, p=PERFIS[k];
+  const grid=document.getElementById("ac-mods"), nota=document.getElementById("ac-nota");
+  if(p && grid){ const todos=!p.modulos||!p.modulos.length;
+    grid.querySelectorAll("input").forEach(i=>{ i.checked = todos || p.modulos.indexOf(i.getAttribute("data-mid"))>=0; }); }
+  const tudo = p && (p.papel==="admin");
+  if(grid){ grid.style.opacity=tudo?.45:1; grid.querySelectorAll("input").forEach(i=>i.disabled=!!tudo); }
+  if(nota) nota.textContent = tudo? "Administrador vê todos os módulos e gerencia a equipe." :
+    (p&&p.papel==="leitura"? "Só leitura: vê os módulos marcados, sem editar." : "");
+}
+async function salvarAcessoPessoa(){
+  const email=(document.getElementById("ac-email").value||"").trim().toLowerCase();
+  if(!email||!email.includes("@")){ toast("Informe um e-mail válido"); return; }
+  const perfil=PERFIS[document.getElementById("ac-perfil").value]||PERFIS.geral;
+  const papel=perfil.papel;
+  const fids=[...document.querySelectorAll("[data-fid]")].filter(i=>i.checked).map(i=>i.getAttribute("data-fid"));
+  if(!fids.length){ toast("Escolha ao menos uma fazenda"); return; }
+  let modulos=null;
+  if(papel!=="admin"){
+    const ids=[...document.querySelectorAll("#ac-mods input")].filter(i=>i.checked).map(i=>i.getAttribute("data-mid"));
+    if(!ids.length){ toast("Marque ao menos um módulo"); return; }
+    modulos = ids.length>=todosModulos().length ? null : ids;
+  }
+  const eu=Auth.usuario();
+  const escolhidas=new Set(fids);
+  const geridas=fazendasGeridas();
+  try{
+    for(const fid of fids){
+      const membro=_acessosData.membros.find(x=>(x.email||"").toLowerCase()===email && x.fazenda_id===fid);
+      if(membro){
+        await api("safra_membros?fazenda_id=eq."+encodeURIComponent(fid)+"&user_id=eq."+encodeURIComponent(membro.user_id),
+          {method:"PATCH", prefer:"return=minimal", body:{papel:papel, modulos:modulos}});
+      }else{
+        await api("safra_convites", {method:"POST", prefer:"resolution=merge-duplicates,return=minimal",
+          body:{fazenda_id:fid, email:email, papel:papel, modulos:modulos}});
+      }
+    }
+    for(const f of geridas){
+      if(escolhidas.has(f.id)) continue;
+      const membro=_acessosData.membros.find(x=>(x.email||"").toLowerCase()===email && x.fazenda_id===f.id);
+      if(membro && !(eu&&membro.user_id===eu.id))
+        await api("safra_membros?fazenda_id=eq."+encodeURIComponent(f.id)+"&user_id=eq."+encodeURIComponent(membro.user_id), {method:"DELETE", prefer:"return=minimal"});
+      const conv=_acessosData.convites.find(x=>(x.email||"").toLowerCase()===email && x.fazenda_id===f.id);
+      if(conv) await api("safra_convites?id=eq."+conv.id, {method:"DELETE", prefer:"return=minimal"});
+    }
+    toast("Acessos salvos");
+    const meu=Auth.usuario();
+    if(meu && itensSaoMeus(email,meu)) await Acesso.carregar();
+    modalAcessos();
+  }catch(e){ toast(/permiss|42501/i.test(String(e.message||e))?"Sem permissão para alguma fazenda":"Não consegui salvar tudo"); }
+}
+function itensSaoMeus(email, eu){
+  return _acessosData.membros.some(x=>x.user_id===eu.id && (x.email||"").toLowerCase()===email);
 }
 
 function modalEquipe(){
@@ -2994,6 +3113,8 @@ function telaFazendas(){
   h+='<label class="lbl" for="nova-faz">Nome da fazenda</label>';
   h+='<input id="nova-faz" class="field-lg" placeholder="Ex: Fazenda Santa Angelina" onkeydown="if(event.key===\'Enter\')cadastrarRapido()">';
   h+='<button class="btn-primary" onclick="cadastrarRapido()">Cadastrar nova fazenda</button>';
+  if(SUPABASE.ligado() && Auth.logado() && fazendas().some(f=>ehGestor(f.id)))
+    h+='<button class="btn-back" style="width:100%;margin-top:10px;justify-content:center" onclick="modalAcessos()">Acessos da equipe</button>';
 
   if(l.length>1)
     h+='<button class="panorama" onclick="irPara(\'panorama\')">'+ICON.panorama+
