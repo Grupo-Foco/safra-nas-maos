@@ -891,7 +891,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.37.0";
+const APP_VERSION = "2.38.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -4059,10 +4059,11 @@ function telaEstoque(){
     '<div class="farm-head-mid"><h1>Estoque</h1>'+
     '<p>Pedido → entrada → aplicação no talhão · safra '+esc(f.safra)+'</p></div></div>';
 
+  const entregueVal = peds.reduce((s,p)=>s+(p.entregue||0)*(p.valor||0),0);
   h += '<div class="kpis kpis-4">'+
-    kpi("Comprado", moeda(E.totalComprado).replace("R$ ",""), "R$")+
+    kpi("Comprado", moeda(E.totalComprado+entregueVal).replace("R$ ",""), "R$")+
     kpi("Aplicado", moeda(E.totalAplicado).replace("R$ ",""), "R$")+
-    kpi("Em estoque", moeda(E.valorEstoque).replace("R$ ",""), "R$")+
+    kpi("Em estoque", moeda(E.valorEstoque+entregueVal).replace("R$ ",""), "R$")+
     kpi("Pedidos abertos", peds.filter(p=>(p.qtd-(p.entregue||0))>0.001).length, "a receber")+
   '</div>';
 
@@ -4259,8 +4260,9 @@ function modalEntregas(id){
   const ents=(p.entregas||[]).slice().sort((a,b)=>String(b.data).localeCompare(String(a.data)));
   const body= ents.length ? '<div class="lista-cam">'+ents.map(e=>
       '<div class="eq-row"><div class="who"><b>'+esc(dataBR(e.data))+' · '+nf(e.qtd,0)+(p.unidade?' '+esc(p.unidade):'')+'</b>'+
-      '<small>'+((e.anexos&&e.anexos.length)? e.anexos.map((a,i)=>'<a href="#" onclick="abrirArquivoPath(\''+esc(a.path)+'\');return false" style="text-decoration:none">📎 nota '+(i+1)+'</a>').join(" · ") : 'sem nota')+'</small>'+
-      '</div></div>').join("")+'</div>'
+      '<small>'+((e.anexos&&e.anexos.length)? e.anexos.map((a,i)=>'<a href="#" onclick="abrirArquivoPath(\''+esc(a.path)+'\');return false" style="text-decoration:none">📎 nota '+(i+1)+'</a>').join(" · ") : 'sem nota')+'</small></div>'+
+      '<button class="mini" onclick="modalEditarEntrega(\''+id+'\',\''+e.id+'\')">Editar</button>'+
+      '<button class="mini" onclick="removerEntrega(\''+id+'\',\''+e.id+'\')">✕</button></div>').join("")+'</div>'
     : '<p class="vazio">Entregas antigas não têm detalhe. As novas ficam registradas aqui com data e nota.</p>';
   document.getElementById("modal-root").innerHTML=
   '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal">'+
@@ -4269,6 +4271,67 @@ function modalEntregas(id){
     body+
     '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Fechar</button>'+
       '<button class="btn-save" onclick="modalEntregaPedido(\''+id+'\')">+ Nova entrega</button></div></div></div>';
+}
+function modalEditarEntrega(pid, eid){
+  const f=acharFazenda(App.fazendaId);
+  const p=pedidosDe(f.id).find(x=>x.id===pid); if(!p) return;
+  const e=(p.entregas||[]).find(x=>x.id===eid); if(!e) return;
+  window._entArq={};
+  const an=e.anexos||[];
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal">'+
+    '<h2>Editar entrega</h2><p class="sub">'+esc(p.produto)+'</p>'+
+    '<div class="frm">'+
+      '<div style="display:flex;gap:10px"><div style="flex:1"><label for="pe-data">Dia da entrega</label>'+
+        '<input id="pe-data" type="date" value="'+esc(e.data||"")+'"></div>'+
+        '<div style="flex:1"><label for="pe-qtd">Quantidade</label>'+
+        '<input id="pe-qtd" type="number" inputmode="decimal" value="'+(e.qtd!=null?e.qtd:"")+'"></div></div>'+
+      '<div><label for="pe-f1">Nota 1'+(an[0]?" (anexada — escolha outra para trocar)":" (opcional)")+'</label>'+
+        '<input id="pe-f1" type="file" accept="image/*,application/pdf" onchange="escolherArquivoEntrega(this,1)">'+
+        '<span class="nota-pad" id="pe-f1-lbl">'+(an[0]?esc(an[0].nome||""):"")+'</span></div>'+
+      '<div><label for="pe-f2">Nota 2'+(an[1]?" (anexada — escolha outra para trocar)":" (opcional)")+'</label>'+
+        '<input id="pe-f2" type="file" accept="image/*,application/pdf" onchange="escolherArquivoEntrega(this,2)">'+
+        '<span class="nota-pad" id="pe-f2-lbl">'+(an[1]?esc(an[1].nome||""):"")+'</span></div>'+
+    '</div>'+
+    '<div class="modal-acts"><button class="btn-cancel" onclick="modalEntregas(\''+pid+'\')">Voltar</button>'+
+      '<button class="btn-save" onclick="gravarEditarEntrega(\''+pid+'\',\''+eid+'\')">Salvar</button></div></div></div>';
+  setTimeout(()=>{const el=document.getElementById("pe-qtd");if(el)el.focus();},60);
+}
+async function gravarEditarEntrega(pid, eid){
+  const f=acharFazenda(App.fazendaId);
+  const p0=pedidosDe(f.id).find(x=>x.id===pid); if(!p0) return;
+  const e0=(p0.entregas||[]).find(x=>x.id===eid); if(!e0) return;
+  const q=Number((document.getElementById("pe-qtd").value||"").replace(",","."));
+  if(!q||q<=0){ toast("Informe a quantidade"); return; }
+  const data=document.getElementById("pe-data").value||e0.data;
+  const oldQtd=e0.qtd;
+  const anexos=(e0.anexos||[]).slice();
+  const arqs=window._entArq||{};
+  for(const slot of [1,2]){
+    const arq=arqs[slot]; if(!arq) continue;
+    const idx=slot-1;
+    if(anexos[idx]){ stApagar(anexos[idx].path); removerArquivo(anexos[idx].path); }
+    const ext=(arq.name.match(/\.[a-z0-9]+$/i)||[""])[0].toLowerCase();
+    const caminho=f.id+"/entrega-"+eid+"-"+slot+ext;
+    try{ await enviarArquivo(caminho, arq); anexos[idx]={nome:arq.name, path:caminho}; }
+    catch(err){ toast("Não consegui guardar a nota "+slot); }
+  }
+  const l2=pedidosDe(f.id), p2=l2.find(x=>x.id===pid), e2=(p2.entregas||[]).find(x=>x.id===eid); if(!e2) return;
+  e2.qtd=q; e2.data=data; e2.anexos=anexos.filter(Boolean);
+  p2.entregue=Math.max(0,(p2.entregue||0)+(q-oldQtd));
+  salvarPedidos(f.id,l2);
+  window._entArq={}; toast("Entrega atualizada"); modalEntregas(pid);
+}
+function removerEntrega(pid, eid){
+  const f=acharFazenda(App.fazendaId);
+  const l=pedidosDe(f.id), p=l.find(x=>x.id===pid); if(!p) return;
+  const e=(p.entregas||[]).find(x=>x.id===eid); if(!e) return;
+  if(!confirm("Remover esta entrega de "+nf(e.qtd,0)+"?"+((e.anexos&&e.anexos.length)?"\nAs notas também saem.":""))) return;
+  (e.anexos||[]).forEach(a=>{ stApagar(a.path); removerArquivo(a.path); });
+  p.entregas=p.entregas.filter(x=>x.id!==eid);
+  p.entregue=Math.max(0,(p.entregue||0)-e.qtd);
+  salvarPedidos(f.id,l);
+  toast("Entrega removida"); modalEntregas(pid);
 }
 function removerPedido(id){
   const f=acharFazenda(App.fazendaId);
