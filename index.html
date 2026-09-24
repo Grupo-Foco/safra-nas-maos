@@ -893,7 +893,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.50.0";
+const APP_VERSION = "2.51.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -4747,23 +4747,43 @@ function importarMaquinas(){
   const f=acharFazenda(App.fazendaId);
   const txt=(document.getElementById("mq-imp").value||"").trim();
   if(!txt){ toast("Cole a lista ou escolha um arquivo"); return; }
+  const linhas=txt.split(/\r?\n/).map(l=>l.split(/\t|;/).map(c=>String(c).trim()));
+  // acha o cabeçalho (linha com "Maquina/Máquina/Nome") e as colunas por nome
+  let hi=linhas.findIndex(r=>r.some(c=>/^(m[aá]quina|nome)$/i.test(c)));
+  let nomeIdx, tipoIdx, horIdx, chassiIdx;
+  if(hi>=0){
+    const H=linhas[hi], ach=re=>H.findIndex(c=>re.test(c));
+    nomeIdx  = ach(/^(m[aá]quina|nome)$/i);
+    tipoIdx  = ach(/^(tipo|categoria)$/i);
+    horIdx   = ach(/^(hor[ií]metro|horas)$/i);
+    chassiIdx= ach(/^chassi/i);
+  } else { hi=-1; nomeIdx=0; tipoIdx=1; horIdx=2; chassiIdx=-1; }
   const l=maquinasDe(f.id);
-  const existentes=new Set(l.map(m=>_normNome(m.nome)));
+  const existentes=new Set(l.map(m=>_normNome(m.chassi||m.nome)));
   let add=0, dup=0, i=0;
-  txt.split(/\r?\n/).forEach(linha=>{
-    const c=linha.split(/\t|;/).map(x=>String(x).trim());
-    const nome=c[0]; if(!nome) return;
-    if(/^(nome|m[aá]quina)$/i.test(nome)) return;
-    if(existentes.has(_normNome(nome))){ dup++; return; }
-    existentes.add(_normNome(nome));
-    const hor=Number(String(c[2]||"").replace(/\./g,"").replace(",","."))||0;
-    l.push({id:"mq_"+Date.now().toString(36)+"_"+(i++), nome:nome, tipo:c[1]||"",
-      horimetro:hor, horimetro_ini:hor, criado_em:new Date().toISOString()});
-    add++;
+  linhas.forEach((c,li)=>{
+    if(li===hi) return;
+    let nome=(nomeIdx>=0 ? c[nomeIdx] : "")||"";
+    if(!nome && nomeIdx===0) nome=(c.find(x=>x&&x.trim())||"");   // fallback no modo simples
+    nome=nome.replace(/\s+/g," ").trim();
+    if(!nome || /^(nome|m[aá]quina)$/i.test(nome)) return;
+    const chassi = chassiIdx>=0 ? (c[chassiIdx]||"").trim() : "";
+    const chave = _normNome(chassi||nome);
+    if(existentes.has(chave)){ dup++; return; }
+    existentes.add(chave);
+    let tipo = tipoIdx>=0 ? (c[tipoIdx]||"").trim() : "";
+    if(!tipo && hi>=0){ const resto=c.filter((x,ix)=>ix!==nomeIdx && ix!==chassiIdx && x && x.trim());
+      tipo = resto.length ? resto[resto.length-1] : ""; }   // pega a categoria (ex.: PLANTA/COLHEITA)
+    else if(!tipo && hi<0) tipo = (c[1]||"").trim();
+    const hor = horIdx>=0 ? (Number(String(c[horIdx]||"").replace(/\./g,"").replace(",","."))||0) : 0;
+    const m={id:"mq_"+Date.now().toString(36)+"_"+(i++), nome:nome, tipo:tipo,
+      horimetro:hor, horimetro_ini:hor, criado_em:new Date().toISOString()};
+    if(chassi) m.chassi=chassi;
+    l.push(m); add++;
   });
-  if(!add){ toast(dup?"Todas já estavam cadastradas":"Nada reconhecido na lista"); return; }
+  if(!add){ toast(dup?"Todas já estavam cadastradas":"Nada reconhecido — confira o cabeçalho (precisa ter Máquina/Nome)"); return; }
   salvarMaquinas(f.id,l);
-  fecharModal(); toast(add+" máquina(s) importada(s)"+(dup?" · "+dup+" já existiam":"")); render();
+  fecharModal(); toast(add+" máquina(s) importada(s)"+(dup?" · "+dup+" repetidas/já existiam":"")); render();
 }
 function abaEst(id,rot,n){
   return '<button class="ab'+(_abaEst===id?' on':'')+'" onclick="_abaEst=\''+id+'\';render()">'+
