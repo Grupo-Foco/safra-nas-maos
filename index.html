@@ -469,6 +469,11 @@ input.silo:focus{border-color:var(--gold);outline:none}
   background:#fff;font-family:var(--mono);font-size:15px;text-align:right;color:var(--green)}
 .lp-in input:focus{border-color:var(--blue);outline:none}
 .lp-in span{color:var(--muted);font-family:var(--mono);font-size:12px;width:20px}
+.lp-in .cmp{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:42px;width:auto;line-height:1.15}
+.lp-in .cmp i{font-style:normal;font-size:10px;color:var(--muted);font-family:var(--mono)}
+.lp-in .cmp b{font-size:14px;color:var(--muted);font-weight:700;font-family:var(--mono)}
+.cmp-leg{font-size:12px;color:var(--muted);font-family:var(--mono);margin:2px 0 6px;text-align:right}
+.cmp-leg b{color:var(--green)} .cmp-leg b.cur{color:var(--brand)}
 
 /* grade mensal */
 .grade table{font-size:12.5px}
@@ -903,7 +908,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.56.0";
+const APP_VERSION = "2.59.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -3273,6 +3278,7 @@ function telaTalhoes(){
   h += '<div class="acts">'+
     '<button class="btn-act primary" onclick="modalTalhao()">+ Novo talhão</button>'+
     (ehGestor(f.id) ? '<button class="btn-act" onclick="modalSubstituirTalhoes()">Substituir lista</button>' : '')+
+    (ehGestor(f.id) ? '<button class="btn-act" onclick="modalRenomearFazenda()">Renomear</button>' : '')+
     (todos.length ? botaoExportar([{rotulo:"Planilha",fn:"exportarTalhoes('csv')"},{rotulo:"Imagem",fn:"exportarTalhoes('png')"},{rotulo:"PDF",fn:"exportarTalhoes('pdf')"}]) : '')+
     (todos.length ? '<input class="busca" placeholder="Buscar talhão…" value="'+esc(_buscaTal)+'" '+
        'oninput="clearTimeout(window._bt);window._bt=setTimeout(()=>{_buscaTal=this.value;render();},250)">' : '')+
@@ -3883,10 +3889,29 @@ function chuvaPorDia(f,ano,mes,pts,r){
     '<span class="dica">Choveu parelho na fazenda? Preencha uma vez só e ajuste as exceções.</span>'+
   '</div>';
 
+  const temHist = Object.keys(chuvaDe(f.id)).some(d=>{const y=+String(d).slice(0,4); return y===ano-1||y===ano-2;});
+  const k1=chaveDia(ano-1,mes,dia), k2=chaveDia(ano-2,mes,dia);
+  // pontos que tiveram QUALQUER medição em cada ano anterior (se não teve, o talhão não existia → traço)
+  const ids1=new Set(), ids2=new Set();
+  if(temHist){ const cd=chuvaDe(f.id);
+    Object.keys(cd).forEach(d=>{ const y=+String(d).slice(0,4);
+      if(y!==ano-1 && y!==ano-2) return;
+      const set=(y===ano-1?ids1:ids2), row=cd[d]||{};
+      Object.keys(row).forEach(pid=>{ if(row[pid]!=null) set.add(pid); });
+    });
+  }
+  const celComp=(existiu,val)=> existiu ? (val==null?"·":nf(val,0)) : "—";
+  if(temHist) h += '<div class="cmp-leg">comparativo do mesmo dia · <b>'+(ano-2)+'</b> · <b>'+(ano-1)+'</b> · <b class="cur">'+ano+'</b> (editável) · — talhão não existia</div>';
+
   pts.forEach(p=>{
     const v = lerChuva(f.id,k,p.id);
+    const v2 = temHist ? lerChuva(f.id,k2,p.id) : null;
+    const v1 = temHist ? lerChuva(f.id,k1,p.id) : null;
     h += '<div class="lp"><label for="mm-'+p.id+'">'+esc(p.nome)+'</label>'+
-      '<div class="lp-in"><input id="mm-'+p.id+'" type="number" inputmode="decimal" step="0.5" min="0" '+
+      '<div class="lp-in">'+
+      (temHist?'<span class="cmp"><i>'+(ano-2)+'</i><b>'+celComp(ids2.has(p.id),v2)+'</b></span>'+
+               '<span class="cmp"><i>'+(ano-1)+'</i><b>'+celComp(ids1.has(p.id),v1)+'</b></span>':'')+
+      '<input id="mm-'+p.id+'" type="number" inputmode="decimal" step="0.5" min="0" '+
       'value="'+(v==null?"":v)+'" placeholder="0" data-mm="1" '+
       'onkeydown="proxCampoMM(event,this)" '+
       'onchange="gravarChuva(\''+f.id+'\',\''+k+'\',\''+p.id+'\',this.value);render()"><span>mm</span></div></div>';
@@ -4142,7 +4167,8 @@ function abaResumoProd(f,R){
     '<th class="num">Valor</th><th class="num hide-sm">% do custo</th></tr></thead><tbody>';
   R.porProduto.forEach(p=>{
     const pct = R.total>0 ? p.valor/R.total*100 : 0;
-    h += '<tr><td class="forte">'+esc(p.nome)+'</td>'+
+    h += '<tr><td class="forte">'+esc(p.nome)+
+      (p.nome==="(removido)"?' <button class="mini" onclick="limparAplicacoesRemovidas()">limpar</button>':'')+'</td>'+
       '<td class="num mono">'+p.aplic+'</td>'+
       '<td class="num mono">'+nf(p.qtd,1)+' <i class="un">'+esc(p.unidade)+'</i></td>'+
       '<td class="num mono forte">'+moeda(p.valor)+'</td>'+
@@ -6720,6 +6746,25 @@ function salvarCadastro(){
   fecharModal(); toast("Fazenda cadastrada");
   irPara("fazenda",{fazendaId:f.id});
 }
+function modalRenomearFazenda(){
+  const f=acharFazenda(App.fazendaId); if(!f||!ehGestor(f.id)) return;
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal">'+
+    '<h2>Renomear fazenda</h2>'+
+    '<p class="sub">Muda o nome em toda a equipe. Talhões, chuva e histórico continuam iguais.</p>'+
+    '<div class="frm"><div><label for="rf-nome">Nome da fazenda</label>'+
+    '<input id="rf-nome" value="'+esc(f.nome)+'"></div></div>'+
+    '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
+      '<button class="btn-save" onclick="salvarRenomearFazenda()">Salvar</button></div></div></div>';
+  setTimeout(()=>{const e=document.getElementById("rf-nome");if(e){e.focus();e.select();}},60);
+}
+function salvarRenomearFazenda(){
+  const l=fazendas(), f=l.find(x=>x.id===App.fazendaId); if(!f||!ehGestor(f.id)) return;
+  const n=(document.getElementById("rf-nome").value||"").trim();
+  if(!n){ toast("O nome é obrigatório"); return; }
+  f.nome=n; salvarFazendas(l); Sync.push("fazendas","upsert",f);
+  fecharModal(); toast("Fazenda renomeada"); render();
+}
 function trocarSafra(s){
   const l=fazendas(), f=l.find(x=>x.id===App.fazendaId);
   if(!f) return;
@@ -7380,6 +7425,17 @@ function removerAplicacao(id){
   const a=aplicacoesDe(f.id).find(x=>x.id===id); if(!a) return;
   if(!confirm("Remover a aplicação de "+dataBR(a.data)+"?")) return;
   apagarAplicacao(f.id,id); toast("Aplicação removida"); render();
+}
+function limparAplicacoesRemovidas(){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const orfas=aplicacoesDe(f.id).filter(a=>{
+    const its=(a.itens||[]);
+    return its.length>0 && its.every(i=>!acharProduto(f.id, i.produto_id));
+  });
+  if(!orfas.length){ toast("Nada a limpar"); return; }
+  if(!confirm("Remover "+orfas.length+" aplicação(ões) que só usam produtos apagados? Aplicações com produto válido não são afetadas.")) return;
+  orfas.forEach(a=>apagarAplicacao(f.id,a.id));
+  toast(orfas.length+" aplicação(ões) removida(s)"); render();
 }
 
 /* ── Modal: produto ──────────────────────── */
