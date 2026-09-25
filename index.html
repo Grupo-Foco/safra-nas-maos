@@ -893,7 +893,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.51.0";
+const APP_VERSION = "2.52.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -3249,6 +3249,7 @@ function telaTalhoes(){
   // Ações
   h += '<div class="acts">'+
     '<button class="btn-act primary" onclick="modalTalhao()">+ Novo talhão</button>'+
+    (ehGestor(f.id) ? '<button class="btn-act" onclick="modalSubstituirTalhoes()">Substituir lista</button>' : '')+
     (todos.length ? botaoExportar([{rotulo:"Planilha",fn:"exportarTalhoes('csv')"},{rotulo:"Imagem",fn:"exportarTalhoes('png')"},{rotulo:"PDF",fn:"exportarTalhoes('pdf')"}]) : '')+
     (todos.length ? '<input class="busca" placeholder="Buscar talhão…" value="'+esc(_buscaTal)+'" '+
        'oninput="clearTimeout(window._bt);window._bt=setTimeout(()=>{_buscaTal=this.value;render();},250)">' : '')+
@@ -3362,6 +3363,43 @@ function removerTalhao(id){
   const t = talhoesDe(f.id).find(x=>x.id===id); if(!t) return;
   if(!confirm('Remover o talhão "'+t.nome+'"?')) return;
   apagarTalhao(f.id,id); toast("Talhão removido"); render();
+}
+/* Substituir a lista inteira de talhões desta fazenda (colar) */
+function modalSubstituirTalhoes(){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  if(!ehGestor(f.id)){ toast("Só dono ou admin substitui a lista"); return; }
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal modal-lg">'+
+    '<h2>Substituir lista de talhões</h2>'+
+    '<p class="sub">Isto <b>apaga os talhões atuais</b> de '+esc(f.nome)+' e cria a lista colada, na mesma ordem. '+
+      'Um talhão por linha, no formato <b>Nome = área</b> (a área é opcional; pode deixar em branco e preencher depois).</p>'+
+    '<div class="frm"><textarea id="tl-lista" rows="12" placeholder="Talhão 01 = 120,5\nSede = 80\nPivô ="></textarea></div>'+
+    '<div class="frm"><div><label for="tl-conf">Digite SUBSTITUIR para confirmar</label>'+
+      '<input id="tl-conf" autocomplete="off" oninput="document.getElementById(\'tl-btn\').disabled=(this.value.trim().toUpperCase()!==\'SUBSTITUIR\')"></div></div>'+
+    '<span class="nota-pad">A chuva e a produtividade se ligam ao talhão pelo nome — depois de substituir, reimporte a chuva se precisar.</span>'+
+    '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
+      '<button class="btn-save" id="tl-btn" style="background:var(--red);color:#fff" disabled onclick="substituirTalhoes()">Substituir</button></div></div></div>';
+  setTimeout(()=>{const e=document.getElementById("tl-lista");if(e)e.focus();},60);
+}
+function substituirTalhoes(){
+  const f=acharFazenda(App.fazendaId); if(!f||!ehGestor(f.id)) return;
+  if((document.getElementById("tl-conf").value||"").trim().toUpperCase()!=="SUBSTITUIR"){ toast("Digite SUBSTITUIR"); return; }
+  const txt=(document.getElementById("tl-lista").value||"").trim();
+  if(!txt){ toast("Cole a lista primeiro"); return; }
+  const nova=[];
+  txt.split(/\r?\n/).forEach((linha,i)=>{
+    const s=linha.trim(); if(!s) return;
+    const m=s.split(/\s*=\s*|\t|;/);
+    const nome=(m[0]||"").trim(); if(!nome) return;
+    const areaStr=(m.slice(1).join(" ")||"").trim();
+    const ha=areaStr ? (Number(areaStr.replace(/\./g,"").replace(",","."))||0) : 0;
+    nova.push({ id:"tal_"+Date.now().toString(36)+Math.random().toString(36).slice(2,5)+i,
+      fazenda_id:f.id, nome:nome, hectares:ha, abertura:0 });
+  });
+  if(!nova.length){ toast("Nada reconhecido na lista"); return; }
+  salvarTalhoes(f.id, nova);
+  nova.forEach(t=>Sync.push("talhoes","upsert",t));
+  fecharModal(); toast(nova.length+" talhões — lista substituída"); render();
 }
 
 function exportarTalhoes(fmt){
