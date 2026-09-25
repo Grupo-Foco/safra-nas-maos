@@ -817,6 +817,16 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 .arm-grid .arm-tot td{font-weight:800;background:#F3F1E7}
 .arm-grid .arm-sub td{font-weight:700;background:#FAF8F0;color:var(--green)}
 .mq-grid th,.mq-grid td{text-align:center !important}
+.tanque{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;
+  background:var(--card);border:1px solid var(--line);border-left:5px solid var(--brand);
+  border-radius:12px;padding:14px 18px;margin:14px 0}
+.tanque .tq-l{display:flex;flex-direction:column;gap:2px}
+.tanque .tq-cap{font-size:11px;letter-spacing:.08em;color:var(--muted);font-weight:700}
+.tanque .tq-val{font-size:28px;font-weight:800;color:var(--ink);line-height:1.1}
+.tanque .tq-val b{font-size:15px;font-weight:700;color:var(--muted)}
+.tanque .tq-val.neg{color:#b3261e}
+.tanque .tq-sub{font-size:12px;color:var(--muted)}
+.tanque .tq-acts{display:flex;gap:8px;flex-wrap:wrap}
 .mq-grid td:first-child,.mq-grid th:first-child{text-align:center !important}
 .ch-head-acts{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-left:auto}
 .confere-div{height:1px;background:var(--line);margin:12px 0}
@@ -893,7 +903,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.54.0";
+const APP_VERSION = "2.56.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -975,7 +985,7 @@ const SUPABASE = {
 
 /* Blocos de estado que sobem para a nuvem */
 const BLOCOS = ["talhoes","cargas","armazens","caminhoes","silocap","bases","chuva",
-                "lavoura","produtos","aplicacoes","entradas","docs","mapa","visitas","contratos","hist","pedidos","maquinas","abastec"];
+                "lavoura","produtos","aplicacoes","entradas","docs","mapa","visitas","contratos","hist","pedidos","maquinas","abastec","diesel"];
 
 /* ── Sessão ──────────────────────────────── */
 const Auth = {
@@ -4294,8 +4304,39 @@ function estoqueVazio(){
     'onclick="irPara(\'modulo\',{moduloId:\'operacoes\'})">Ir para Operações</button></div></div>';
 }
 /* Aba Pedidos: cadastro de compras, com entregue e faltam */
+function relPedidos(f){
+  const peds=pedidosDe(f.id);
+  const larguras=[240,120,90,100,90,160], aligns=['left','left','right','right','right','right'];
+  const linhas=[{t:'cab', cs:['Produto','Em nome de','Pedido','Entregue','Faltam','Valor']}];
+  const grupos={};
+  peds.forEach(p=>{ const k=_normNome(p.produto); (grupos[k]=grupos[k]||{nome:p.produto,itens:[]}).itens.push(p); });
+  let gP=0,gE=0,gV=0;
+  Object.keys(grupos).sort().forEach(k=>{
+    const g=grupos[k]; let sP=0,sE=0,sV=0;
+    g.itens.forEach(p=>{
+      const ent=p.entregue||0, falta=p.qtd-ent, val=p.qtd*(p.valor||0);
+      sP+=p.qtd; sE+=ent; sV+=val;
+      linhas.push({t:'dado', cs:[p.produto+(p.unidade?' ('+p.unidade+')':''), p.responsavel||'—', nf(p.qtd,0), nf(ent,0), nf(falta,0), p.valor?moeda(val):'—']});
+    });
+    if(g.itens.length>1)
+      linhas.push({t:'total', cs:[g.nome+' — total','', nf(sP,0), nf(sE,0), nf(sP-sE,0), moeda(sV)]});
+    gP+=sP; gE+=sE; gV+=sV;
+  });
+  linhas.push({t:'total', cs:['Total geral','', nf(gP,0), nf(gE,0), nf(gP-gE,0), moeda(gV)]});
+  return { titulo:"Pedidos · "+f.nome, sub:"Safra "+f.safra, larguras, aligns, linhas };
+}
+function exportarPedidos(fmt){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  if(!pedidosDe(f.id).length){ toast("Nenhum pedido para exportar"); return; }
+  const spec=relPedidos(f);
+  const nome="pedidos-"+f.nome.toLowerCase().replace(/[^a-z0-9]+/g,"-");
+  if(fmt==="csv"){ relParaCSV(spec, nome); return; }
+  fmt==="pdf" ? REL.pdf(spec,nome) : REL.png(spec,nome);
+}
 function abaPedidos(f, peds){
-  let h='<div class="acts"><button class="btn-act primary" onclick="modalPedido()">+ Novo pedido</button></div>';
+  let h='<div class="acts"><button class="btn-act primary" onclick="modalPedido()">+ Novo pedido</button>'+
+    (peds.length?botaoExportar([{rotulo:"Planilha",fn:"exportarPedidos('csv')"},{rotulo:"Imagem",fn:"exportarPedidos('png')"},{rotulo:"PDF",fn:"exportarPedidos('pdf')"}]):"")+
+    '</div>';
   if(!peds.length) return h+'<p class="vazio">Nenhum pedido ainda. Cadastre o que foi comprado — quando chegar na fazenda, registre a entrega.</p>';
   const grupos={};
   peds.forEach(p=>{ const k=_normNome(p.produto); (grupos[k]=grupos[k]||{nome:p.produto, itens:[]}).itens.push(p); });
@@ -4580,6 +4621,15 @@ function salvarMaquinas(f,l){ Store.set(kMaquinas(f), l); }
 function kAbastec(f){ return "faz_"+f+"_abastec"; }
 function abastecDe(f){ return Store.get(kAbastec(f), []); }
 function salvarAbastec(f,l){ Store.set(kAbastec(f), l); }
+/* ── Tanque de diesel: entradas (compras/entradas) − abastecimentos = saldo ── */
+function kDiesel(f){ return "faz_"+f+"_diesel"; }
+function dieselDe(f){ return Store.get(kDiesel(f), []); }
+function salvarDiesel(f,l){ Store.set(kDiesel(f), l); }
+function saldoTanque(f){
+  const ent = dieselDe(f).reduce((s,e)=>s+(Number(e.litros)||0),0);
+  const sai = abastecDe(f).reduce((s,a)=>s+(Number(a.litros)||0),0);
+  return { entradas:ent, saidas:sai, saldo:ent-sai };
+}
 function resumoMaquina(f, maq){
   const ab = abastecDe(f).filter(a=>a.maquina_id===maq.id);
   const litros = ab.reduce((s,a)=>s+(Number(a.litros)||0),0);
@@ -4607,6 +4657,14 @@ function telaMaquinario(){
     kpi("Horas", nf(th,0), "trabalhadas")+
     kpi("Consumo médio", th>0?nf(tl/th,1):"—", "L/h")+
   '</div>';
+  const TQ=saldoTanque(f.id);
+  h+='<div class="tanque">'+
+    '<div class="tq-l"><span class="tq-cap">TANQUE · DIESEL</span>'+
+      '<span class="tq-val'+(TQ.saldo<0?" neg":"")+'">'+nf(TQ.saldo,0)+' <b>L</b></span>'+
+      '<span class="tq-sub">Entradas '+nf(TQ.entradas,0)+' L · Abastecido '+nf(TQ.saidas,0)+' L</span></div>'+
+    '<div class="tq-acts"><button class="btn-act primary" onclick="modalEntradaDiesel()">+ Entrada de diesel</button>'+
+      (dieselDe(f.id).length?' <button class="btn-act" onclick="modalEntradasDiesel()">Entradas</button>':'')+
+    '</div></div>';
   if(!maqs.length) return h+'<p class="vazio">Nenhuma máquina. Cadastre a primeira para controlar horímetro e combustível.</p></div>';
   const bq=(_buscaMaq||"").toLowerCase().trim();
   const mostrar = bq ? maqs.filter(m=>((m.nome||"")+" "+(m.tipo||"")).toLowerCase().includes(bq)) : maqs;
@@ -4697,7 +4755,62 @@ function gravarAbastecer(id){
     horimetro:(isNaN(hor)?null:hor), operador:operador, criado_em:new Date().toISOString()});
   salvarAbastec(f.id,ab);
   if(!isNaN(hor) && hor>(Number(m.horimetro)||0)){ m.horimetro=hor; salvarMaquinas(f.id,l); }
-  fecharModal(); toast("Abastecimento registrado"); render();
+  fecharModal();
+  const s=saldoTanque(f.id).saldo;
+  toast(s<0 ? "Abastecido — tanque negativo ("+nf(s,0)+" L)" : "Abastecimento registrado");
+  render();
+}
+
+function modalEntradaDiesel(){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const hoje=new Date().toISOString().slice(0,10);
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal">'+
+    '<h2>Entrada de diesel</h2>'+
+    '<p class="sub">Quanto entrou no tanque. O saldo sobe com a entrada e baixa a cada abastecimento.</p>'+
+    '<div class="frm">'+
+      '<div style="display:flex;gap:10px">'+
+        '<div style="flex:1"><label for="ed-data">Data</label><input id="ed-data" type="date" value="'+hoje+'"></div>'+
+        '<div style="flex:1"><label for="ed-litros">Litros</label><input id="ed-litros" type="number" inputmode="decimal" placeholder="0"></div>'+
+      '</div>'+
+      '<div><label for="ed-obs">Observação</label><input id="ed-obs" placeholder="Nota, fornecedor… (opcional)"></div>'+
+    '</div>'+
+    '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
+      '<button class="btn-save" onclick="gravarEntradaDiesel()">Salvar</button></div></div></div>';
+  setTimeout(()=>{const e=document.getElementById("ed-litros");if(e)e.focus();},60);
+}
+function gravarEntradaDiesel(){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const litros=Number((document.getElementById("ed-litros").value||"").replace(",","."));
+  if(!litros||litros<=0){ toast("Informe os litros"); return; }
+  const data=document.getElementById("ed-data").value||new Date().toISOString().slice(0,10);
+  const obs=(document.getElementById("ed-obs").value||"").trim();
+  const l=dieselDe(f.id);
+  l.push({id:"di_"+Date.now().toString(36), data:data, litros:litros, obs:obs, criado_em:new Date().toISOString()});
+  salvarDiesel(f.id,l);
+  fecharModal(); toast("Entrada registrada"); render();
+}
+function modalEntradasDiesel(){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const l=dieselDe(f.id).slice().sort((a,b)=>String(b.data||"").localeCompare(String(a.data||"")));
+  const linhas = l.length ? l.map(e=>
+    '<tr><td>'+esc(dataBR(e.data))+'</td><td style="text-align:right">'+nf(e.litros,0)+' L</td>'+
+    '<td>'+esc(e.obs||"—")+'</td>'+
+    '<td style="text-align:right"><button class="mini" onclick="removerEntradaDiesel(\''+e.id+'\')">✕</button></td></tr>').join("")
+    : '<tr><td colspan="4" class="vazio">Nenhuma entrada.</td></tr>';
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal">'+
+    '<h2>Entradas de diesel</h2>'+
+    '<table class="arm-grid"><thead><tr><th>Data</th><th style="text-align:right">Litros</th><th>Observação</th><th></th></tr></thead>'+
+    '<tbody>'+linhas+'</tbody></table>'+
+    '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Fechar</button>'+
+      '<button class="btn-save" onclick="modalEntradaDiesel()">+ Nova entrada</button></div></div></div>';
+}
+function removerEntradaDiesel(id){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  if(!confirm("Remover esta entrada de diesel?")) return;
+  salvarDiesel(f.id, dieselDe(f.id).filter(e=>e.id!==id));
+  toast("Entrada removida"); render(); modalEntradasDiesel();
 }
 function exportarMaquinario(fmt){
   const f=acharFazenda(App.fazendaId); if(!f) return;
