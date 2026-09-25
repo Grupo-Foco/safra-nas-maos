@@ -893,7 +893,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.52.0";
+const APP_VERSION = "2.53.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -1861,7 +1861,20 @@ function kProd(f){ return "faz_"+f+"_produtos"; }
 function kApl(f){ return "faz_"+f+"_aplicacoes"; }
 function produtosDe(f){ return Store.get(kProd(f), []); }
 function aplicacoesDe(f){ return Store.get(kApl(f), []); }
-function acharProduto(f,id){ return produtosDe(f).find(p=>p.id===id)||null; }
+function acharProduto(f,id){ return produtosDe(f).find(p=>p.id===id) || produtosDisponiveis(f).find(p=>p.id===id) || null; }
+/* Produtos disponíveis para aplicar = cadastrados + os que estão no estoque
+   (produtos dos pedidos, ex.: KCl, MAP), com o preço do pedido. */
+function produtosDisponiveis(f){
+  const base = produtosDe(f).slice();
+  const nomes = new Set(base.map(p=>_normNome(p.nome)));
+  (typeof pedidosDe==="function"? pedidosDe(f):[]).forEach(p=>{
+    const nm=(p.produto||"").trim(); if(!nm) return;
+    const k=_normNome(nm); if(nomes.has(k)) return; nomes.add(k);
+    base.push({ id:"pp_"+k.replace(/[^a-z0-9]+/g,""), fazenda_id:f, nome:nm,
+      unidade:p.unidade||"kg", preco:Number(p.valor)||0, doEstoque:true });
+  });
+  return base;
+}
 
 function salvarProduto(f, d, id){
   const l = produtosDe(f);
@@ -7162,7 +7175,7 @@ function modalAplicacao(id){
 
 function desenharItensApl(){
   const f=acharFazenda(App.fazendaId);
-  const prods = produtosDe(f.id).slice().sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR"));
+  const prods = produtosDisponiveis(f.id).slice().sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR"));
   document.getElementById("ap-itens").innerHTML = _itensApl.map((it,i)=>
     '<div class="item item-p">'+
       '<select onchange="_itensApl['+i+'].produto_id=this.value;recalcApl()">'+
