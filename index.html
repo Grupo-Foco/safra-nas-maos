@@ -908,7 +908,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.60.0";
+const APP_VERSION = "2.62.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -1408,7 +1408,7 @@ const SEEDS_TALHOES = [
   { chave:"lajeado",        rotulo:"Lajeado",        talhoes:SEED_LAJEADO.talhoes }
 ];
 function seedParaFazenda(nome){
-  const n = (nome||"").toLowerCase();
+  const n = (nome||"").toLowerCase().replace("lageado","lajeado");
   return SEEDS_TALHOES.find(s=>n.includes(s.chave)) || null;
 }
 
@@ -1493,7 +1493,7 @@ const HIST_SEED = {
   }
 };
 function histSeedDe(nomeFaz){
-  const n=(nomeFaz||"").toLowerCase();
+  const n=(nomeFaz||"").toLowerCase().replace("lageado","lajeado");
   const k=Object.keys(HIST_SEED).find(x=>n.includes(x));
   return k ? HIST_SEED[k] : {};
 }
@@ -5989,6 +5989,7 @@ function salvarContrato(f, c, id){
   const dados = { tipo:c.tipo||"venda", categoria:c.categoria||"Venda",
     numero:(c.numero||"").trim(), parte:(c.parte||"").trim(), produtor:(c.produtor||"").trim(),
     destino:c.destino||"", sacas:Number(c.sacas)||0, entregue:(c.entregue===""||c.entregue==null)?null:Number(c.entregue),
+    area:Number(c.area)||0, scha:Number(c.scha)||0,
     preco:Number(c.preco)||0, banco:(c.banco||"").trim(), status:c.status||"", vencimento:c.vencimento||"", obs:(c.obs||"").trim() };
   if(id){ const i=l.findIndex(x=>x.id===id); if(i<0) return null;
     l[i]=Object.assign({},l[i],dados); Store.set(kContratos(f),l); return l[i]; }
@@ -6248,6 +6249,7 @@ function telaContratos(){
         '<div class="ct-barra"><i style="width:'+Math.min(100,it.pct).toFixed(1)+'%"></i></div>'+
         '<div class="ct-meta">'+
           '<span><i>Destino</i>'+esc(ct.destino||"—")+'</span>'+
+          (ct.categoria==="Arrendamento"&&ct.area>0?'<span><i>Área · sc/ha</i>'+nf(ct.area,2)+' ha · '+nf(ct.scha,0)+' sc/ha</span>':'')+
           '<span><i>Contratado</i>'+nf(ct.sacas,0)+' sc</span>'+
           '<span><i>Cumprido</i>'+nf(it.cumprido,0)+' sc</span>'+
           '<span class="'+(done?"ok":"")+'"><i>Restante</i>'+(done?"cumprido":nf(it.restante,0)+" sc")+'</span>'+
@@ -6319,9 +6321,15 @@ function modalContrato(id){
         '<div><label for="ct-num">Número / referência</label>'+
           '<input id="ct-num" value="'+esc(c?c.numero:"")+'" placeholder="CTR 175"></div>'+
       '</div>'+
+      '<div class="g2" id="ct-arr-box"'+(cat!=="Arrendamento"?' style="display:none"':'')+'>'+
+        '<div><label for="ct-area">Área arrendada (ha)</label>'+
+          '<input id="ct-area" type="number" min="0" step="0.01" inputmode="decimal" value="'+(c&&c.area?c.area:"")+'" placeholder="290,04" oninput="_ctScha()"></div>'+
+        '<div><label for="ct-scha">Sc/ha (sacas por hectare)</label>'+
+          '<input id="ct-scha" type="number" min="0" step="0.01" inputmode="decimal" value="'+(c&&c.scha?c.scha:"")+'" placeholder="9" oninput="_ctScha()"></div>'+
+      '</div>'+
       '<div class="g3">'+
-        '<div><label for="ct-sacas">Qtd vendida / contratada (SC)</label>'+
-          '<input id="ct-sacas" type="number" min="0" step="0.01" inputmode="decimal" value="'+(c&&c.sacas?c.sacas:"")+'" placeholder="20000"></div>'+
+        '<div><label id="ct-sacas-lbl" for="ct-sacas">'+(cat==="Arrendamento"?"Sacas do arrendamento (área × sc/ha)":"Qtd vendida / contratada (SC)")+'</label>'+
+          '<input id="ct-sacas" type="number" min="0" step="0.01" inputmode="decimal" value="'+(c&&c.sacas?c.sacas:"")+'" placeholder="20000"'+(cat==="Arrendamento"?' readonly':'')+'></div>'+
         '<div><label for="ct-entr">Qtd entregue (SC)</label>'+
           '<input id="ct-entr" type="number" min="0" step="0.01" inputmode="decimal" value="'+(c&&c.entregue!=null?c.entregue:"")+'" placeholder="deixe vazio p/ puxar da colheita"></div>'+
         '<div><label for="ct-status">Status</label><select id="ct-status">'+
@@ -6347,21 +6355,37 @@ function _ctCateg(v){
   const lbl=document.getElementById("ct-parte-lbl");
   const box=document.getElementById("ct-preco-box");
   const bco=document.getElementById("ct-banco-box");
+  const arr=document.getElementById("ct-arr-box");
+  const sl =document.getElementById("ct-sacas-lbl");
+  const si =document.getElementById("ct-sacas");
   if(lbl) lbl.textContent = v==="Arrendamento" ? "Arrendador" : v==="Depósito" ? "Armazém / rótulo" : "Comprador";
   if(box) box.style.display = v==="Venda" ? "" : "none";
   if(bco) bco.style.display = v==="Venda" ? "" : "none";
+  const arrend = v==="Arrendamento";
+  if(arr) arr.style.display = arrend ? "" : "none";
+  if(sl)  sl.textContent = arrend ? "Sacas do arrendamento (área × sc/ha)" : "Qtd vendida / contratada (SC)";
+  if(si){ si.readOnly = arrend; if(arrend) _ctScha(); }
+}
+function _ctScha(){
+  const a=parseFloat(String((document.getElementById("ct-area")||{}).value||"").replace(",","."))||0;
+  const s=parseFloat(String((document.getElementById("ct-scha")||{}).value||"").replace(",","."))||0;
+  const si=document.getElementById("ct-sacas");
+  if(si) si.value = (a>0&&s>0) ? +(a*s).toFixed(2) : "";
 }
 function gravarContrato(id){
   const f=acharFazenda(App.fazendaId); if(!f) return;
   const g=i=>String((document.getElementById(i)||{}).value||"").trim();
   const cat=g("ct-cat");
-  const sacas=parseFloat(g("ct-sacas").replace(",","."))||0;
+  const area=parseFloat(g("ct-area").replace(",","."))||0;
+  const scha=parseFloat(g("ct-scha").replace(",","."))||0;
+  let sacas=parseFloat(g("ct-sacas").replace(",","."))||0;
+  if(cat==="Arrendamento" && area>0 && scha>0) sacas = +(area*scha).toFixed(2);
   const entrRaw=g("ct-entr");
-  if(sacas<=0 && !entrRaw){ toast("Informe a quantidade vendida ou entregue"); return; }
+  if(sacas<=0 && !entrRaw){ toast(cat==="Arrendamento"?"Informe a área e o sc/ha":"Informe a quantidade vendida ou entregue"); return; }
   if(!g("ct-dest")){ toast("Escolha o armazém de destino"); return; }
   salvarContrato(f.id,{ categoria:cat, tipo:(cat==="Arrendamento"?"arrendamento":"venda"),
     produtor:g("ct-prod"), numero:g("ct-num"), parte:g("ct-parte"), destino:g("ct-dest"),
-    sacas, entregue: entrRaw===""?null:parseFloat(entrRaw.replace(",","."))||0,
+    sacas, entregue: entrRaw===""?null:parseFloat(entrRaw.replace(",","."))||0, area, scha,
     preco:parseFloat(g("ct-preco").replace(",","."))||0, banco:g("ct-banco"), status:g("ct-status"),
     vencimento:g("ct-venc"), obs:g("ct-obs") }, id);
   fecharModal(); toast(id?"Contrato atualizado":"Contrato cadastrado"); render();
