@@ -918,7 +918,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.70.0";
+const APP_VERSION = "2.71.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -4760,8 +4760,19 @@ function resumoMaquina(f, maq){
   return { litros, horas:rodou, rodou, consumo: rodou>0? litros/rodou : 0, abast: ab.length, hatual };
 }
 let _buscaMaq="";
+function _ehMaqCabecalho(m){
+  const n=_normNome((m&&m.nome)||"");
+  return n==="ordem" || n==="item" || n==="nome" || n==="maquina";   // linhas de cabeçalho que entraram na importação
+}
 function telaMaquinario(){
   const f=acharFazenda(App.fazendaId); if(!f){ App.tela="fazendas"; return telaFazendas(); }
+  // Limpeza: remove linhas-cabeçalho ("Ordem", "Máquina"…) que viraram máquina na importação
+  const lixo=maquinasDe(f.id).filter(_ehMaqCabecalho);
+  if(lixo.length){
+    const ids=new Set(lixo.map(m=>m.id));
+    salvarMaquinas(f.id, maquinasDe(f.id).filter(m=>!ids.has(m.id)));
+    salvarAbastec(f.id, abastecDe(f.id).filter(a=>!ids.has(a.maquina_id)));
+  }
   const maqs=maquinasDe(f.id), abast=abastecDe(f.id);
   let h='<div class="wrap wrap-wide">';
   h+='<div class="farm-head"><button class="btn-back" onclick="irPara(\'fazenda\')">← '+esc(f.nome)+'</button>'+
@@ -5107,7 +5118,7 @@ function importarMaquinas(){
     let nome=(nomeIdx>=0 ? c[nomeIdx] : "")||"";
     if(!nome && nomeIdx===0) nome=(c.find(x=>x&&x.trim())||"");   // fallback no modo simples
     nome=nome.replace(/\s+/g," ").trim();
-    if(!nome || /^(nome|m[aá]quina)$/i.test(nome)) return;
+    if(!nome || /^(nome|m[aá]quina|ordem|item|m[aá]quina\/implemento)$/i.test(nome)) return;
     const chassi = chassiIdx>=0 ? (c[chassiIdx]||"").trim() : "";
     const chave = _normNome(chassi||nome);
     if(existentes.has(chave)){ dup++; return; }
