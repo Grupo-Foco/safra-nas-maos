@@ -916,7 +916,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.65.0";
+const APP_VERSION = "2.66.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -1013,6 +1013,7 @@ const Auth = {
     });
     const d = await r.json();
     if(!r.ok) throw new Error(d.error_description || d.msg || d.message || "Não consegui entrar");
+    try{ Acesso.limpar(); }catch(e){}   // login de outro usuário: zera cache de acesso do anterior
     Store.set("sb_sessao", { token:d.access_token, refresh:d.refresh_token,
       expira: Date.now() + (d.expires_in||3600)*1000, user:d.user });
     return d.user;
@@ -1048,6 +1049,7 @@ const Auth = {
   sair(){
     Store.del("sb_sessao");
     Store.del("sync_fila"); Store.del("sync_sujo"); Store.del("sync_ultimo");
+    try{ Acesso.limpar(); }catch(e){}
   },
   async token(){
     const s = this.sessao(); if(!s) return null;
@@ -2471,9 +2473,15 @@ function resumoModulos(modulos){
 }
 
 const Acesso = {
-  mapa(){ return Store.get("sm_acesso", {}); },
+  // O cache é carimbado com o id do usuário dono dele. Se o usuário logado
+  // agora for outro (ou ninguém), o cache antigo é ignorado — nunca vaza o
+  // papel de um usuário para o próximo que abrir o app no mesmo aparelho.
+  _uid(){ const u = (typeof Auth!=="undefined") && Auth.usuario(); return u ? u.id : null; },
+  carregadoParaUsuario(){ return !!this._uid() && Store.get("sm_acesso_dono",null)===this._uid(); },
+  mapa(){ return this.carregadoParaUsuario() ? Store.get("sm_acesso", {}) : {}; },
   daFaz(fid){ return this.mapa()[fid] || null; },
-  guardar(m){ Store.set("sm_acesso", m||{}); },
+  guardar(m){ Store.set("sm_acesso", m||{}); Store.set("sm_acesso_dono", this._uid()); },
+  limpar(){ Store.del("sm_acesso"); Store.del("sm_acesso_dono"); },
   // Carrega da nuvem o vínculo do PRÓPRIO usuário em cada fazenda.
   async carregar(){
     if(!SUPABASE.ligado() || !Auth.logado() || !navigator.onLine) return;
@@ -2492,13 +2500,19 @@ const Acesso = {
 function ehGestor(fid){
   if(!SUPABASE.ligado() || !Auth.logado()) return true;
   const a = Acesso.daFaz(fid);
-  if(!a) return true;
-  return a.papel==="dono" || a.papel==="admin";
+  if(a) return a.papel==="dono" || a.papel==="admin";
+  // sem vínculo carregado para esta fazenda:
+  try{ if(new Set(Store.get("novasFazendas",[])).has(fid)) return true; }catch(e){}  // acabei de criar
+  if(!Acesso.carregadoParaUsuario()) return true;   // 1ª carga ainda não veio — não trancar o dono
+  return false;                                     // cache é meu e a fazenda não está nele
 }
 function ehDono(fid){
   if(!SUPABASE.ligado() || !Auth.logado()) return true;
   const a = Acesso.daFaz(fid);
-  return !a || a.papel==="dono";
+  if(a) return a.papel==="dono";
+  try{ if(new Set(Store.get("novasFazendas",[])).has(fid)) return true; }catch(e){}
+  if(!Acesso.carregadoParaUsuario()) return true;
+  return false;
 }
 function ehSoLeitura(fid){
   if(!SUPABASE.ligado() || !Auth.logado()) return false;
