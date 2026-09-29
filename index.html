@@ -918,7 +918,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.71.0";
+const APP_VERSION = "2.72.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -1212,6 +1212,7 @@ const Sync = {
     sujos = sujos.slice().sort((a,b)=>
       (a==="fazendas"?0:1) - (b==="fazendas"?0:1));
     const restam = []; let erro = null;
+    const enviados = {};   // chave -> conteúdo (string) que foi enviado, p/ detectar edição durante o envio
     for(const chave of sujos){
       try{
         if(chave === "fazendas"){
@@ -1248,15 +1249,28 @@ const Sync = {
           if(!fid) continue;
           // Blocos usam upsert normalmente: aqui o vínculo de membro já existe
           // (a fazenda subiu antes), então a política de UPDATE passa.
+          const payload = Store.get(chave, null);
+          enviados[chave] = JSON.stringify(payload===undefined?null:payload);
           await this._comRetry(()=>api("safra_estado", { method:"POST",
             prefer:"resolution=merge-duplicates,return=minimal",
-            body:{ fazenda_id:fid, chave:bloco, dados: Store.get(chave, null) } }));
+            body:{ fazenda_id:fid, chave:bloco, dados: payload } }));
         }
       }catch(e){ restam.push(chave); erro = e; }
     }
     if(erro) Store.set("sync_erro", String(erro.message||erro));
     else Store.del("sync_erro");
-    Store.set("sync_sujo", restam);
+    // Limpa a marca de "sujo" APENAS dos blocos enviados COM SUCESSO e que NÃO
+    // mudaram durante o envio. Um lançamento feito no meio do sync mantém a
+    // marca — assim o baixar() não sobrescreve com a versão antiga da nuvem.
+    const restamSet=new Set(restam), processadas=new Set(sujos);
+    const novaFila = this.sujos().filter(ch=>{
+      if(restamSet.has(ch)) return true;          // falhou → continua sujo
+      if(!processadas.has(ch)) return true;        // marcado depois do início → continua sujo
+      if(ch==="fazendas") return false;            // fazendas enviadas
+      const atual = JSON.stringify(Store.get(ch, null));
+      return enviados[ch]!==undefined && atual!==enviados[ch];  // mudou durante o envio → mantém
+    });
+    Store.set("sync_sujo", novaFila);
     this.render();
     return sujos.length - restam.length;
   },
