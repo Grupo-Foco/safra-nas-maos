@@ -918,7 +918,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.69.0";
+const APP_VERSION = "2.70.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -4751,14 +4751,13 @@ function saldoTanque(f){
 function resumoMaquina(f, maq){
   const ab = abastecDe(f).filter(a=>a.maquina_id===maq.id);
   const litros = ab.reduce((s,a)=>s+(Number(a.litros)||0),0);
-  // horas do intervalo de cada abastecimento (atual − anterior), quando informados
-  let horasInt = 0;
+  // km/horas RODADAS = soma dos intervalos (novo − anterior) de cada abastecimento.
+  // Só conta o que foi anotado nos abastecimentos — nunca o horímetro de cadastro.
+  let rodou = 0;
   ab.forEach(a=>{ const ha=Number(a.hor_ant), hb=Number(a.horimetro);
-    if(!isNaN(ha)&&!isNaN(hb)&&hb>ha) horasInt += hb-ha; });
-  const hini = Number(maq.horimetro_ini)||0;
-  const hatual = Number(maq.horimetro)||hini;
-  const horas = horasInt>0 ? horasInt : Math.max(0, hatual-hini);
-  return { litros, horas, consumo: horas>0? litros/horas : 0, abast: ab.length, hatual };
+    if(!isNaN(ha)&&!isNaN(hb)&&hb>ha) rodou += hb-ha; });
+  const hatual = Number(maq.horimetro)||Number(maq.horimetro_ini)||0;
+  return { litros, horas:rodou, rodou, consumo: rodou>0? litros/rodou : 0, abast: ab.length, hatual };
 }
 let _buscaMaq="";
 function telaMaquinario(){
@@ -4792,10 +4791,10 @@ function telaMaquinario(){
   const mostrar = bq ? maqs.filter(m=>((m.nome||"")+" "+(m.tipo||"")).toLowerCase().includes(bq)) : maqs;
   h+='<div class="acts"><input class="busca" placeholder="Buscar máquina ou tipo…" value="'+esc(_buscaMaq)+'" '+
      'oninput="clearTimeout(window._bmq);window._bmq=setTimeout(()=>{_buscaMaq=this.value;render();},200)"></div>';
-  h+='<table class="arm-grid mq-grid"><thead><tr><th>Máquina</th><th>Tipo</th><th>Horímetro atual</th><th>Horas trabalhadas</th><th>Média (L/h)</th><th></th></tr></thead><tbody>';
+  h+='<table class="arm-grid mq-grid"><thead><tr><th>Máquina</th><th>Tipo</th><th>Horímetro atual</th><th>Rodou (h/km)</th><th>Litros</th><th>Média (L/h)</th><th></th></tr></thead><tbody>';
   mostrar.forEach(m=>{ const R=resumoMaquina(f.id,m); const nAb=(abast.filter(a=>a.maquina_id===m.id)).length;
     h+='<tr><td><button class="link-maq" onclick="modalHistoricoMaq(\''+m.id+'\')" title="Ver abastecimentos">'+esc(m.nome)+(nAb?' <b>'+nAb+'</b>':'')+'</button></td><td>'+esc(m.tipo||"—")+'</td>'+
-       '<td>'+nf(R.hatual,0)+'</td><td>'+nf(R.horas,0)+'</td><td>'+(R.consumo?nf(R.consumo,1):"—")+'</td>'+
+       '<td>'+nf(R.hatual,0)+'</td><td>'+nf(R.rodou,0)+'</td><td>'+nf(R.litros,0)+'</td><td>'+(R.consumo?nf(R.consumo,1):"—")+'</td>'+
        '<td style="white-space:nowrap;text-align:right"><button class="mini" onclick="modalAbastecer(\''+m.id+'\')">Abastecer</button> '+
        '<button class="mini" onclick="modalMaquina(\''+m.id+'\')">Editar</button> '+
        '<button class="mini" onclick="removerMaquina(\''+m.id+'\')">✕</button></td></tr>';
@@ -4825,7 +4824,8 @@ function modalMaquina(id){
     '<div class="frm">'+
       '<div><label for="mq-nome">Nome</label><input id="mq-nome" placeholder="Colheitadeira, Trator JD 6110…" value="'+esc(ed?ed.nome:"")+'"></div>'+
       '<div style="display:flex;gap:10px"><div style="flex:1"><label for="mq-tipo">Tipo</label><input id="mq-tipo" placeholder="Colheitadeira, trator…" value="'+esc(ed?(ed.tipo||""):"")+'"></div>'+
-      '<div style="flex:1"><label for="mq-hor">Horímetro atual</label><input id="mq-hor" type="number" inputmode="decimal" placeholder="0" value="'+(ed&&ed.horimetro!=null?ed.horimetro:"")+'"></div></div>'+
+      '<div style="flex:1"><label for="mq-hor">Horímetro / hodômetro atual</label><input id="mq-hor" type="number" inputmode="decimal" placeholder="leitura de hoje" value="'+(ed&&ed.horimetro!=null?ed.horimetro:"")+'"></div></div>'+
+      '<p class="resumo-obs" style="margin:0">A leitura de hoje é o ponto de partida. A cada abastecimento você anota o novo horímetro + litros — daí sai o rodado e a média.</p>'+
     '</div>'+
     '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
       '<button class="btn-save" onclick="gravarMaquina('+(ed?"'"+ed.id+"'":"")+')">'+(ed?"Salvar":"Adicionar")+'</button></div></div></div>';
