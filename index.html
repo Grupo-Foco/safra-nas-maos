@@ -918,7 +918,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.72.0";
+const APP_VERSION = "2.73.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -1172,6 +1172,35 @@ async function pintarArquivo(caminho, alvoId){
 }
 
 /* ── Sincronização ───────────────────────── */
+/* Bloco "LOG": lista de registros com id (abastecimentos, aplicações, cargas,
+   pedidos, entregas, diesel…). Esses são mesclados por id ao baixar, para
+   nunca perder um lançamento local. */
+function _ehLog(x){
+  return Array.isArray(x) && x.every(e=>e && typeof e==="object" && e.id!=null);
+}
+/* Mescla local + nuvem por id. Regras:
+   - registro nos dois: a nuvem manda; se o bloco tem edição local pendente, o local manda.
+   - só na nuvem: entra (veio de outro aparelho).
+   - só no local: mantém se o bloco está pendente OU se foi criado depois do último
+     download (lançamento novo ainda não sincronizado). Se é antigo e sumiu da nuvem,
+     foi apagado em outro aparelho → não ressuscita. */
+function _mergeLog(local, nuvem, pendente, lastPull){
+  local=local||[]; nuvem=nuvem||[];
+  const res = nuvem.slice();
+  const idx = {}; res.forEach((it,i)=>{ if(it&&it.id!=null) idx[it.id]=i; });
+  local.forEach(it=>{
+    if(!it || it.id==null) return;
+    if(idx[it.id]!=null){
+      if(pendente) res[idx[it.id]] = it;          // edição local não enviada vence
+    } else {
+      const t = Date.parse(it.criado_em||it.criado||it.data||"") || 0;
+      if(pendente || !lastPull || t > lastPull){   // novo local → mantém
+        res.push(it); idx[it.id]=res.length-1;
+      }
+    }
+  });
+  return res;
+}
 const Sync = {
   sujos(){ return Store.get("sync_sujo", []); },
   marcar(chave){
@@ -1307,10 +1336,19 @@ const Sync = {
 
     const est = await api("safra_estado?select=fazenda_id,chave,dados,atualizado_em");
     const sujos = this.sujos();
+    const lastPull = Date.parse(Store.get("sync_ultimo","")) || 0;
     (est||[]).forEach(r=>{
       const chave = "faz_"+r.fazenda_id+"_"+r.chave;
-      if(sujos.includes(chave)) return;   // mudança local ainda não enviada tem prioridade
-      if(r.dados != null) Store.set(chave, r.dados);
+      if(r.dados == null) return;
+      const dirty = sujos.includes(chave);
+      const local = Store.get(chave, null);
+      if(_ehLog(local) && _ehLog(r.dados)){
+        // Bloco tipo LOG (lista de registros com id): mescla por id — nunca perde
+        // um lançamento local, mesmo se a nuvem estiver com versão antiga.
+        Store.set(chave, _mergeLog(local, r.dados, dirty, lastPull));
+      } else if(!dirty){
+        Store.set(chave, r.dados);   // blocos não-lista: nuvem manda (se não há edição local pendente)
+      }
     });
     (fz||[]).forEach(r=>recontarFazenda(r.id));
     await Acesso.carregar();   // papel + módulos liberados do próprio usuário
