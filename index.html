@@ -840,6 +840,8 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 .ab-calc{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 12px;
   font-size:13px;color:var(--muted);text-align:center}
 .ab-calc b{color:var(--green);font-weight:800}
+.link-maq{background:none;border:none;padding:0;color:var(--green);font-weight:700;font-family:inherit;font-size:inherit;cursor:pointer;text-decoration:none;border-bottom:1px dotted var(--muted)}
+.link-maq b{font-weight:800;color:var(--muted);font-size:11px;border:none}
 .mq-grid td:first-child,.mq-grid th:first-child{text-align:center !important}
 .ch-head-acts{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-left:auto}
 .confere-div{height:1px;background:var(--line);margin:12px 0}
@@ -916,7 +918,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.68.0";
+const APP_VERSION = "2.69.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -4790,16 +4792,16 @@ function telaMaquinario(){
   const mostrar = bq ? maqs.filter(m=>((m.nome||"")+" "+(m.tipo||"")).toLowerCase().includes(bq)) : maqs;
   h+='<div class="acts"><input class="busca" placeholder="Buscar máquina ou tipo…" value="'+esc(_buscaMaq)+'" '+
      'oninput="clearTimeout(window._bmq);window._bmq=setTimeout(()=>{_buscaMaq=this.value;render();},200)"></div>';
-  h+='<table class="arm-grid mq-grid"><thead><tr><th>Máquina</th><th>Tipo</th><th>Horímetro</th><th>Horas</th><th>Litros</th><th>L/h</th><th></th></tr></thead><tbody>';
-  mostrar.forEach(m=>{ const R=resumoMaquina(f.id,m);
-    h+='<tr><td>'+esc(m.nome)+'</td><td>'+esc(m.tipo||"—")+'</td>'+
-       '<td>'+nf(R.hatual,0)+'</td><td>'+nf(R.horas,0)+'</td><td>'+nf(R.litros,0)+'</td><td>'+(R.consumo?nf(R.consumo,1):"—")+'</td>'+
+  h+='<table class="arm-grid mq-grid"><thead><tr><th>Máquina</th><th>Tipo</th><th>Horímetro atual</th><th>Horas trabalhadas</th><th>Média (L/h)</th><th></th></tr></thead><tbody>';
+  mostrar.forEach(m=>{ const R=resumoMaquina(f.id,m); const nAb=(abast.filter(a=>a.maquina_id===m.id)).length;
+    h+='<tr><td><button class="link-maq" onclick="modalHistoricoMaq(\''+m.id+'\')" title="Ver abastecimentos">'+esc(m.nome)+(nAb?' <b>'+nAb+'</b>':'')+'</button></td><td>'+esc(m.tipo||"—")+'</td>'+
+       '<td>'+nf(R.hatual,0)+'</td><td>'+nf(R.horas,0)+'</td><td>'+(R.consumo?nf(R.consumo,1):"—")+'</td>'+
        '<td style="white-space:nowrap;text-align:right"><button class="mini" onclick="modalAbastecer(\''+m.id+'\')">Abastecer</button> '+
        '<button class="mini" onclick="modalMaquina(\''+m.id+'\')">Editar</button> '+
        '<button class="mini" onclick="removerMaquina(\''+m.id+'\')">✕</button></td></tr>';
   });
   h+='</tbody></table>';
-  if(abast.length){
+  if(false){
     const nome={}; maqs.forEach(m=>nome[m.id]=m.nome);
     const recent=abast.slice().sort((a,b)=>String(b.data||"").localeCompare(String(a.data||""))).slice(0,20);
     h+='<div class="resumo"><div class="resumo-t">Abastecimentos recentes</div>'+
@@ -4853,30 +4855,28 @@ function removerMaquina(id){
 function modalAbastecer(id){
   const f=acharFazenda(App.fazendaId);
   const m=maquinasDe(f.id).find(x=>x.id===id); if(!m) return;
-  const hAnt=Number(m.horimetro)||0;               // última leitura conhecida
+  const hAnt=Number(m.horimetro)||0;               // última leitura conhecida (vira o "anterior")
   document.getElementById("modal-root").innerHTML=
   '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal">'+
     '<h2>Abastecer</h2><p class="sub">'+esc(m.nome)+' · última leitura '+nf(hAnt,0)+'</p>'+
     '<div class="frm">'+
       '<div style="display:flex;gap:10px"><div style="flex:1"><label for="ab-data">Data</label><input id="ab-data" type="date" value="'+new Date().toISOString().slice(0,10)+'"></div>'+
-      '<div style="flex:1"><label for="ab-litros">Litros</label><input id="ab-litros" type="number" inputmode="decimal" placeholder="0" oninput="_abConsumo()"></div></div>'+
-      '<div style="display:flex;gap:10px">'+
-        '<div style="flex:1"><label for="ab-hant">Horímetro / km anterior</label><input id="ab-hant" type="number" inputmode="decimal" value="'+(hAnt||"")+'" oninput="_abConsumo()"></div>'+
-        '<div style="flex:1"><label for="ab-hor">Horímetro / km atual</label><input id="ab-hor" type="number" inputmode="decimal" placeholder="'+nf(hAnt,0)+'" oninput="_abConsumo()"></div>'+
-      '</div>'+
-      '<div class="ab-calc" id="ab-calc">Trabalhou <b>—</b> · consumo <b>—</b></div>'+
-      '<div><label for="ab-op">Operador</label><input id="ab-op" placeholder="Quem operou / abasteceu"></div>'+
+      '<div style="flex:1"><label for="ab-hor">Horímetro / km atual</label><input id="ab-hor" type="number" inputmode="decimal" placeholder="'+nf(hAnt,0)+'" oninput="_abConsumo()"></div></div>'+
+      '<div style="display:flex;gap:10px"><div style="flex:1"><label for="ab-litros">Litros abastecidos</label><input id="ab-litros" type="number" inputmode="decimal" placeholder="0" oninput="_abConsumo()"></div>'+
+      '<div style="flex:1"><label for="ab-op">Operador (opcional)</label><input id="ab-op" placeholder="Quem abasteceu"></div></div>'+
+      '<div class="ab-calc" id="ab-calc">Rodou <b>—</b> desde a última · consumo <b>—</b></div>'+
     '</div>'+
     '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
       '<button class="btn-save" onclick="gravarAbastecer(\''+id+'\')">Registrar</button></div></div></div>';
-  setTimeout(()=>{const e=document.getElementById("ab-litros");if(e)e.focus();},60);
+  window._abHant=hAnt;
+  setTimeout(()=>{const e=document.getElementById("ab-hor");if(e)e.focus();},60);
 }
 function _abConsumo(){
   const nv=i=>Number(String((document.getElementById(i)||{}).value||"").replace(",","."))||0;
-  const lit=nv("ab-litros"), a=nv("ab-hant"), b=nv("ab-hor");
+  const lit=nv("ab-litros"), a=Number(window._abHant)||0, b=nv("ab-hor");
   const dif = b>a ? b-a : 0;
   const el=document.getElementById("ab-calc"); if(!el) return;
-  el.innerHTML = "Trabalhou <b>"+(dif>0?nf(dif,1)+" h/km":"—")+"</b> · consumo <b>"+
+  el.innerHTML = "Rodou <b>"+(dif>0?nf(dif,1)+" h/km":"—")+"</b> desde a última · consumo <b>"+
     (dif>0&&lit>0?nf(lit/dif,2)+" L/h":"—")+"</b>";
 }
 function gravarAbastecer(id){
@@ -4885,9 +4885,8 @@ function gravarAbastecer(id){
   const litros=Number((document.getElementById("ab-litros").value||"").replace(",","."));
   if(!litros||litros<=0){ toast("Informe os litros"); return; }
   const data=document.getElementById("ab-data").value||new Date().toISOString().slice(0,10);
-  const antStr=(document.getElementById("ab-hant").value||"").replace(",",".");
   const horStr=(document.getElementById("ab-hor").value||"").replace(",",".");
-  const hAnt= antStr!=="" ? Number(antStr) : (Number(m.horimetro)||0);
+  const hAnt= Number(window._abHant)||(Number(m.horimetro)||0);   // última leitura = anterior
   const hor= horStr!=="" ? Number(horStr) : hAnt;
   const operador=(document.getElementById("ab-op").value||"").trim();
   const ab=abastecDe(f.id);
@@ -4900,6 +4899,41 @@ function gravarAbastecer(id){
   const s=saldoTanque(f.id).saldo;
   toast(s<0 ? "Abastecido — tanque negativo ("+nf(s,0)+" L)" : "Abastecimento registrado");
   render();
+}
+/* Histórico de abastecimentos de UMA máquina */
+function modalHistoricoMaq(id){
+  const f=acharFazenda(App.fazendaId);
+  const m=maquinasDe(f.id).find(x=>x.id===id); if(!m) return;
+  const R=resumoMaquina(f.id,m);
+  const ab=abastecDe(f.id).filter(a=>a.maquina_id===id)
+    .sort((a,b)=>String(b.data||"").localeCompare(String(a.data||"")));
+  const linhas = ab.length ? ab.map(a=>{
+    const ha=Number(a.hor_ant), hb=Number(a.horimetro), lit=Number(a.litros)||0;
+    const dif=(!isNaN(ha)&&!isNaN(hb)&&hb>ha)?hb-ha:0;
+    return '<tr><td>'+esc(dataBR(a.data))+'</td><td style="text-align:right">'+nf(hb||0,0)+'</td>'+
+      '<td style="text-align:right">'+nf(lit,0)+' L</td><td style="text-align:right">'+(dif>0?nf(dif,1):"—")+'</td>'+
+      '<td style="text-align:right">'+(dif>0&&lit>0?nf(lit/dif,2):"—")+'</td>'+
+      '<td style="text-align:right"><button class="mini rm" onclick="removerAbastecimento(\''+id+'\',\''+a.id+'\')">✕</button></td></tr>';
+  }).join("") : '<tr><td colspan="6" class="vazio">Nenhum abastecimento ainda.</td></tr>';
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal modal-lg">'+
+    '<h2>Abastecimentos · '+esc(m.nome)+'</h2>'+
+    '<p class="sub">Horímetro atual '+nf(R.hatual,0)+' · '+nf(R.horas,0)+' h/km trabalhadas · '+nf(R.litros,0)+' L · média '+(R.consumo?nf(R.consumo,1):"—")+' L/h</p>'+
+    '<table class="arm-grid"><thead><tr><th>Data</th><th style="text-align:right">Horímetro</th><th style="text-align:right">Litros</th><th style="text-align:right">Rodou</th><th style="text-align:right">L/h</th><th></th></tr></thead>'+
+    '<tbody>'+linhas+'</tbody></table>'+
+    '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Fechar</button>'+
+      '<button class="btn-save" onclick="modalAbastecer(\''+id+'\')">+ Abastecer</button></div></div></div>';
+}
+function removerAbastecimento(maqId, abId){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  if(!confirm("Remover este abastecimento? O saldo do tanque volta a subir.")) return;
+  salvarAbastec(f.id, abastecDe(f.id).filter(a=>a.id!==abId));
+  // recalcula o horímetro atual da máquina pela maior leitura restante
+  const l=maquinasDe(f.id), m=l.find(x=>x.id===maqId);
+  if(m){ const rest=abastecDe(f.id).filter(a=>a.maquina_id===maqId).map(a=>Number(a.horimetro)||0);
+    const maxH=rest.length?Math.max.apply(null,rest):(Number(m.horimetro_ini)||0);
+    m.horimetro=maxH; salvarMaquinas(f.id,l); }
+  toast("Abastecimento removido"); render(); modalHistoricoMaq(maqId);
 }
 
 function modalEntradaDiesel(){
