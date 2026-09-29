@@ -916,7 +916,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.64.0";
+const APP_VERSION = "2.65.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -3556,7 +3556,7 @@ function abaCargas(f, cargas){
       '<option value="baixada"'+(_fCarga.situacao==="baixada"?" selected":"")+'>Só baixadas</option>'+
       '<option value="transito"'+(_fCarga.situacao==="transito"?" selected":"")+'>Só a caminho</option>'+
       '</select>':'')+
-    (cargas.length?'<input class="busca" placeholder="Romaneio, motorista ou placa…" value="'+esc(_fCarga.busca)+'" '+
+    (cargas.length?'<input class="busca" placeholder="Romaneio/NF, motorista ou placa…" value="'+esc(_fCarga.busca)+'" '+
       'oninput="clearTimeout(window._bc);window._bc=setTimeout(()=>{_fCarga.busca=this.value;render();},250)">':'')+
     (cargas.length?'<span class="dt-filtro">De <input type="date" class="dtf" value="'+esc(_fCarga.de)+'" onchange="_fCarga.de=this.value;render()">'+
       '<span>Até</span><input type="date" class="dtf" value="'+esc(_fCarga.ate)+'" onchange="_fCarga.ate=this.value;render()">'+
@@ -3571,7 +3571,7 @@ function abaCargas(f, cargas){
     return h+'<div class="empty"><strong>Nada encontrado</strong>Ajuste os filtros para ver as cargas.</div>';
 
   h += '<div class="tbl"><table><thead><tr>'+
-    '<th>Data</th><th>Romaneio</th><th>Destino</th><th class="hide-sm">Motorista</th>'+
+    '<th>Data</th><th>Romaneio/NF</th><th class="hide-sm">NF retorno</th><th>Destino</th><th class="hide-sm">Motorista</th>'+
     '<th class="num">Líquido</th><th class="num">Sacas</th>'+
     '<th class="num hide-sm">Umid.</th><th>Situação</th>'+
     '<th class="hide-sm">Talhão</th><th></th></tr></thead><tbody>';
@@ -3585,6 +3585,7 @@ function abaCargas(f, cargas){
     h += '<tr'+(ok?'':' class="transito"')+'>'+
       '<td class="mono">'+dataBR(c.data)+'</td>'+
       '<td class="mono">'+esc(c.romaneio||c.codigo||"")+'</td>'+
+      '<td class="mono hide-sm">'+esc((ok&&c.baixa.romaneio_arm)?c.baixa.romaneio_arm:"—")+'</td>'+
       '<td><span class="tagdest">'+esc(c.destino||"—")+'</span></td>'+
       '<td class="hide-sm">'+esc(c.motorista||"—")+'</td>'+
       '<td class="num mono">'+n0(c.liquido)+'</td>'+
@@ -6897,7 +6898,7 @@ function modalCarga(id){
     '<div class="frm">'+
       '<div class="g3">'+
         '<div><label for="k-data">Data</label><input type="date" id="k-data" value="'+(c?c.data:hoje)+'"></div>'+
-        '<div><label for="k-rom">Romaneio</label><input id="k-rom" value="'+esc(c?c.romaneio:"")+'" placeholder="Nº"></div>'+
+        '<div><label for="k-rom">Romaneio/NF</label><input id="k-rom" value="'+esc(c?c.romaneio:"")+'" placeholder="Nº de saída"></div>'+
         '<div><label for="k-dest">Destino</label><select id="k-dest">'+
           (arm.length?"":'<option value="">— cadastre —</option>')+
           arm.map(a=>'<option '+(c&&c.destino===a?"selected":"")+'>'+esc(a)+'</option>').join("")+
@@ -7272,8 +7273,8 @@ function modalBaixa(id){
       '<div class="g3">'+
         '<div><label for="b-data">Data da baixa</label>'+
           '<input type="date" id="b-data" value="'+(j.data||hoje)+'"></div>'+
-        '<div><label for="b-rom">Romaneio do armazém</label>'+
-          '<input id="b-rom" value="'+esc(j.romaneio_arm||"")+'" placeholder="opcional"></div>'+
+        '<div><label for="b-rom">Romaneio/NF de retorno</label>'+
+          '<input id="b-rom" value="'+esc(j.romaneio_arm||"")+'" placeholder="NF que voltou do armazém"></div>'+
         '<div><label for="b-liq">Peso líquido no armazém (kg)</label>'+
           '<input id="b-liq" type="number" inputmode="decimal" value="'+(j.liquido!=null?j.liquido:(c.liquido||""))+'" oninput="recalcBaixa()"></div>'+
       '</div>'+
