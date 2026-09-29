@@ -916,7 +916,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.66.0";
+const APP_VERSION = "2.67.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -4385,8 +4385,8 @@ function estoqueVazio(){
 /* Aba Pedidos: cadastro de compras, com entregue e faltam */
 function relPedidos(f){
   const peds=pedidosDe(f.id);
-  const larguras=[240,120,90,100,90,160], aligns=['left','left','right','right','right','right'];
-  const linhas=[{t:'cab', cs:['Produto','Em nome de','Pedido','Entregue','Faltam','Valor']}];
+  const larguras=[220,110,90,90,90,140,90], aligns=['left','left','right','right','right','right','left'];
+  const linhas=[{t:'cab', cs:['Produto','Em nome de','Pedido','Entregue','Faltam','Valor','NF']}];
   const grupos={};
   peds.forEach(p=>{ const k=_normNome(p.produto); (grupos[k]=grupos[k]||{nome:p.produto,itens:[]}).itens.push(p); });
   let gP=0,gE=0,gV=0;
@@ -4395,13 +4395,13 @@ function relPedidos(f){
     g.itens.forEach(p=>{
       const ent=p.entregue||0, falta=p.qtd-ent, val=p.qtd*(p.valor||0);
       sP+=p.qtd; sE+=ent; sV+=val;
-      linhas.push({t:'dado', cs:[p.produto+(p.unidade?' ('+p.unidade+')':''), p.responsavel||'—', nf(p.qtd,0), nf(ent,0), nf(falta,0), p.valor?moeda(val):'—']});
+      linhas.push({t:'dado', cs:[p.produto+(p.unidade?' ('+p.unidade+')':''), p.responsavel||'—', nf(p.qtd,0), nf(ent,0), nf(falta,0), p.valor?moeda(val):'—', p.nf||'—']});
     });
     if(g.itens.length>1)
-      linhas.push({t:'total', cs:[g.nome+' — total','', nf(sP,0), nf(sE,0), nf(sP-sE,0), moeda(sV)]});
+      linhas.push({t:'total', cs:[g.nome+' — total','', nf(sP,0), nf(sE,0), nf(sP-sE,0), moeda(sV), '']});
     gP+=sP; gE+=sE; gV+=sV;
   });
-  linhas.push({t:'total', cs:['Total geral','', nf(gP,0), nf(gE,0), nf(gP-gE,0), moeda(gV)]});
+  linhas.push({t:'total', cs:['Total geral','', nf(gP,0), nf(gE,0), nf(gP-gE,0), moeda(gV), '']});
   return { titulo:"Pedidos · "+f.nome, sub:"Safra "+f.safra, larguras, aligns, linhas };
 }
 function exportarPedidos(fmt){
@@ -4427,6 +4427,7 @@ function abaPedidos(f, peds){
       const ent=p.entregue||0, falta=p.qtd-ent, val=p.qtd*(p.valor||0);
       sP+=p.qtd; sE+=ent; sV+=val;
       h+='<tr><td>'+esc(p.produto)+(p.unidade?' <small style="color:var(--muted)">('+esc(p.unidade)+')</small>':'')+
+         (p.nf?' <small style="color:var(--muted)">· NF '+esc(p.nf)+'</small>':'')+
          (p.anexo_path?' <a href="#" onclick="verAnexoPedido(\''+p.id+'\');return false" title="Ver comprovante/nota" style="text-decoration:none">📎</a>':'')+'</td>'+
          '<td>'+esc(p.responsavel||"—")+'</td>'+
          '<td>'+nf(p.qtd,0)+'</td><td>'+(((p.entregas&&p.entregas.length)||(p.entregue||0)>0)?'<a href="#" onclick="modalEntregas(\''+p.id+'\');return false" style="text-decoration:none;border-bottom:1px dotted var(--muted)">'+nf(ent,0)+'</a>':nf(ent,0))+'</td>'+
@@ -4465,6 +4466,8 @@ function modalPedido(id){
         '<div style="flex:1"><label for="pd-un">Unidade</label><input id="pd-un" placeholder="t, sc, L, kg" value="'+esc(ed?(ed.unidade||""):"")+'"></div></div>'+
       '<div><label for="pd-val">Valor por unidade (R$)</label>'+
         '<input id="pd-val" type="number" inputmode="decimal" placeholder="0,00" value="'+(ed&&ed.valor?ed.valor:"")+'"></div>'+
+      '<div><label for="pd-nf">Número da nota fiscal</label>'+
+        '<input id="pd-nf" placeholder="Nº da NF (opcional)" value="'+esc(ed?(ed.nf||""):"")+'"></div>'+
       '<div><label for="pd-file">Comprovante / nota (opcional)</label>'+
         '<input id="pd-file" type="file" accept="image/*,application/pdf" onchange="escolherArquivoPedido(this)">'+
         '<span class="nota-pad" id="pd-arq-lbl">'+(ed&&ed.anexo?esc(ed.anexo)+" (anexado — escolha outro para trocar)":"")+'</span></div>'+
@@ -4490,13 +4493,14 @@ async function gravarPedido(id){
   const un=(document.getElementById("pd-un").value||"").trim();
   const resp=(document.getElementById("pd-resp").value||"").trim();
   const valor=Number((document.getElementById("pd-val").value||"").replace(",","."))||0;
+  const nfNum=(document.getElementById("pd-nf").value||"").trim();
   const l=pedidosDe(f.id);
   let pid=id;
   if(id){ const p=l.find(x=>x.id===id); if(!p){fecharModal();return;}
-    p.produto=prod; p.responsavel=resp; p.qtd=qtd; p.unidade=un; p.valor=valor;
+    p.produto=prod; p.responsavel=resp; p.qtd=qtd; p.unidade=un; p.valor=valor; p.nf=nfNum;
   } else {
     pid="pd_"+Date.now().toString(36);
-    l.push({id:pid, produto:prod, responsavel:resp, unidade:un, qtd:qtd, valor:valor,
+    l.push({id:pid, produto:prod, responsavel:resp, unidade:un, qtd:qtd, valor:valor, nf:nfNum,
       entregue:0, criado_em:new Date().toISOString()});
   }
   salvarPedidos(f.id,l);
@@ -4541,6 +4545,8 @@ function modalEntregaPedido(id){
         '<input id="pe-data" type="date" value="'+new Date().toISOString().slice(0,10)+'"></div>'+
         '<div style="flex:1"><label for="pe-qtd">Quantidade que chegou</label>'+
         '<input id="pe-qtd" type="number" inputmode="decimal" placeholder="'+nf(falta,0)+'"></div></div>'+
+      '<div><label for="pe-nf">Número da nota fiscal</label>'+
+        '<input id="pe-nf" placeholder="Nº da NF (opcional)"></div>'+
       '<div><label for="pe-f1">Nota 1 (opcional)</label>'+
         '<input id="pe-f1" type="file" accept="image/*,application/pdf" onchange="escolherArquivoEntrega(this,1)">'+
         '<span class="nota-pad" id="pe-f1-lbl"></span></div>'+
@@ -4578,7 +4584,7 @@ async function gravarEntregaPedido(id){
   }
   const l2=pedidosDe(f.id), p2=l2.find(x=>x.id===id); if(!p2){ fecharModal(); return; }
   p2.entregas=p2.entregas||[];
-  p2.entregas.push({id:entId, qtd:q, data:data, anexos:anexos});
+  p2.entregas.push({id:entId, qtd:q, data:data, nf:(document.getElementById("pe-nf")?(document.getElementById("pe-nf").value||"").trim():""), anexos:anexos});
   p2.entregue=(p2.entregue||0)+q;
   salvarPedidos(f.id,l2);
   window._entArq={}; fecharModal(); toast("Entrega registrada"); render();
@@ -4588,7 +4594,7 @@ function modalEntregas(id){
   const p=pedidosDe(f.id).find(x=>x.id===id); if(!p) return;
   const ents=(p.entregas||[]).slice().sort((a,b)=>String(b.data).localeCompare(String(a.data)));
   const body= ents.length ? '<div class="lista-cam">'+ents.map(e=>
-      '<div class="eq-row"><div class="who"><b>'+esc(dataBR(e.data))+' · '+nf(e.qtd,0)+(p.unidade?' '+esc(p.unidade):'')+'</b>'+
+      '<div class="eq-row"><div class="who"><b>'+esc(dataBR(e.data))+' · '+nf(e.qtd,0)+(p.unidade?' '+esc(p.unidade):'')+(e.nf?' · NF '+esc(e.nf):'')+'</b>'+
       '<small>'+((e.anexos&&e.anexos.length)? e.anexos.map((a,i)=>'<a href="#" onclick="abrirArquivoPath(\''+esc(a.path)+'\');return false" style="text-decoration:none">📎 nota '+(i+1)+'</a>').join(" · ") : 'sem nota')+'</small></div>'+
       '<button class="mini" onclick="modalEditarEntrega(\''+id+'\',\''+e.id+'\')">Editar</button>'+
       '<button class="mini" onclick="removerEntrega(\''+id+'\',\''+e.id+'\')">✕</button></div>').join("")+'</div>'
@@ -4637,6 +4643,8 @@ function modalEditarEntrega(pid, eid){
         '<input id="pe-data" type="date" value="'+esc(e.data||"")+'"></div>'+
         '<div style="flex:1"><label for="pe-qtd">Quantidade</label>'+
         '<input id="pe-qtd" type="number" inputmode="decimal" value="'+(e.qtd!=null?e.qtd:"")+'"></div></div>'+
+      '<div><label for="pe-nf">Número da nota fiscal</label>'+
+        '<input id="pe-nf" placeholder="Nº da NF (opcional)" value="'+esc(e.nf||"")+'"></div>'+
       '<div><label for="pe-f1">Nota 1'+(an[0]?" (anexada — escolha outra para trocar)":" (opcional)")+'</label>'+
         '<input id="pe-f1" type="file" accept="image/*,application/pdf" onchange="escolherArquivoEntrega(this,1)">'+
         '<span class="nota-pad" id="pe-f1-lbl">'+(an[0]?esc(an[0].nome||""):"")+'</span></div>'+
@@ -4669,6 +4677,7 @@ async function gravarEditarEntrega(pid, eid){
   }
   const l2=pedidosDe(f.id), p2=l2.find(x=>x.id===pid), e2=(p2.entregas||[]).find(x=>x.id===eid); if(!e2) return;
   e2.qtd=q; e2.data=data; e2.anexos=anexos.filter(Boolean);
+  if(document.getElementById("pe-nf")) e2.nf=(document.getElementById("pe-nf").value||"").trim();
   p2.entregue=Math.max(0,(p2.entregue||0)+(q-oldQtd));
   salvarPedidos(f.id,l2);
   window._entArq={}; toast("Entrega atualizada"); modalEntregas(pid);
