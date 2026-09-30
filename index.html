@@ -918,7 +918,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.73.0";
+const APP_VERSION = "2.74.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -1311,6 +1311,17 @@ const Sync = {
     const locais = fazendas();
     const idsNuvem = new Set((fz||[]).map(r=>r.id));
     const novas = new Set(Store.get("novasFazendas", []));
+    // Cura o fantasma da semeadura: uma fazenda "nova" (ainda não enviada) cujo
+    // NOME já existe na nuvem é a Santa Angelina semeada por engano num aparelho
+    // novo. Descarta local para não virar duplicata na nuvem.
+    const nomesNuvem = new Set((fz||[]).map(r=>_normNome(r.nome||"")));
+    const fantasmas = locais.filter(f=> novas.has(f.id) && !idsNuvem.has(f.id) && nomesNuvem.has(_normNome(f.nome||""))).map(f=>f.id);
+    if(fantasmas.length){
+      const set=new Set(fantasmas);
+      fantasmas.forEach(id=>{ novas.delete(id); BLOCOS.forEach(b=>Store.del("faz_"+id+"_"+b)); });
+      Store.set("novasFazendas",[...novas]);
+      Store.set("sync_sujo", this.sujos().filter(ch=>{ const m=ch.match(/^faz_(.+)_([a-z]+)$/); return !(m && set.has(m[1])); }));
+    }
     // fazendas que sumiram da nuvem (e não são novas) saem de vez: some da lista,
     // apaga os blocos locais e tira as pendências presas dela da fila de envio.
     const removidas = locais.filter(f=> !idsNuvem.has(f.id) && !novas.has(f.id)).map(f=>f.id);
@@ -8091,9 +8102,10 @@ function exportarProdutividade(){
 function semearPrimeiraVez(){
   if(Store.get("seed_feito", false)) return;
   if(fazendas().length){ Store.set("seed_feito", true); return; }
-  // Logado: a nuvem traz as fazendas na sincronização — não semear,
-  // senão cria uma Santa Angelina duplicada antes do baixar().
-  if(SUPABASE.ligado() && Auth.logado()) return;
+  // App COM nuvem: as fazendas sempre vêm do login/sincronização — NUNCA semear,
+  // nem antes do login. Semear num aparelho novo criava uma Santa Angelina local
+  // que virava duplicata na nuvem no primeiro sync. (Só semeia em modo local puro.)
+  if(SUPABASE.ligado()) return;
   Store.set("seed_feito", true);
   const d = SEED_SANTA_ANGELINA;
   const f = criarFazenda({ nome:d.nome, produtor:d.produtor,
