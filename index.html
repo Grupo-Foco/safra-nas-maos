@@ -317,6 +317,8 @@ svg{display:block}
 .tbl tr.pendente td{opacity:.5}
 .tagdest{background:var(--leaf-soft);color:var(--green);font-family:var(--mono);font-size:10.5px;
   font-weight:700;padding:3px 8px;border-radius:5px;white-space:nowrap}
+.cat-tag{background:var(--gold-soft,#efe6c8);color:var(--gold-dk,#7a5c12);font-size:11px;
+  font-weight:700;padding:2px 8px;border-radius:5px;white-space:nowrap}
 .tal-col{max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   color:var(--muted);font-size:12.5px}
 .acoes{display:flex;gap:6px;justify-content:flex-end}
@@ -918,7 +920,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.77.0";
+const APP_VERSION = "2.79.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -4446,6 +4448,7 @@ function exportarLavoura(fmt){
    ═══════════════════════════════════════════════════ */
 let _abaEst = "saldo";
 let _buscaPed = "";
+const CAT_PEDIDO = ["","Defensivo","Biológicos","Fertilizantes","Sementes"];
 
 function telaEstoque(){
   const f = acharFazenda(App.fazendaId);
@@ -4484,9 +4487,11 @@ function telaEstoque(){
 }
 /* Aba Pedidos: cadastro de compras, com entregue e faltam */
 function relPedidos(f){
-  const peds=pedidosDe(f.id);
-  const larguras=[220,110,90,90,90,140,90], aligns=['left','left','right','right','right','right','left'];
-  const linhas=[{t:'cab', cs:['Produto','Em nome de','Pedido','Entregue','Faltam','Valor','NF']}];
+  let peds=pedidosDe(f.id);
+  const bq=_normNome(_buscaPed||"").trim();
+  if(bq) peds=peds.filter(p=> _normNome((p.produto||"")+" "+(p.responsavel||"")).includes(bq));
+  const larguras=[210,100,110,80,80,80,130,80], aligns=['left','left','left','right','right','right','right','left'];
+  const linhas=[{t:'cab', cs:['Produto','Em nome de','Categoria','Pedido','Entregue','Faltam','Valor','NF']}];
   const grupos={};
   peds.forEach(p=>{ const k=_normNome(p.produto); (grupos[k]=grupos[k]||{nome:p.produto,itens:[]}).itens.push(p); });
   let gP=0,gE=0,gV=0;
@@ -4495,19 +4500,20 @@ function relPedidos(f){
     g.itens.forEach(p=>{
       const ent=p.entregue||0, falta=p.qtd-ent, val=p.qtd*(p.valor||0);
       sP+=p.qtd; sE+=ent; sV+=val;
-      linhas.push({t:'dado', cs:[p.produto+(p.unidade?' ('+p.unidade+')':''), p.responsavel||'—', nf(p.qtd,0), nf(ent,0), nf(falta,0), p.valor?moeda(val):'—', p.nf||'—']});
+      linhas.push({t:'dado', cs:[p.produto+(p.unidade?' ('+p.unidade+')':''), p.responsavel||'—', p.categoria||'—', nf(p.qtd,0), nf(ent,0), nf(falta,0), p.valor?moeda(val):'—', p.nf||'—']});
     });
     if(g.itens.length>1)
-      linhas.push({t:'total', cs:[g.nome+' — total','', nf(sP,0), nf(sE,0), nf(sP-sE,0), moeda(sV), '']});
+      linhas.push({t:'total', cs:[g.nome+' — total','','', nf(sP,0), nf(sE,0), nf(sP-sE,0), moeda(sV), '']});
     gP+=sP; gE+=sE; gV+=sV;
   });
-  linhas.push({t:'total', cs:['Total geral','', nf(gP,0), nf(gE,0), nf(gP-gE,0), moeda(gV), '']});
-  return { titulo:"Pedidos · "+f.nome, sub:"Safra "+f.safra, larguras, aligns, linhas };
+  linhas.push({t:'total', cs:['Total geral','','', nf(gP,0), nf(gE,0), nf(gP-gE,0), moeda(gV), '']});
+  return { titulo:"Pedidos · "+f.nome, sub:"Safra "+f.safra+(bq?' · filtro: "'+_buscaPed+'"':""), larguras, aligns, linhas };
 }
 function exportarPedidos(fmt){
   const f=acharFazenda(App.fazendaId); if(!f) return;
   if(!pedidosDe(f.id).length){ toast("Nenhum pedido para exportar"); return; }
   const spec=relPedidos(f);
+  if(spec.linhas.length<=2){ toast("Nada visível no filtro para exportar"); return; }
   const nome="pedidos-"+f.nome.toLowerCase().replace(/[^a-z0-9]+/g,"-");
   if(fmt==="csv"){ relParaCSV(spec, nome); return; }
   fmt==="pdf" ? REL.pdf(spec,nome) : REL.png(spec,nome);
@@ -4515,6 +4521,7 @@ function exportarPedidos(fmt){
 function abaPedidos(f, peds){
   let h='<div class="acts"><button class="btn-act primary" onclick="modalPedido()">+ Novo pedido</button>'+
     '<button class="btn-act" onclick="modalImportarPedidos()">Importar</button>'+
+    (peds.some(p=>!p.categoria)?'<button class="btn-act" onclick="classificarPedidosSemCat()">Marcar sem categoria → Defensivo</button>':"")+
     (peds.length?botaoExportar([{rotulo:"Planilha",fn:"exportarPedidos('csv')"},{rotulo:"Imagem",fn:"exportarPedidos('png')"},{rotulo:"PDF",fn:"exportarPedidos('pdf')"}]):"")+
     (peds.length?'<input class="busca" placeholder="Buscar produto ou responsável…" value="'+esc(_buscaPed)+'" '+
        'oninput="clearTimeout(window._bp);window._bp=setTimeout(()=>{_buscaPed=this.value;render();},200)">':"")+
@@ -4525,7 +4532,7 @@ function abaPedidos(f, peds){
   if(!peds.length) return h+'<p class="vazio">Nenhum pedido encontrado para "'+esc(_buscaPed)+'".</p>';
   const grupos={};
   peds.forEach(p=>{ const k=_normNome(p.produto); (grupos[k]=grupos[k]||{nome:p.produto, itens:[]}).itens.push(p); });
-  h+='<table class="arm-grid"><thead><tr><th>Produto</th><th>Em nome de</th><th>Pedido</th><th>Entregue</th><th>Faltam</th><th>Valor</th><th></th></tr></thead><tbody>';
+  h+='<table class="arm-grid"><thead><tr><th>Produto</th><th>Em nome de</th><th>Categoria</th><th>Pedido</th><th>Entregue</th><th>Faltam</th><th>Valor</th><th></th></tr></thead><tbody>';
   let gP=0,gE=0,gV=0;
   Object.keys(grupos).sort().forEach(k=>{
     const g=grupos[k]; let sP=0,sE=0,sV=0;
@@ -4536,6 +4543,7 @@ function abaPedidos(f, peds){
          (p.nf?' <small style="color:var(--muted)">· NF '+esc(p.nf)+'</small>':'')+
          (p.anexo_path?' <a href="#" onclick="verAnexoPedido(\''+p.id+'\');return false" title="Ver comprovante/nota" style="text-decoration:none">📎</a>':'')+'</td>'+
          '<td>'+esc(p.responsavel||"—")+'</td>'+
+         '<td>'+(p.categoria?'<span class="cat-tag">'+esc(p.categoria)+'</span>':'<span style="color:var(--muted)">—</span>')+'</td>'+
          '<td>'+nf(p.qtd,0)+'</td><td>'+(((p.entregas&&p.entregas.length)||(p.entregue||0)>0)?'<a href="#" onclick="modalEntregas(\''+p.id+'\');return false" style="text-decoration:none;border-bottom:1px dotted var(--muted)">'+nf(ent,0)+'</a>':nf(ent,0))+'</td>'+
          '<td'+(falta>0.001?' style="color:var(--red);font-weight:800"':'')+'>'+nf(falta,0)+'</td>'+
          '<td>'+(p.valor?moeda(val):"—")+'</td>'+
@@ -4544,11 +4552,21 @@ function abaPedidos(f, peds){
          '<button class="mini" onclick="removerPedido(\''+p.id+'\')">✕</button></td></tr>';
     });
     if(g.itens.length>1)
-      h+='<tr class="arm-sub"><td>'+esc(g.nome)+' — total</td><td></td><td>'+nf(sP,0)+'</td><td>'+nf(sE,0)+'</td><td>'+nf(sP-sE,0)+'</td><td>'+moeda(sV)+'</td><td></td></tr>';
+      h+='<tr class="arm-sub"><td>'+esc(g.nome)+' — total</td><td></td><td></td><td>'+nf(sP,0)+'</td><td>'+nf(sE,0)+'</td><td>'+nf(sP-sE,0)+'</td><td>'+moeda(sV)+'</td><td></td></tr>';
     gP+=sP; gE+=sE; gV+=sV;
   });
-  h+='<tr class="arm-tot"><td>Total geral</td><td></td><td>'+nf(gP,0)+'</td><td>'+nf(gE,0)+'</td><td>'+nf(gP-gE,0)+'</td><td>'+moeda(gV)+'</td><td></td></tr>';
+  h+='<tr class="arm-tot"><td>Total geral</td><td></td><td></td><td>'+nf(gP,0)+'</td><td>'+nf(gE,0)+'</td><td>'+nf(gP-gE,0)+'</td><td>'+moeda(gV)+'</td><td></td></tr>';
   return h+'</tbody></table>';
+}
+function classificarPedidosSemCat(){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const l=pedidosDe(f.id);
+  const sem=l.filter(p=>!p.categoria);
+  if(!sem.length){ toast("Todos os pedidos já têm categoria"); return; }
+  if(!confirm("Marcar "+sem.length+" pedido(s) sem categoria como \"Defensivo\"? Depois você pode trocar os que forem biológico, fertilizante ou semente.")) return;
+  sem.forEach(p=>p.categoria="Defensivo");
+  salvarPedidos(f.id,l);
+  toast(sem.length+" marcado(s) como Defensivo"); render();
 }
 /* Importar pedidos de planilha/CSV. Colunas por cabeçalho:
    Produto ; Em nome de ; Unidade ; Valor unit ; Quantidade   (NF opcional) */
@@ -4586,7 +4604,8 @@ function importarPedidos(){
   const ach=res=>H.findIndex(c=>res.some(re=>re.test(c)));
   const iProd=ach([/^produto$/]), iResp=ach([/nome/,/respons/,/comprad/]),
         iUn=ach([/unidade/,/^unid$/,/^un$/]), iVal=ach([/valor/,/pre[çc]o/]),
-        iQtd=ach([/quantidade/,/volume/,/^qtd$/,/pedid/]), iNf=ach([/nota/,/^nf$/]);
+        iQtd=ach([/quantidade/,/volume/,/^qtd$/,/pedid/]), iNf=ach([/nota/,/^nf$/]),
+        iCat=ach([/categoria/,/^cat$/]);
   if(iProd<0){ toast("Faltou a coluna Produto"); return; }
   const l=pedidosDe(f.id); let add=0;
   linhas.forEach((c,li)=>{
@@ -4597,6 +4616,7 @@ function importarPedidos(){
       produto:prod, responsavel:(iResp>=0?c[iResp]:"").trim(),
       unidade:(iUn>=0?c[iUn]:"").trim(), qtd:qtd,
       valor:_numBR(iVal>=0?c[iVal]:""), nf:(iNf>=0?c[iNf]:"").trim(),
+      categoria:(iCat>=0 && c[iCat] ? c[iCat].trim() : "Defensivo"),   // planilha = defensivo por padrão
       entregue:0, criado_em:new Date().toISOString() });
   });
   if(!add){ toast("Nada reconhecido — confira as colunas"); return; }
@@ -4617,6 +4637,9 @@ function modalPedido(id){
     '<h2>'+(ed?"Editar pedido":"Novo pedido")+'</h2><p class="sub">O que foi comprado e em nome de quem. Quando chegar, você registra a entrega.</p>'+
     '<div class="frm">'+
       '<div><label for="pd-prod">Produto</label><input id="pd-prod" placeholder="KCL, MAP, Ureia…" value="'+esc(ed?ed.produto:"")+'"></div>'+
+      '<div><label for="pd-cat">Categoria</label><select id="pd-cat">'+
+        CAT_PEDIDO.map(c=>'<option value="'+esc(c)+'" '+((ed?(ed.categoria||""):"")===c?"selected":"")+'>'+(c||"— sem categoria —")+'</option>').join("")+
+      '</select></div>'+
       '<div><label for="pd-resp">Em nome de</label>'+
         '<input id="pd-resp" list="pd-resp-list" placeholder="Neila, João, Ivan, Adriana…" value="'+esc(ed?(ed.responsavel||""):"")+'">'+
         '<datalist id="pd-resp-list">'+respSugestoes(f).map(n=>'<option value="'+esc(n)+'"></option>').join("")+'</datalist></div>'+
@@ -4653,13 +4676,14 @@ async function gravarPedido(id){
   const resp=(document.getElementById("pd-resp").value||"").trim();
   const valor=Number((document.getElementById("pd-val").value||"").replace(",","."))||0;
   const nfNum=(document.getElementById("pd-nf").value||"").trim();
+  const cat=(document.getElementById("pd-cat")||{}).value||"";
   const l=pedidosDe(f.id);
   let pid=id;
   if(id){ const p=l.find(x=>x.id===id); if(!p){fecharModal();return;}
-    p.produto=prod; p.responsavel=resp; p.qtd=qtd; p.unidade=un; p.valor=valor; p.nf=nfNum;
+    p.produto=prod; p.responsavel=resp; p.qtd=qtd; p.unidade=un; p.valor=valor; p.nf=nfNum; p.categoria=cat;
   } else {
     pid="pd_"+Date.now().toString(36);
-    l.push({id:pid, produto:prod, responsavel:resp, unidade:un, qtd:qtd, valor:valor, nf:nfNum,
+    l.push({id:pid, produto:prod, responsavel:resp, unidade:un, qtd:qtd, valor:valor, nf:nfNum, categoria:cat,
       entregue:0, criado_em:new Date().toISOString()});
   }
   salvarPedidos(f.id,l);
