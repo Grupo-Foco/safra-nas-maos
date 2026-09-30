@@ -920,7 +920,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.79.0";
+const APP_VERSION = "2.80.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -1002,7 +1002,7 @@ const SUPABASE = {
 
 /* Blocos de estado que sobem para a nuvem */
 const BLOCOS = ["talhoes","cargas","armazens","caminhoes","silocap","bases","chuva",
-                "lavoura","produtos","aplicacoes","entradas","docs","mapa","visitas","contratos","hist","pedidos","maquinas","abastec","diesel","remanescente"];
+                "lavoura","produtos","aplicacoes","entradas","docs","mapa","visitas","contratos","hist","pedidos","maquinas","abastec","diesel","remanescente","pontoschuva"];
 
 /* ── Sessão ──────────────────────────────── */
 const Auth = {
@@ -1868,7 +1868,14 @@ function safrasComChuva(f){
 }
 
 /* A chuva é medida por talhão — os mesmos do cadastro da fazenda. */
+/* Pontos de medição da chuva. Se a fazenda tem pontos próprios cadastrados
+   (kPontosChuva), usa-os NA ORDEM salva. Senão, cai nos talhões (alfabético). */
+function kPontosChuva(f){ return "faz_"+f+"_pontoschuva"; }
+function pontosChuvaDe(f){ return Store.get(kPontosChuva(f), []); }
+function salvarPontosChuva(f,l){ Store.set(kPontosChuva(f), l); }
 function pontosDe(f){
+  const pc=pontosChuvaDe(f);
+  if(pc && pc.length) return pc.slice();   // ordem definida pelo usuário
   return talhoesDe(f).slice()
     .sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR",{numeric:true}));
 }
@@ -3838,7 +3845,8 @@ function telaChuva(){
          '<select class="mn-s" onchange="_chuvaSafra=this.value;_mesIdx=null;render()">'+
            safrasVer.map(s=>'<option value="'+esc(s)+'"'+(s===safra?" selected":"")+'>Safra '+esc(s)+'</option>').join("")+
          '</select>'+
-         (ehGestor(f.id)?'<button class="btn-act" onclick="modalImportarChuva()">Importar</button>'+
+         (ehGestor(f.id)?'<button class="btn-act" onclick="modalSubstituirPontos()">Pontos de medição</button>'+
+           '<button class="btn-act" onclick="modalImportarChuva()">Importar</button>'+
            '<button class="btn-act" onclick="modalLimparChuva()">Limpar</button>':'')+
        '</div></div>';
 
@@ -3987,6 +3995,40 @@ function limparChuva(){
   fecharModal(); toast("Chuva da safra "+safra+" apagada"); render();
 }
 
+/* Substituir os pontos de medição da chuva por uma lista própria (ordem fixa) */
+function modalSubstituirPontos(){
+  const f=acharFazenda(App.fazendaId); if(!f||!ehGestor(f.id)) return;
+  const atual=pontosChuvaDe(f.id).map(p=>p.nome).join("\n");
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal modal-lg">'+
+    '<h2>Pontos de medição da chuva</h2>'+
+    '<p class="sub">Um ponto por linha, <b>na ordem</b> que quer ver na tela. Isto vale só para a Pluviometria — '+
+      'não mexe nos talhões da fazenda. Deixe vazio e salve para voltar a usar os talhões.</p>'+
+    '<div class="frm"><div><label for="pt-lista">Pontos (um por linha)</label>'+
+      '<textarea id="pt-lista" rows="12" placeholder="Talhão 01\nTalhão 05\nSede\nPivô…">'+esc(atual)+'</textarea></div>'+
+      '<label style="display:flex;gap:8px;align-items:center;font-size:13px;color:var(--muted)">'+
+        '<input type="checkbox" id="pt-limpa" style="width:auto"> Limpar os dados de chuva desta fazenda ao substituir</label>'+
+    '</div>'+
+    '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
+      '<button class="btn-save" onclick="substituirPontos()">Salvar pontos</button></div></div></div>';
+  setTimeout(()=>{const e=document.getElementById("pt-lista");if(e)e.focus();},60);
+}
+function substituirPontos(){
+  const f=acharFazenda(App.fazendaId); if(!f||!ehGestor(f.id)) return;
+  const txt=(document.getElementById("pt-lista").value||"");
+  const nomes=txt.split(/\r?\n/).map(s=>s.replace(/=.*$/,"").trim()).filter(Boolean);
+  const vistos=new Set(), lista=[];
+  nomes.forEach(n=>{ const k=_normNome(n); if(vistos.has(k)) return; vistos.add(k);
+    lista.push({ id:"pt_"+k.replace(/[^a-z0-9]+/g,""), nome:n }); });
+  salvarPontosChuva(f.id, lista);
+  if(document.getElementById("pt-limpa") && document.getElementById("pt-limpa").checked){
+    Store.set(kChuva(f.id), {}); if(typeof Sync!=="undefined" && Sync.marcar) Sync.marcar(kChuva(f.id));
+  }
+  fecharModal();
+  toast(lista.length? lista.length+" ponto(s) definidos" : "Voltou a usar os talhões");
+  render();
+}
+
 /* Modo celular: escolhe o dia, digita ponto a ponto */
 function chuvaPorDia(f,ano,mes,pts,r){
   const nd = diasNoMes(ano,mes);
@@ -4017,28 +4059,10 @@ function chuvaPorDia(f,ano,mes,pts,r){
     '<span class="dica">Choveu parelho na fazenda? Preencha uma vez só e ajuste as exceções.</span>'+
   '</div>';
 
-  const temHist = Object.keys(chuvaDe(f.id)).some(d=>{const y=+String(d).slice(0,4); return y===ano-1||y===ano-2;});
-  const k1=chaveDia(ano-1,mes,dia), k2=chaveDia(ano-2,mes,dia);
-  // pontos que tiveram QUALQUER medição em cada ano anterior (se não teve, o talhão não existia → traço)
-  const ids1=new Set(), ids2=new Set();
-  if(temHist){ const cd=chuvaDe(f.id);
-    Object.keys(cd).forEach(d=>{ const y=+String(d).slice(0,4);
-      if(y!==ano-1 && y!==ano-2) return;
-      const set=(y===ano-1?ids1:ids2), row=cd[d]||{};
-      Object.keys(row).forEach(pid=>{ if(row[pid]!=null) set.add(pid); });
-    });
-  }
-  const celComp=(existiu,val)=> existiu ? (val==null?"·":nf(val,0)) : "—";
-  if(temHist) h += '<div class="cmp-leg">comparativo do mesmo dia · <b>'+(ano-2)+'</b> · <b>'+(ano-1)+'</b> · <b class="cur">'+ano+'</b> (editável) · — talhão não existia</div>';
-
   pts.forEach(p=>{
     const v = lerChuva(f.id,k,p.id);
-    const v2 = temHist ? lerChuva(f.id,k2,p.id) : null;
-    const v1 = temHist ? lerChuva(f.id,k1,p.id) : null;
     h += '<div class="lp"><label for="mm-'+p.id+'">'+esc(p.nome)+'</label>'+
       '<div class="lp-in">'+
-      (temHist?'<span class="cmp"><i>'+(ano-2)+'</i><b>'+celComp(ids2.has(p.id),v2)+'</b></span>'+
-               '<span class="cmp"><i>'+(ano-1)+'</i><b>'+celComp(ids1.has(p.id),v1)+'</b></span>':'')+
       '<input id="mm-'+p.id+'" type="number" inputmode="decimal" step="0.5" min="0" '+
       'value="'+(v==null?"":v)+'" placeholder="0" data-mm="1" '+
       'onkeydown="proxCampoMM(event,this)" '+
