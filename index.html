@@ -705,9 +705,9 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 /* ── Importar XML ────────────────────────── */
 .drop{display:flex;flex-direction:column;align-items:center;gap:4px;border:2px dashed var(--line);
-  border-radius:11px;padding:24px 18px;text-align:center;cursor:pointer;background:var(--bg)}
+  border-radius:11px;padding:24px 18px;text-align:center;cursor:pointer;background:var(--bg);max-width:100%}
 .drop:hover{border-color:var(--gold);background:#fff}
-.drop b{color:var(--green);font-size:15px}
+.drop b{color:var(--green);font-size:15px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
 .drop span{color:var(--muted);font-size:12.5px}
 .drop input{display:none}
 .nfe-cab{display:flex;gap:22px;flex-wrap:wrap;background:var(--leaf-soft);border-radius:10px;
@@ -918,7 +918,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.74.0";
+const APP_VERSION = "2.76.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -1139,8 +1139,14 @@ function tirarArqPendente(caminho){
 }
 /* Guarda o blob no aparelho (IndexedDB) e tenta subir; se falhar, entra na fila. */
 async function enviarArquivo(caminho, blob){
-  await guardarArquivo(caminho, blob);         // cache offline (chave = caminho)
-  marcarArqPendente(caminho);
+  marcarArqPendente(caminho);                  // marca ANTES: se o cache travar, o arquivo não se perde
+  // cache offline com teto de tempo — o IndexedDB do Safari às vezes trava; não pode prender o app
+  try{
+    await Promise.race([
+      guardarArquivo(caminho, blob),
+      new Promise((_,rej)=>setTimeout(()=>rej(new Error("cache-timeout")), 5000))
+    ]);
+  }catch(e){ /* segue sem cache local; o upload abaixo ainda tenta */ }
   if(navigator.onLine && Auth.logado()){
     try{ await stEnviar(caminho, blob); tirarArqPendente(caminho); }
     catch(e){ /* fica na fila para o próximo flush */ }
@@ -4507,6 +4513,7 @@ function exportarPedidos(fmt){
 }
 function abaPedidos(f, peds){
   let h='<div class="acts"><button class="btn-act primary" onclick="modalPedido()">+ Novo pedido</button>'+
+    '<button class="btn-act" onclick="modalImportarPedidos()">Importar</button>'+
     (peds.length?botaoExportar([{rotulo:"Planilha",fn:"exportarPedidos('csv')"},{rotulo:"Imagem",fn:"exportarPedidos('png')"},{rotulo:"PDF",fn:"exportarPedidos('pdf')"}]):"")+
     '</div>';
   if(!peds.length) return h+'<p class="vazio">Nenhum pedido ainda. Cadastre o que foi comprado — quando chegar na fazenda, registre a entrega.</p>';
@@ -4536,6 +4543,59 @@ function abaPedidos(f, peds){
   });
   h+='<tr class="arm-tot"><td>Total geral</td><td></td><td>'+nf(gP,0)+'</td><td>'+nf(gE,0)+'</td><td>'+nf(gP-gE,0)+'</td><td>'+moeda(gV)+'</td><td></td></tr>';
   return h+'</tbody></table>';
+}
+/* Importar pedidos de planilha/CSV. Colunas por cabeçalho:
+   Produto ; Em nome de ; Unidade ; Valor unit ; Quantidade   (NF opcional) */
+function modalImportarPedidos(){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal modal-lg">'+
+    '<h2>Importar pedidos</h2>'+
+    '<p class="sub">Escolha um <b>CSV ou Excel (.xlsx)</b> ou cole a planilha. Primeira linha = cabeçalho. '+
+    'Colunas: <b>Produto · Em nome de · Unidade · Valor unit · Quantidade</b> (NF é opcional). Entra tudo nesta fazenda: <b>'+esc(f.nome)+'</b>.</p>'+
+    '<div class="frm">'+
+      '<div><label for="pi-file">Arquivo (CSV ou Excel)</label>'+
+        '<input id="pi-file" type="file" accept=".csv,.tsv,.txt,.xlsx,text/csv,text/plain" onchange="lerArquivoNoCampo(this,\'pi-imp\')"></div>'+
+      '<div><label for="pi-imp">…ou cole aqui</label>'+
+        '<textarea id="pi-imp" rows="8" placeholder="Produto;Em nome de;Unidade;Valor unit;Quantidade\nMAP;Ivan;T;5118,20;440"></textarea></div>'+
+    '</div>'+
+    '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
+      '<button class="btn-save" onclick="importarPedidos()">Importar</button></div></div></div>';
+  setTimeout(()=>{const e=document.getElementById("pi-imp");if(e)e.focus();},60);
+}
+function _numBR(s){
+  s=String(s==null?"":s).trim().replace(/[R$\s]/g,"");
+  if(s==="") return 0;
+  if(s.indexOf(",")>=0) s=s.replace(/\./g,"").replace(",",".");   // 20.000,00 → 20000.00
+  return Number(s)||0;
+}
+function importarPedidos(){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const txt=(document.getElementById("pi-imp").value||"").trim();
+  if(!txt){ toast("Cole a planilha ou escolha um arquivo"); return; }
+  const linhas=txt.split(/\r?\n/).map(l=>l.split(/\t|;/).map(c=>String(c).trim()));
+  let hi=linhas.findIndex(r=>r.some(c=>/^produto$/i.test(c)));
+  if(hi<0){ toast("Não achei o cabeçalho (precisa de uma coluna \"Produto\")"); return; }
+  const H=linhas[hi].map(c=>c.toLowerCase());
+  const ach=res=>H.findIndex(c=>res.some(re=>re.test(c)));
+  const iProd=ach([/^produto$/]), iResp=ach([/nome/,/respons/,/comprad/]),
+        iUn=ach([/unidade/,/^unid$/,/^un$/]), iVal=ach([/valor/,/pre[çc]o/]),
+        iQtd=ach([/quantidade/,/volume/,/^qtd$/,/pedid/]), iNf=ach([/nota/,/^nf$/]);
+  if(iProd<0){ toast("Faltou a coluna Produto"); return; }
+  const l=pedidosDe(f.id); let add=0;
+  linhas.forEach((c,li)=>{
+    if(li===hi) return;
+    const prod=(iProd>=0?c[iProd]:"").trim(); if(!prod) return;
+    const qtd=_numBR(iQtd>=0?c[iQtd]:""); if(!(qtd>0)) return;
+    l.push({ id:"pd_"+Date.now().toString(36)+"_"+(add++),
+      produto:prod, responsavel:(iResp>=0?c[iResp]:"").trim(),
+      unidade:(iUn>=0?c[iUn]:"").trim(), qtd:qtd,
+      valor:_numBR(iVal>=0?c[iVal]:""), nf:(iNf>=0?c[iNf]:"").trim(),
+      entregue:0, criado_em:new Date().toISOString() });
+  });
+  if(!add){ toast("Nada reconhecido — confira as colunas"); return; }
+  salvarPedidos(f.id,l);
+  fecharModal(); toast(add+" pedido(s) importado(s)"); render();
 }
 function respSugestoes(f){
   const base=["Neila","João","Ivan","Adriana"];
@@ -5999,24 +6059,20 @@ async function gravarDoc(id){
     arquivo_path: antigo?antigo.arquivo_path:null };
 
   const salvo = salvarDoc(f.id, dados, id);
+  // Fecha e confirma NA HORA — o registro já está salvo. O arquivo sobe em
+  // segundo plano, então o botão nunca fica "morto" esperando o upload.
+  window._docArq=null; fecharModal();
+  toast(id?"Documento atualizado":"Documento guardado"); render();
   if(arq && salvo){
     const ext=(arq.name.match(/\.[a-z0-9]+$/i)||[""])[0].toLowerCase();
     const caminho=f.id+"/doc-"+salvo.id+ext;
-    // troca de arquivo num doc já existente: limpa o anterior da nuvem
     if(antigo && antigo.arquivo_path && antigo.arquivo_path!==caminho){
       stApagar(antigo.arquivo_path); removerArquivo(antigo.arquivo_path);
     }
-    try{
-      await enviarArquivo(caminho, arq);                 // cache + sobe (ou fila)
-      salvarDoc(f.id, Object.assign({},dados,{arquivo_path:caminho}), salvo.id);
-    }catch(e){
-      salvarDoc(f.id, Object.assign({},dados,{arquivo:null,tamanho:0,arquivo_path:null}), salvo.id);
-      toast("Cadastro salvo, mas não consegui guardar o arquivo");
-      fecharModal(); render(); return;
-    }
+    enviarArquivo(caminho, arq)
+      .then(()=>{ salvarDoc(f.id, Object.assign({},dados,{arquivo_path:caminho}), salvo.id); render(); })
+      .catch(()=>{ toast("Documento salvo — o arquivo vai subir quando houver internet"); });
   }
-  window._docArq=null; fecharModal();
-  toast(id?"Documento atualizado":"Documento guardado"); render();
 }
 
 async function verDoc(id){
