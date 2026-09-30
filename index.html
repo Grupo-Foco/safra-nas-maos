@@ -918,7 +918,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.76.0";
+const APP_VERSION = "2.77.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -4445,6 +4445,7 @@ function exportarLavoura(fmt){
    TELA — Estoque
    ═══════════════════════════════════════════════════ */
 let _abaEst = "saldo";
+let _buscaPed = "";
 
 function telaEstoque(){
   const f = acharFazenda(App.fazendaId);
@@ -4515,8 +4516,13 @@ function abaPedidos(f, peds){
   let h='<div class="acts"><button class="btn-act primary" onclick="modalPedido()">+ Novo pedido</button>'+
     '<button class="btn-act" onclick="modalImportarPedidos()">Importar</button>'+
     (peds.length?botaoExportar([{rotulo:"Planilha",fn:"exportarPedidos('csv')"},{rotulo:"Imagem",fn:"exportarPedidos('png')"},{rotulo:"PDF",fn:"exportarPedidos('pdf')"}]):"")+
+    (peds.length?'<input class="busca" placeholder="Buscar produto ou responsável…" value="'+esc(_buscaPed)+'" '+
+       'oninput="clearTimeout(window._bp);window._bp=setTimeout(()=>{_buscaPed=this.value;render();},200)">':"")+
     '</div>';
   if(!peds.length) return h+'<p class="vazio">Nenhum pedido ainda. Cadastre o que foi comprado — quando chegar na fazenda, registre a entrega.</p>';
+  const bq=_normNome(_buscaPed||"").trim();
+  if(bq) peds = peds.filter(p=> _normNome((p.produto||"")+" "+(p.responsavel||"")).includes(bq));
+  if(!peds.length) return h+'<p class="vazio">Nenhum pedido encontrado para "'+esc(_buscaPed)+'".</p>';
   const grupos={};
   peds.forEach(p=>{ const k=_normNome(p.produto); (grupos[k]=grupos[k]||{nome:p.produto, itens:[]}).itens.push(p); });
   h+='<table class="arm-grid"><thead><tr><th>Produto</th><th>Em nome de</th><th>Pedido</th><th>Entregue</th><th>Faltam</th><th>Valor</th><th></th></tr></thead><tbody>';
