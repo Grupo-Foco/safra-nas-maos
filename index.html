@@ -924,7 +924,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.82.0";
+const APP_VERSION = "2.84.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -4233,15 +4233,14 @@ function abaRelatorio(f,R){
       tals.slice().sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR",{numeric:true})).map(t=>'<option value="'+t.id+'" '+(_fTalOp===t.id?'selected':'')+'>'+esc(t.nome)+'</option>').join("")+
     '</select></div>';
 
-  if(!produtosDe(f.id).length)
-    return h+'<div class="empty"><strong>Cadastre os produtos primeiro</strong>'+
-      'Defesivos, adubos e sementes com o preço por litro ou quilo.'+
-      '<div style="margin-top:16px"><button class="btn-act primary" '+
-      'onclick="_abaOp=\'produtos\';render();setTimeout(modalProduto,80)">Cadastrar produto</button></div></div>';
-
-  if(!R.aplicacoes.length)
+  if(!R.aplicacoes.length){
+    if(!produtosDisponiveis(f.id).length)
+      return h+'<div class="empty"><strong>Cadastre os produtos primeiro</strong>'+
+        'Defensivos, adubos e sementes com o preço por litro ou quilo — em Estoque → Produtos. '+
+        'Os produtos dos pedidos também aparecem aqui ao lançar a aplicação.</div>';
     return h+'<div class="empty"><strong>Nenhuma aplicação lançada</strong>'+
       'Cada passada de pulverizador vira uma aplicação, com a calda de produtos e a área tratada.</div>';
+  }
 
   const aps = R.aplicacoes.slice().filter(a=>{
     if(_fTalOp && !((a.talhoes||[]).indexOf(_fTalOp)>=0)) return false;
@@ -4592,16 +4591,16 @@ function abaPedidos(f, peds){
          '<td>'+(p.categoria?'<span class="cat-tag '+_catClasse(p.categoria)+'">'+esc(p.categoria)+'</span>':'<span style="color:var(--muted)">—</span>')+'</td>'+
          '<td>'+nf(p.qtd,0)+'</td><td>'+(((p.entregas&&p.entregas.length)||(p.entregue||0)>0)?'<a href="#" onclick="modalEntregas(\''+p.id+'\');return false" style="text-decoration:none;border-bottom:1px dotted var(--muted)">'+nf(ent,0)+'</a>':nf(ent,0))+'</td>'+
          '<td'+(falta>0.001?' style="color:var(--red);font-weight:800"':'')+'>'+nf(falta,0)+'</td>'+
-         '<td>'+(p.valor?moeda(val):"—")+'</td>'+
+         '<td style="white-space:nowrap">'+(p.valor?moeda(val):"—")+'</td>'+
          '<td style="white-space:nowrap;text-align:right"><button class="mini" onclick="modalEntregaPedido(\''+p.id+'\')">+ Entrega</button> '+
          '<button class="mini" onclick="modalPedido(\''+p.id+'\')">Editar</button> '+
          '<button class="mini" onclick="removerPedido(\''+p.id+'\')">✕</button></td></tr>';
     });
     if(g.itens.length>1)
-      h+='<tr class="arm-sub"><td>'+esc(g.nome)+' — total</td><td></td><td></td><td>'+nf(sP,0)+'</td><td>'+nf(sE,0)+'</td><td>'+nf(sP-sE,0)+'</td><td>'+moeda(sV)+'</td><td></td></tr>';
+      h+='<tr class="arm-sub"><td>'+esc(g.nome)+' — total</td><td></td><td></td><td>'+nf(sP,0)+'</td><td>'+nf(sE,0)+'</td><td>'+nf(sP-sE,0)+'</td><td style="white-space:nowrap">'+moeda(sV)+'</td><td></td></tr>';
     gP+=sP; gE+=sE; gV+=sV;
   });
-  h+='<tr class="arm-tot"><td>Total geral</td><td></td><td></td><td>'+nf(gP,0)+'</td><td>'+nf(gE,0)+'</td><td>'+nf(gP-gE,0)+'</td><td>'+moeda(gV)+'</td><td></td></tr>';
+  h+='<tr class="arm-tot"><td>Total geral</td><td></td><td></td><td>'+nf(gP,0)+'</td><td>'+nf(gE,0)+'</td><td>'+nf(gP-gE,0)+'</td><td style="white-space:nowrap">'+moeda(gV)+'</td><td></td></tr>';
   return h+'</tbody></table>';
 }
 function classificarPedidosSemCat(){
