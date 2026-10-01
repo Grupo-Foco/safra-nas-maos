@@ -272,6 +272,8 @@ svg{display:block}
 .btn-cancel:hover{background:#E5E1D7}
 .btn-save{background:var(--gold);color:#3A3117}
 .btn-save:hover{background:var(--gold-dk)}
+.btn-del-maq{flex:0 0 auto!important;background:transparent;color:#a23b3b;border:1px solid #e0b4b4!important;font-weight:700!important;margin-right:auto}
+.btn-del-maq:hover{background:#f6e3e3}
 
 #toast{position:fixed;left:50%;transform:translateX(-50%);
   bottom:calc(20px + env(safe-area-inset-bottom));background:var(--green);color:#EDF1EB;
@@ -924,7 +926,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.84.0";
+const APP_VERSION = "2.85.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -5006,8 +5008,7 @@ function telaMaquinario(){
     h+='<tr><td><button class="link-maq" onclick="modalHistoricoMaq(\''+m.id+'\')" title="Ver abastecimentos">'+esc(m.nome)+(nAb?' <b>'+nAb+'</b>':'')+'</button></td><td>'+esc(m.tipo||"—")+'</td>'+
        '<td>'+nf(R.hatual,0)+'</td><td>'+nf(R.rodou,0)+'</td><td>'+nf(R.litros,0)+'</td><td>'+(R.consumo?nf(R.consumo,1):"—")+'</td>'+
        '<td style="white-space:nowrap;text-align:right"><button class="mini" onclick="modalAbastecer(\''+m.id+'\')">Abastecer</button> '+
-       '<button class="mini" onclick="modalMaquina(\''+m.id+'\')">Editar</button> '+
-       '<button class="mini" onclick="removerMaquina(\''+m.id+'\')">✕</button></td></tr>';
+       '<button class="mini" onclick="modalMaquina(\''+m.id+'\')">Editar</button></td></tr>';
   });
   h+='</tbody></table>';
   if(false){
@@ -5037,7 +5038,9 @@ function modalMaquina(id){
       '<div style="flex:1"><label for="mq-hor">Horímetro / hodômetro atual</label><input id="mq-hor" type="number" inputmode="decimal" placeholder="leitura de hoje" value="'+(ed&&ed.horimetro!=null?ed.horimetro:"")+'"></div></div>'+
       '<p class="resumo-obs" style="margin:0">A leitura de hoje é o ponto de partida. A cada abastecimento você anota o novo horímetro + litros — daí sai o rodado e a média.</p>'+
     '</div>'+
-    '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
+    '<div class="modal-acts">'+
+      (ed?'<button class="btn-del-maq" onclick="removerMaquina(\''+ed.id+'\')">Excluir máquina</button>':'')+
+      '<button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
       '<button class="btn-save" onclick="gravarMaquina('+(ed?"'"+ed.id+"'":"")+')">'+(ed?"Salvar":"Adicionar")+'</button></div></div></div>';
   setTimeout(()=>{const e=document.getElementById("mq-nome");if(e)e.focus();},60);
 }
@@ -5060,7 +5063,7 @@ function removerMaquina(id){
   if(!confirm("Remover esta máquina? Os abastecimentos dela também saem.")) return;
   salvarMaquinas(f.id, maquinasDe(f.id).filter(m=>m.id!==id));
   salvarAbastec(f.id, abastecDe(f.id).filter(a=>a.maquina_id!==id));
-  toast("Máquina removida"); render();
+  fecharModal(); toast("Máquina removida"); render();
 }
 function modalAbastecer(id){
   const f=acharFazenda(App.fazendaId);
