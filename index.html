@@ -317,8 +317,12 @@ svg{display:block}
 .tbl tr.pendente td{opacity:.5}
 .tagdest{background:var(--leaf-soft);color:var(--green);font-family:var(--mono);font-size:10.5px;
   font-weight:700;padding:3px 8px;border-radius:5px;white-space:nowrap}
-.cat-tag{background:var(--gold-soft,#efe6c8);color:var(--gold-dk,#7a5c12);font-size:11px;
-  font-weight:700;padding:2px 8px;border-radius:5px;white-space:nowrap}
+.cat-tag{font-size:11px;font-weight:700;padding:2px 8px;border-radius:5px;white-space:nowrap}
+.cat-def{background:#e3efe0;color:#2f6d3a}      /* Defensivo — verde */
+.cat-bio{background:#dff0f3;color:#1f6b78}      /* Biológicos — azul */
+.cat-fert{background:#f6e6cf;color:#8a5a12}     /* Fertilizantes — âmbar */
+.cat-sem{background:#efe0f0;color:#7a3b86}      /* Sementes — roxo */
+.cat-out{background:#e9e9e9;color:#555}         /* Outros */
 .tal-col{max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   color:var(--muted);font-size:12.5px}
 .acoes{display:flex;gap:6px;justify-content:flex-end}
@@ -920,7 +924,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.80.0";
+const APP_VERSION = "2.82.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -4472,7 +4476,16 @@ function exportarLavoura(fmt){
    ═══════════════════════════════════════════════════ */
 let _abaEst = "saldo";
 let _buscaPed = "";
+let _fCatPed = "";
 const CAT_PEDIDO = ["","Defensivo","Biológicos","Fertilizantes","Sementes"];
+function _catClasse(c){
+  const k=_normNome(c||"");
+  if(k.startsWith("defensiv")) return "cat-def";
+  if(k.startsWith("biolog"))  return "cat-bio";
+  if(k.startsWith("fertiliz")) return "cat-fert";
+  if(k.startsWith("sement"))  return "cat-sem";
+  return "cat-out";
+}
 
 function telaEstoque(){
   const f = acharFazenda(App.fazendaId);
@@ -4512,6 +4525,8 @@ function telaEstoque(){
 /* Aba Pedidos: cadastro de compras, com entregue e faltam */
 function relPedidos(f){
   let peds=pedidosDe(f.id);
+  if(_fCatPed==="__sem__") peds=peds.filter(p=>!p.categoria);
+  else if(_fCatPed) peds=peds.filter(p=>(p.categoria||"")===_fCatPed);
   const bq=_normNome(_buscaPed||"").trim();
   if(bq) peds=peds.filter(p=> _normNome((p.produto||"")+" "+(p.responsavel||"")).includes(bq));
   const larguras=[210,100,110,80,80,80,130,80], aligns=['left','left','left','right','right','right','right','left'];
@@ -4547,13 +4562,20 @@ function abaPedidos(f, peds){
     '<button class="btn-act" onclick="modalImportarPedidos()">Importar</button>'+
     (peds.some(p=>!p.categoria)?'<button class="btn-act" onclick="classificarPedidosSemCat()">Marcar sem categoria → Defensivo</button>':"")+
     (peds.length?botaoExportar([{rotulo:"Planilha",fn:"exportarPedidos('csv')"},{rotulo:"Imagem",fn:"exportarPedidos('png')"},{rotulo:"PDF",fn:"exportarPedidos('pdf')"}]):"")+
-    (peds.length?'<input class="busca" placeholder="Buscar produto ou responsável…" value="'+esc(_buscaPed)+'" '+
-       'oninput="clearTimeout(window._bp);window._bp=setTimeout(()=>{_buscaPed=this.value;render();},200)">':"")+
+    (peds.length?'<select class="sel-f" onchange="_fCatPed=this.value;render()">'+
+       '<option value="">Todas as categorias</option>'+
+       CAT_PEDIDO.filter(Boolean).map(c=>'<option '+(_fCatPed===c?"selected":"")+'>'+esc(c)+'</option>').join("")+
+       '<option value="__sem__" '+(_fCatPed==="__sem__"?"selected":"")+'>— sem categoria —</option>'+
+     '</select>':"")+
+    (peds.length?'<input class="busca" placeholder="Buscar produto ou responsável… (Enter)" value="'+esc(_buscaPed)+'" '+
+       'onchange="_buscaPed=this.value;render()" onkeydown="if(event.key===\'Enter\'){_buscaPed=this.value;render();}">':"")+
     '</div>';
   if(!peds.length) return h+'<p class="vazio">Nenhum pedido ainda. Cadastre o que foi comprado — quando chegar na fazenda, registre a entrega.</p>';
+  if(_fCatPed==="__sem__") peds=peds.filter(p=>!p.categoria);
+  else if(_fCatPed) peds=peds.filter(p=>(p.categoria||"")===_fCatPed);
   const bq=_normNome(_buscaPed||"").trim();
   if(bq) peds = peds.filter(p=> _normNome((p.produto||"")+" "+(p.responsavel||"")).includes(bq));
-  if(!peds.length) return h+'<p class="vazio">Nenhum pedido encontrado para "'+esc(_buscaPed)+'".</p>';
+  if(!peds.length) return h+'<p class="vazio">Nenhum pedido encontrado'+(_buscaPed?' para "'+esc(_buscaPed)+'"':"")+(_fCatPed&&_fCatPed!=="__sem__"?" na categoria "+esc(_fCatPed):"")+'.</p>';
   const grupos={};
   peds.forEach(p=>{ const k=_normNome(p.produto); (grupos[k]=grupos[k]||{nome:p.produto, itens:[]}).itens.push(p); });
   h+='<table class="arm-grid"><thead><tr><th>Produto</th><th>Em nome de</th><th>Categoria</th><th>Pedido</th><th>Entregue</th><th>Faltam</th><th>Valor</th><th></th></tr></thead><tbody>';
@@ -4567,7 +4589,7 @@ function abaPedidos(f, peds){
          (p.nf?' <small style="color:var(--muted)">· NF '+esc(p.nf)+'</small>':'')+
          (p.anexo_path?' <a href="#" onclick="verAnexoPedido(\''+p.id+'\');return false" title="Ver comprovante/nota" style="text-decoration:none">📎</a>':'')+'</td>'+
          '<td>'+esc(p.responsavel||"—")+'</td>'+
-         '<td>'+(p.categoria?'<span class="cat-tag">'+esc(p.categoria)+'</span>':'<span style="color:var(--muted)">—</span>')+'</td>'+
+         '<td>'+(p.categoria?'<span class="cat-tag '+_catClasse(p.categoria)+'">'+esc(p.categoria)+'</span>':'<span style="color:var(--muted)">—</span>')+'</td>'+
          '<td>'+nf(p.qtd,0)+'</td><td>'+(((p.entregas&&p.entregas.length)||(p.entregue||0)>0)?'<a href="#" onclick="modalEntregas(\''+p.id+'\');return false" style="text-decoration:none;border-bottom:1px dotted var(--muted)">'+nf(ent,0)+'</a>':nf(ent,0))+'</td>'+
          '<td'+(falta>0.001?' style="color:var(--red);font-weight:800"':'')+'>'+nf(falta,0)+'</td>'+
          '<td>'+(p.valor?moeda(val):"—")+'</td>'+
@@ -4649,6 +4671,7 @@ function importarPedidos(){
 }
 function respSugestoes(f){
   const base=["Neila","João","Ivan","Adriana"];
+  if((f.nome||"").toLowerCase().includes("peixe")) base.push("João Antônio");
   const usados=pedidosDe(f.id).map(p=>p.responsavel).filter(Boolean);
   return [...new Set([...base,...usados])];
 }
