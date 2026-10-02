@@ -610,6 +610,8 @@ input.lv-d{font-family:var(--mono);font-size:12.5px;min-width:130px}
 
 .ver-chip{font-family:var(--mono);font-size:10.5px;font-weight:700;color:#9FB09E;
   background:rgba(255,255,255,.08);padding:3px 8px;border-radius:6px;letter-spacing:.03em}
+.dev-cred{font-family:var(--mono);font-size:10px;color:#8C9B8B;opacity:.85;white-space:nowrap}
+@media(max-width:620px){.dev-cred{display:none}}
 
 .tbl tr.neg-row td{background:#FDF4F2}
 
@@ -926,7 +928,8 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.87.0";
+const APP_VERSION = "2.88.0";
+const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -2865,7 +2868,7 @@ function telaLogin(){
         'onkeydown="if(event.key===\'Enter\')document.getElementById(\'lg-senha\').focus()"></div>'+
       '<div><label for="lg-senha">Senha</label>'+
         '<input id="lg-senha" type="password" autocomplete="current-password" '+
-        'placeholder="mínimo 6 caracteres" onkeydown="if(event.key===\'Enter\')enviarLogin()"></div>'+
+        'placeholder="sua senha" onkeydown="if(event.key===\'Enter\')enviarLogin()"></div>'+
       '<div id="lg-erro" class="lg-erro"></div>'+
     '</div>'+
     '<button class="btn-primary" id="lg-btn" onclick="enviarLogin()">'+
@@ -2874,10 +2877,7 @@ function telaLogin(){
       (_modoLogin==="entrar"?"Ainda não tenho conta":"Já tenho conta")+'</button>'+
     '<p class="lg-nota">Os dados da fazenda ficam no aparelho e sobem quando há internet. '+
       'Quem já usa o app sem conta não perde nada — continua tudo aqui.</p>'+
-    '<div class="rodape">'+
-      '<button class="lnk" onclick="exportarTudo()">Baixar cópia deste aparelho</button>'+
-    '</div>'+
-    '<p class="ver">versão '+APP_VERSION+'</p>'+
+    '<p class="ver">versão '+APP_VERSION+' · '+DEV+'</p>'+
   '</div></div>';
 }
 
@@ -2913,11 +2913,15 @@ async function enviarLogin(){
     const u=Auth.usuario();
     const nomeMeta = u && u.user_metadata && u.user_metadata.nome;
     Store.set("perfil", { nome: nomeMeta || email.split("@")[0] });
-    try{ await api("rpc/safra_aceitar_convites", {method:"POST", body:{}}); }catch(e){}
+    try{ await Acesso.carregar(); }catch(e){}   // permissões (chamada leve) antes de mostrar
     toast("Bem-vindo");
-    await primeiraSincronizacao();
-    await Acesso.carregar();
-    render();
+    render();                                   // mostra o app na hora — sem esperar a sincronização
+    (async()=>{                                 // o resto roda em segundo plano
+      try{ await api("rpc/safra_aceitar_convites", {method:"POST", body:{}}); }catch(e){}
+      try{ await primeiraSincronizacao(); }catch(e){}
+      try{ await Acesso.carregar(); }catch(e){}
+      render();
+    })();
   }catch(e){
     const m=String(e.message||"");
     err.textContent =
@@ -2970,7 +2974,7 @@ function telaTrocarSenha(){
     '</div>'+
     '<button class="btn-primary" id="ts-btn" onclick="gravarNovaSenha()">Salvar e entrar</button>'+
     '<button class="lg-troca" onclick="Auth.sair();render()">Sair</button>'+
-    '<p class="ver">versão '+APP_VERSION+'</p>'+
+    '<p class="ver">versão '+APP_VERSION+' · '+DEV+'</p>'+
   '</div></div>';
 }
 async function gravarNovaSenha(){
@@ -3354,6 +3358,7 @@ function topbar(){
       '<span class="ver-chip" title="Segure para diagnóstico" '+
         'ontouchstart="_verPress()" ontouchend="_verSolta()" ontouchcancel="_verSolta()" '+
         'onmousedown="_verPress()" onmouseup="_verSolta()" onmouseleave="_verSolta()">v'+APP_VERSION+'</span>'+
+      '<span class="dev-cred" title="Desenvolvedor">'+DEV+'</span>'+
       (SUPABASE.ligado() && Auth.logado()
         ? '<button class="btn-ghost" onclick="sairDaConta()">Sair</button>'
         : '<button class="btn-ghost" onclick="abrirPerfil()">Trocar perfil</button>')+
@@ -3412,11 +3417,11 @@ function telaFazendas(){
          '<span class="chev" onclick="irPara(\'fazenda\',{fazendaId:\''+f.id+'\'})">›</span></div>';
     });
   }
-  h+='<div class="rodape">'+
+  h+=(souGestorDeAlguma()?'<div class="rodape">'+
       '<button class="lnk" onclick="exportarTudo()">Baixar cópia de segurança</button>'+
       '<button class="lnk" onclick="importarTudo()">Restaurar cópia</button>'+
-    '</div>'+
-    '<p class="ver">versão '+APP_VERSION+(Store.persistent()?"":" · modo temporário")+'</p></div>';
+    '</div>':'')+
+    '<p class="ver">versão '+APP_VERSION+(Store.persistent()?"":" · modo temporário")+' · '+DEV+'</p></div>';
   return h;
 }
 
