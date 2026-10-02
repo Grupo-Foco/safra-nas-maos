@@ -614,6 +614,7 @@ input.lv-d{font-family:var(--mono);font-size:12.5px;min-width:130px}
 @media(max-width:620px){.dev-cred{display:none}}
 .tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:10px}
 @media(max-width:640px){.tbl-wrap .arm-grid{min-width:600px}}
+.un-sel{font-family:var(--mono);font-size:12px;color:var(--muted);border:1px solid var(--line-soft);background:#fff;border-radius:5px;padding:1px 4px;cursor:pointer}
 
 .tbl tr.neg-row td{background:#FDF4F2}
 
@@ -930,7 +931,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.100.0";
+const APP_VERSION = "2.101.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -5541,6 +5542,31 @@ function abaEst(id,rot,n){
          esc(rot)+(n?'<b>'+n+'</b>':'')+'</button>';
 }
 
+/* Troca a unidade de um produto em TODOS os lugares (pedidos, remanescente, cadastro) de uma vez. */
+function padronizarUnidade(nome, un){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const k=_normNome(nome);
+  const peds=pedidosDe(f.id); let m1=false;
+  peds.forEach(p=>{ if(_normNome(p.produto)===k && (p.unidade||"")!==un){ p.unidade=un; m1=true; } });
+  if(m1) salvarPedidos(f.id, peds);
+  const rem=remanescenteDe(f.id); let m2=false;
+  rem.forEach(x=>{ if(_normNome(x.produto)===k && (x.unidade||"")!==un){ x.unidade=un; m2=true; } });
+  if(m2) salvarRemanescente(f.id, rem);
+  const prods=produtosDe(f.id); let m3=false;
+  prods.forEach(p=>{ if(_normNome(p.nome)===k && (p.unidade||"")!==un){ p.unidade=un; m3=true; } });
+  if(m3) Store.set(kProd(f.id), prods);
+  toast("Unidade de "+nome+" → "+un); render();
+}
+function _selUnidade(nome, atual){
+  const base=["t","kg","sc","L","Bag","un"];
+  const cur=(atual||"").trim();
+  const lista=base.some(u=>u.toLowerCase()===cur.toLowerCase())?base:[cur||"—"].concat(base);
+  const nmEsc=esc(nome).replace(/'/g,"\\'");
+  return '<select class="un-sel" title="Unidade — muda em todos os lançamentos deste produto" '+
+    'onchange="padronizarUnidade(\''+nmEsc+'\',this.value)">'+
+    lista.map(u=>'<option'+(u.toLowerCase()===cur.toLowerCase()?" selected":"")+'>'+esc(u)+'</option>').join("")+
+    '</select>';
+}
 function abaSaldo(f,E){
   const ls = E.linhas.filter(l=>l.entrou>0||l.saiu>0);
   let h = '<div class="acts">'+
@@ -5559,7 +5585,7 @@ function abaSaldo(f,E){
       '<td class="forte">'+esc(l.nome)+
         (l.semEntrada?'<u class="ob">aplicado sem recebimento lançado</u>':'')+
         (l.negativo&&!l.semEntrada?'<u class="ob">aplicou mais do que entrou</u>':'')+'</td>'+
-      '<td class="num mono">'+nf(l.entrou,1)+' <i class="un">'+esc(l.unidade)+'</i></td>'+
+      '<td class="num mono">'+nf(l.entrou,1)+' '+_selUnidade(l.nome,l.unidade)+'</td>'+
       '<td class="num mono">'+nf(l.saiu,1)+'</td>'+
       '<td class="num mono forte'+cor+'">'+nf(l.saldo,1)+'</td>'+
       '<td class="num mono hide-sm">'+(l.medio>0?moeda(l.medio):"—")+'</td>'+
@@ -7962,13 +7988,9 @@ function modalAplicacao(id){
   const a = id ? aplicacoesDe(f.id).find(x=>x.id===id) : null;
   const tals = talhoesDe(f.id).slice().sort((x,y)=>x.nome.localeCompare(y.nome,"pt-BR",{numeric:true}));
   _itensApl = a && a.itens && a.itens.length
-    ? a.itens.map(i=>{
-        const p=acharProduto(f.id,i.produto_id);
-        const fator=(p&&_unidTon(p.unidade))?1000:1;   // guardado em t → mostra em kg
-        const prodTotal=(i.total!=null && i.total!=="") ? Number(i.total)
-                        : ((Number(i.dose)||0)*(Number(a.hectares)||0));
-        return { produto_id:i.produto_id, total: prodTotal ? (prodTotal*fator) : "" };
-      })
+    ? a.itens.map(i=>({produto_id:i.produto_id,
+        total:(i.total!=null && i.total!=="") ? i.total
+              : (((Number(i.dose)||0)*(Number(a.hectares)||0)) || "")}))
     : [{produto_id:"", total:""}];
   const sel = new Set(a?a.talhoes:[]);
   const hoje = new Date().toISOString().slice(0,10);
@@ -8017,14 +8039,13 @@ function desenharItensApl(){
   document.getElementById("ap-itens").innerHTML = _itensApl.map((it,i)=>{
     const ps = it.produto_id ? prods.find(p=>p.id===it.produto_id) : null;
     const un = ps ? (ps.unidade||"") : "";
-    const unEntrada = _unidTon(un) ? "kg" : esc(un);   // produto em t → lança em kg
     return '<div class="item item-p">'+
       '<select onchange="_itensApl['+i+'].produto_id=this.value;desenharItensApl();recalcApl()">'+
         '<option value="">— produto —</option>'+
         prods.map(p=>'<option value="'+p.id+'" '+(it.produto_id===p.id?"selected":"")+'>'+
           esc(p.nome)+(p.preco>0?" · "+moeda(p.preco)+"/"+esc(p.unidade):" · sem preço")+'</option>').join("")+
       '</select>'+
-      '<input type="number" step="0.001" min="0" inputmode="decimal" placeholder="'+(un?"total gasto ("+unEntrada+")":"total gasto")+'" value="'+(it.total||"")+'" '+
+      '<input type="number" step="0.001" min="0" inputmode="decimal" placeholder="'+(un?"total gasto ("+esc(un)+")":"total gasto")+'" value="'+(it.total||"")+'" '+
         'oninput="_itensApl['+i+'].total=this.value;recalcApl()">'+
       (_itensApl.length>1?'<button type="button" onclick="remItemApl('+i+')">✕</button>':'<span></span>')+
     '</div>';
@@ -8048,12 +8069,11 @@ function recalcApl(){
   let total=0, n=0, sem=0;
   _itensApl.forEach(it=>{
     const p=acharProduto(f.id,it.produto_id); if(!p) return;
-    const typed=parseFloat(String(it.total).replace(",","."))||0;
-    if(typed<=0) return;
-    const prodTotal = typed / (_unidTon(p.unidade)?1000:1);   // kg digitado → t (unidade do produto)
+    const tot=parseFloat(String(it.total).replace(",","."))||0;
+    if(tot<=0) return;
     n++;
     if((Number(p.preco)||0)<=0){ sem++; return; }
-    total += prodTotal*Number(p.preco);
+    total += tot*Number(p.preco);
   });
   const box=document.getElementById("ap-calc"); if(!box) return;
   box.innerHTML =
@@ -8072,10 +8092,8 @@ function gravarAplicacao(id){
   const ids=[...document.querySelectorAll('.tsel input:checked')].map(x=>x.value);
   if(!ids.length){ toast("Escolha ao menos um talhão"); return; }
   const itens=_itensApl.filter(i=>i.produto_id && parseFloat(String(i.total).replace(",","."))>0)
-    .map(i=>{ const p=acharProduto(f.id,i.produto_id);
-              const typed=parseFloat(String(i.total).replace(",","."))||0;
-              const prodTotal=typed/((p&&_unidTon(p.unidade))?1000:1);   // guarda em t
-              return {produto_id:i.produto_id, dose: ha>0 ? prodTotal/ha : 0, total: prodTotal}; });
+    .map(i=>{ const tot=parseFloat(String(i.total).replace(",","."))||0;
+              return {produto_id:i.produto_id, dose: ha>0 ? tot/ha : 0, total: tot}; });
   if(!itens.length){ toast("Informe ao menos um produto com o total gasto"); return; }
   salvarAplicacao(f.id,{ data:document.getElementById("ap-data").value||new Date().toISOString().slice(0,10),
     tipo:document.getElementById("ap-tipo").value, talhoes:ids, hectares:ha,
