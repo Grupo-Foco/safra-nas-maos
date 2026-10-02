@@ -928,7 +928,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.88.0";
+const APP_VERSION = "2.89.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -3139,8 +3139,9 @@ function modalEquipe(){
     '<p class="sub">Quem entra nesta fazenda e o que cada um enxerga.</p>'+
     '<div id="eq-lista"><p class="vazio">Carregando…</p></div>'+
     '<div class="frm" style="margin-top:16px">'+
-      '<div><label for="eq-email">Convidar por e-mail</label><span class="nota-pad">Não enviamos e-mail: a pessoa entra no app e cria a conta com esse e-mail; o acesso libera ao entrar.</span>'+
-        '<input id="eq-email" type="email" inputmode="email" placeholder="pessoa@exemplo.com"></div>'+
+      '<div><label for="eq-email">Convidar por e-mail ou CPF</label><span class="nota-pad">E-mail: a pessoa entra no app e cria a conta com esse e-mail. CPF: o acesso já é criado — senha inicial = 5 primeiros dígitos do CPF, e ela define a senha dela no 1º acesso.</span>'+
+        '<input id="eq-email" type="text" placeholder="pessoa@exemplo.com ou CPF" oninput="_eqTipoMudou()"></div>'+
+      '<div id="eq-nome-wrap" style="display:none"><label for="eq-nome">Nome do operador</label><input id="eq-nome" type="text" placeholder="nome completo"></div>'+
       '<div><label for="eq-perfil">Perfil</label><select id="eq-perfil">'+opcoesPerfil("geral")+'</select>'+
         '<span class="pad" id="eq-perfil-desc">'+esc(PERFIS.geral.desc)+'</span></div>'+
     '</div>'+
@@ -3191,15 +3192,50 @@ async function carregarEquipe(){
   }catch(e){ box.innerHTML='<p class="vazio">Não consegui carregar agora.</p>'; }
 }
 
+// Mostra o campo "Nome" quando o que foi digitado parece um CPF
+function _eqTipoMudou(){
+  const el=document.getElementById("eq-email"); const wrap=document.getElementById("eq-nome-wrap");
+  if(!el||!wrap) return;
+  const raw=(el.value||"").trim(); const dig=raw.replace(/\D/g,"");
+  wrap.style.display=(!raw.includes("@") && dig.length>=3 && /^\d+$/.test(dig))?"":"none";
+}
 async function convidar(){
   const f=acharFazenda(App.fazendaId);
-  const email=(document.getElementById("eq-email").value||"").trim();
-  if(!email || !email.includes("@")){ toast("Informe um e-mail válido"); return; }
+  const raw=(document.getElementById("eq-email").value||"").trim();
   const p=PERFIS[document.getElementById("eq-perfil").value]||PERFIS.geral;
+  const dig=raw.replace(/\D/g,"");
+  const ehCpf = !raw.includes("@") && dig.length===11;
+
+  if(ehCpf){                       // cadastro por CPF → cria o acesso com senha padrão
+    const nome=((document.getElementById("eq-nome")||{}).value||"").trim();
+    try{
+      const r=await api("rpc/safra_criar_operador", { method:"POST",
+        body:{ p_cpf:dig, p_nome:nome, p_fazenda_id:f.id, p_papel:p.papel,
+               p_modulos:(p.modulos&&p.modulos.length)?p.modulos:null } });
+      const info=Array.isArray(r)?r[0]:r;
+      const senha=(info&&info.senha_inicial)||dig.slice(0,5);
+      document.getElementById("eq-email").value="";
+      const nm=document.getElementById("eq-nome"); if(nm){ nm.value=""; }
+      _eqTipoMudou();
+      alert((info&&info.ja_existia?"Operador já existia — acesso atualizado nesta fazenda.":"Operador criado!")+
+            "\n\nLogin (CPF): "+dig+"\nSenha inicial: "+senha+
+            "\n\nA pessoa entra com o CPF e essa senha e define a senha dela no 1º acesso.");
+      carregarEquipe();
+    }catch(e){
+      const m=String(e.message||e);
+      toast(/Sem permiss|42501/i.test(m)?"Sem permissão para criar nesta fazenda"
+        :/does not exist|PGRST202|PGRST1|404|Not Found/i.test(m)?"Falta instalar a função no banco (rode safra-funcao-criar-operador.sql)"
+        :/CPF inval/i.test(m)?"CPF inválido (11 dígitos)"
+        :"Não consegui criar o operador agora");
+    }
+    return;
+  }
+
+  if(!raw.includes("@")){ toast("Informe um e-mail válido ou um CPF (11 dígitos)"); return; }
   try{
     await api("safra_convites", { method:"POST",
       prefer:"resolution=merge-duplicates,return=minimal",
-      body:{ fazenda_id:f.id, email:email.toLowerCase(), papel:p.papel, modulos:p.modulos } });
+      body:{ fazenda_id:f.id, email:raw.toLowerCase(), papel:p.papel, modulos:p.modulos } });
     document.getElementById("eq-email").value="";
     toast("Convite salvo. Peça para a pessoa ENTRAR no app e criar a conta com esse e-mail — o acesso libera sozinho.");
     carregarEquipe();
