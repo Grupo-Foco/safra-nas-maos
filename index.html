@@ -612,6 +612,8 @@ input.lv-d{font-family:var(--mono);font-size:12.5px;min-width:130px}
   background:rgba(255,255,255,.08);padding:3px 8px;border-radius:6px;letter-spacing:.03em}
 .dev-cred{font-family:var(--mono);font-size:10px;color:#8C9B8B;opacity:.85;white-space:nowrap}
 @media(max-width:620px){.dev-cred{display:none}}
+.tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:10px}
+@media(max-width:640px){.tbl-wrap .arm-grid{min-width:600px}}
 
 .tbl tr.neg-row td{background:#FDF4F2}
 
@@ -928,7 +930,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.92.0";
+const APP_VERSION = "2.95.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -1345,11 +1347,12 @@ const Sync = {
     const locais = fazendas();
     const idsNuvem = new Set((fz||[]).map(r=>r.id));
     const novas = new Set(Store.get("novasFazendas", []));
-    // Cura o fantasma da semeadura: uma fazenda "nova" (ainda não enviada) cujo
-    // NOME já existe na nuvem é a Santa Angelina semeada por engano num aparelho
-    // novo. Descarta local para não virar duplicata na nuvem.
+    // Cura a casca duplicada: qualquer fazenda LOCAL que NÃO está na nuvem mas
+    // tem o MESMO nome de uma que está (ex.: Santa Angelina semeada por engano)
+    // é descartada do aparelho — mesmo que esteja marcada como "nova". A nuvem
+    // é a verdade; assim a duplicata some de qualquer acesso ao sincronizar.
     const nomesNuvem = new Set((fz||[]).map(r=>_normNome(r.nome||"")));
-    const fantasmas = locais.filter(f=> novas.has(f.id) && !idsNuvem.has(f.id) && nomesNuvem.has(_normNome(f.nome||""))).map(f=>f.id);
+    const fantasmas = locais.filter(f=> !idsNuvem.has(f.id) && nomesNuvem.has(_normNome(f.nome||""))).map(f=>f.id);
     if(fantasmas.length){
       const set=new Set(fantasmas);
       fantasmas.forEach(id=>{ novas.delete(id); BLOCOS.forEach(b=>Store.del("faz_"+id+"_"+b)); });
@@ -4705,7 +4708,7 @@ function abaPedidos(f, peds){
   if(!peds.length) return h+'<p class="vazio">Nenhum pedido encontrado'+(_buscaPed?' para "'+esc(_buscaPed)+'"':"")+(_fCatPed&&_fCatPed!=="__sem__"?" na categoria "+esc(_fCatPed):"")+'.</p>';
   const grupos={};
   peds.forEach(p=>{ const k=_normNome(p.produto); (grupos[k]=grupos[k]||{nome:p.produto, itens:[]}).itens.push(p); });
-  h+='<table class="arm-grid"><thead><tr><th>Produto</th><th>Em nome de</th><th>Categoria</th><th>Pedido</th><th>Entregue</th><th>Faltam</th><th>Valor</th><th></th></tr></thead><tbody>';
+  h+='<div class="tbl-wrap"><table class="arm-grid"><thead><tr><th>Produto</th><th>Em nome de</th><th>Categoria</th><th>Pedido</th><th>Entregue</th><th>Faltam</th><th>Valor</th><th></th></tr></thead><tbody>';
   let gP=0,gE=0,gV=0;
   Object.keys(grupos).sort().forEach(k=>{
     const g=grupos[k]; let sP=0,sE=0,sV=0;
@@ -4729,7 +4732,7 @@ function abaPedidos(f, peds){
     gP+=sP; gE+=sE; gV+=sV;
   });
   h+='<tr class="arm-tot"><td>Total geral</td><td></td><td></td><td>'+nf(gP,0)+'</td><td>'+nf(gE,0)+'</td><td>'+nf(gP-gE,0)+'</td><td style="white-space:nowrap">'+moeda(gV)+'</td><td></td></tr>';
-  return h+'</tbody></table>';
+  return h+'</tbody></table></div>';
 }
 function classificarPedidosSemCat(){
   const f=acharFazenda(App.fazendaId); if(!f) return;
@@ -4992,7 +4995,7 @@ function gravarAjusteEntregue(pid){
   if(isNaN(q)||q<0){ toast("Valor inválido"); return; }
   p.entregue=q;
   salvarPedidos(f.id,l);
-  toast("Total ajustado"); modalEntregas(pid);
+  toast("Total ajustado"); render(); modalEntregas(pid);
 }
 function modalEditarEntrega(pid, eid){
   const f=acharFazenda(App.fazendaId);
@@ -5053,7 +5056,7 @@ async function gravarEditarEntrega(pid, eid){
   if(document.getElementById("pe-nf")) e2.nf=(document.getElementById("pe-nf").value||"").trim();
   p2.entregue=Math.max(0,(p2.entregue||0)+(q-oldQtd));
   salvarPedidos(f.id,l2);
-  window._entArq={}; toast("Entrega atualizada"); modalEntregas(pid);
+  window._entArq={}; toast("Entrega atualizada"); render(); modalEntregas(pid);
 }
 function removerEntrega(pid, eid){
   const f=acharFazenda(App.fazendaId);
@@ -5064,7 +5067,7 @@ function removerEntrega(pid, eid){
   p.entregas=p.entregas.filter(x=>x.id!==eid);
   p.entregue=Math.max(0,(p.entregue||0)-e.qtd);
   salvarPedidos(f.id,l);
-  toast("Entrega removida"); modalEntregas(pid);
+  toast("Entrega removida"); render(); modalEntregas(pid);
 }
 function removerPedido(id){
   const f=acharFazenda(App.fazendaId);
@@ -6471,7 +6474,7 @@ function modalVisita(id){
       '<label class="drop" for="vs-file">'+
         '<b id="vs-lbl">'+(jaTem?jaTem+" foto(s) já anexada(s) · adicionar mais":"Tirar ou anexar fotos (até 5)")+'</b>'+
         '<span>Fotos do talhão · até 5 · máx. 20 MB cada</span>'+
-        '<input id="vs-file" type="file" accept="image/*" capture="environment" multiple onchange="escolherFotoVisita(this,'+jaTem+')">'+
+        '<input id="vs-file" type="file" accept="image/*" multiple onchange="escolherFotoVisita(this,'+jaTem+')">'+
       '</label>'+
     '</div>'+
     '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
@@ -7950,7 +7953,14 @@ function modalAplicacao(id){
 
 function desenharItensApl(){
   const f=acharFazenda(App.fazendaId);
-  const prods = produtosDisponiveis(f.id).slice().sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR"));
+  // Só produtos COM SALDO (entregue nos pedidos + remanescente − aplicado).
+  // Mantém visível o que já estava escolhido numa aplicação em edição.
+  const est=estoqueDe(f.id);
+  const comSaldo=new Set(est.linhas.filter(l=>l.saldo>0.0001).map(l=>_normNome(l.nome)));
+  const jaSel=new Set(_itensApl.map(it=>it.produto_id).filter(Boolean));
+  const prods = produtosDisponiveis(f.id)
+    .filter(p=>comSaldo.has(_normNome(p.nome)) || jaSel.has(p.id))
+    .slice().sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR"));
   document.getElementById("ap-itens").innerHTML = _itensApl.map((it,i)=>{
     const ps = it.produto_id ? prods.find(p=>p.id===it.produto_id) : null;
     const un = ps ? (ps.unidade||"") : "";
