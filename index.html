@@ -928,7 +928,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.89.0";
+const APP_VERSION = "2.90.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -4901,14 +4901,22 @@ function modalEntregaPedido(id){
       '<div style="display:flex;gap:10px"><div style="flex:1"><label for="pe-data">Dia da entrega</label>'+
         '<input id="pe-data" type="date" value="'+new Date().toISOString().slice(0,10)+'"></div>'+
         '<div style="flex:1"><label for="pe-qtd">Quantidade que chegou</label>'+
-        '<input id="pe-qtd" type="number" inputmode="decimal" placeholder="'+nf(falta,0)+'"></div></div>'+
+        '<input id="pe-qtd" type="number" min="0" inputmode="decimal" placeholder="'+nf(falta,0)+'"></div></div>'+
       '<div><label for="pe-nf">Número da nota fiscal</label>'+
         '<input id="pe-nf" placeholder="Nº da NF (opcional)"></div>'+
       '<div><label for="pe-f1">Nota 1 (opcional)</label>'+
-        '<input id="pe-f1" type="file" accept="image/*,application/pdf" onchange="escolherArquivoEntrega(this,1)">'+
+        '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'+
+          '<input id="pe-f1" type="file" accept="image/*,application/pdf" onchange="escolherArquivoEntrega(this,1)">'+
+          '<button type="button" class="mini" onclick="document.getElementById(\'pe-c1\').click()">📷 Tirar foto</button>'+
+          '<input id="pe-c1" type="file" accept="image/*" capture="environment" style="display:none" onchange="escolherArquivoEntrega(this,1)">'+
+        '</div>'+
         '<span class="nota-pad" id="pe-f1-lbl"></span></div>'+
       '<div><label for="pe-f2">Nota 2 (opcional)</label>'+
-        '<input id="pe-f2" type="file" accept="image/*,application/pdf" onchange="escolherArquivoEntrega(this,2)">'+
+        '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'+
+          '<input id="pe-f2" type="file" accept="image/*,application/pdf" onchange="escolherArquivoEntrega(this,2)">'+
+          '<button type="button" class="mini" onclick="document.getElementById(\'pe-c2\').click()">📷 Tirar foto</button>'+
+          '<input id="pe-c2" type="file" accept="image/*" capture="environment" style="display:none" onchange="escolherArquivoEntrega(this,2)">'+
+        '</div>'+
         '<span class="nota-pad" id="pe-f2-lbl"></span></div>'+
     '</div>'+
     '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
@@ -4928,7 +4936,7 @@ async function gravarEntregaPedido(id){
   const f=acharFazenda(App.fazendaId);
   const p=pedidosDe(f.id).find(x=>x.id===id); if(!p){ fecharModal(); return; }
   const q=Number((document.getElementById("pe-qtd").value||"").replace(",","."));
-  if(!q||q<=0){ toast("Informe a quantidade"); return; }
+  if(isNaN(q)||q<=0){ toast("Quantidade inválida — informe um número maior que zero"); return; }
   const data=document.getElementById("pe-data").value||new Date().toISOString().slice(0,10);
   const entId="en_"+Date.now().toString(36);
   const anexos=[], arqs=window._entArq||{};
@@ -4999,14 +5007,22 @@ function modalEditarEntrega(pid, eid){
       '<div style="display:flex;gap:10px"><div style="flex:1"><label for="pe-data">Dia da entrega</label>'+
         '<input id="pe-data" type="date" value="'+esc(e.data||"")+'"></div>'+
         '<div style="flex:1"><label for="pe-qtd">Quantidade</label>'+
-        '<input id="pe-qtd" type="number" inputmode="decimal" value="'+(e.qtd!=null?e.qtd:"")+'"></div></div>'+
+        '<input id="pe-qtd" type="number" min="0" inputmode="decimal" value="'+(e.qtd!=null?e.qtd:"")+'"></div></div>'+
       '<div><label for="pe-nf">Número da nota fiscal</label>'+
         '<input id="pe-nf" placeholder="Nº da NF (opcional)" value="'+esc(e.nf||"")+'"></div>'+
       '<div><label for="pe-f1">Nota 1'+(an[0]?" (anexada — escolha outra para trocar)":" (opcional)")+'</label>'+
-        '<input id="pe-f1" type="file" accept="image/*,application/pdf" onchange="escolherArquivoEntrega(this,1)">'+
+        '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'+
+          '<input id="pe-f1" type="file" accept="image/*,application/pdf" onchange="escolherArquivoEntrega(this,1)">'+
+          '<button type="button" class="mini" onclick="document.getElementById(\'pe-c1\').click()">📷 Tirar foto</button>'+
+          '<input id="pe-c1" type="file" accept="image/*" capture="environment" style="display:none" onchange="escolherArquivoEntrega(this,1)">'+
+        '</div>'+
         '<span class="nota-pad" id="pe-f1-lbl">'+(an[0]?esc(an[0].nome||""):"")+'</span></div>'+
       '<div><label for="pe-f2">Nota 2'+(an[1]?" (anexada — escolha outra para trocar)":" (opcional)")+'</label>'+
-        '<input id="pe-f2" type="file" accept="image/*,application/pdf" onchange="escolherArquivoEntrega(this,2)">'+
+        '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'+
+          '<input id="pe-f2" type="file" accept="image/*,application/pdf" onchange="escolherArquivoEntrega(this,2)">'+
+          '<button type="button" class="mini" onclick="document.getElementById(\'pe-c2\').click()">📷 Tirar foto</button>'+
+          '<input id="pe-c2" type="file" accept="image/*" capture="environment" style="display:none" onchange="escolherArquivoEntrega(this,2)">'+
+        '</div>'+
         '<span class="nota-pad" id="pe-f2-lbl">'+(an[1]?esc(an[1].nome||""):"")+'</span></div>'+
     '</div>'+
     '<div class="modal-acts"><button class="btn-cancel" onclick="modalEntregas(\''+pid+'\')">Voltar</button>'+
@@ -5018,7 +5034,7 @@ async function gravarEditarEntrega(pid, eid){
   const p0=pedidosDe(f.id).find(x=>x.id===pid); if(!p0) return;
   const e0=(p0.entregas||[]).find(x=>x.id===eid); if(!e0) return;
   const q=Number((document.getElementById("pe-qtd").value||"").replace(",","."));
-  if(!q||q<=0){ toast("Informe a quantidade"); return; }
+  if(isNaN(q)||q<=0){ toast("Quantidade inválida — informe um número maior que zero"); return; }
   const data=document.getElementById("pe-data").value||e0.data;
   const oldQtd=e0.qtd;
   const anexos=(e0.anexos||[]).slice();
