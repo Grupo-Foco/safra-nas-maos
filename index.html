@@ -928,7 +928,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.90.0";
+const APP_VERSION = "2.92.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -5146,9 +5146,11 @@ function telaMaquinario(){
   const mostrar = bq ? maqs.filter(m=>((m.nome||"")+" "+(m.tipo||"")).toLowerCase().includes(bq)) : maqs;
   h+='<div class="acts"><input class="busca" placeholder="Buscar máquina ou tipo…" value="'+esc(_buscaMaq)+'" '+
      'oninput="clearTimeout(window._bmq);window._bmq=setTimeout(()=>{_buscaMaq=this.value;render();},200)"></div>';
-  h+='<table class="arm-grid mq-grid"><thead><tr><th>Máquina</th><th>Tipo</th><th>Horímetro atual</th><th>Rodou (h/km)</th><th>Litros</th><th>Média (L/h)</th><th></th></tr></thead><tbody>';
+  h+='<table class="arm-grid mq-grid"><thead><tr><th>#</th><th>Máquina</th><th>Tipo</th><th>Horímetro atual</th><th>Rodou (h/km)</th><th>Litros</th><th>Média (L/h)</th><th></th></tr></thead><tbody>';
   mostrar.forEach(m=>{ const R=resumoMaquina(f.id,m); const nAb=(abast.filter(a=>a.maquina_id===m.id)).length;
-    h+='<tr><td><button class="link-maq" onclick="modalHistoricoMaq(\''+m.id+'\')" title="Ver abastecimentos">'+esc(m.nome)+(nAb?' <b>'+nAb+'</b>':'')+'</button></td><td>'+esc(m.tipo||"—")+'</td>'+
+    const idx=maqs.indexOf(m)+1;
+    h+='<tr><td><button class="link-maq" onclick="modalHistoricoMaq(\''+m.id+'\')" title="Ver abastecimentos / cancelar">'+idx+(nAb?' <b>'+nAb+'</b>':'')+'</button></td>'+
+       '<td><button class="link-maq" onclick="modalHistoricoMaq(\''+m.id+'\')" title="Ver abastecimentos">'+esc(m.nome)+'</button></td><td>'+esc(m.tipo||"—")+'</td>'+
        '<td>'+nf(R.hatual,0)+'</td><td>'+nf(R.rodou,0)+'</td><td>'+nf(R.litros,0)+'</td><td>'+(R.consumo?nf(R.consumo,1):"—")+'</td>'+
        '<td style="white-space:nowrap;text-align:right"><button class="mini" onclick="modalAbastecer(\''+m.id+'\')">Abastecer</button> '+
        '<button class="mini" onclick="modalMaquina(\''+m.id+'\')">Editar</button></td></tr>';
@@ -7908,15 +7910,17 @@ function modalAplicacao(id){
   const a = id ? aplicacoesDe(f.id).find(x=>x.id===id) : null;
   const tals = talhoesDe(f.id).slice().sort((x,y)=>x.nome.localeCompare(y.nome,"pt-BR",{numeric:true}));
   _itensApl = a && a.itens && a.itens.length
-    ? a.itens.map(i=>({produto_id:i.produto_id, dose:i.dose}))
-    : [{produto_id:"", dose:""}];
+    ? a.itens.map(i=>({produto_id:i.produto_id,
+        total:(i.total!=null && i.total!=="") ? i.total
+              : (((Number(i.dose)||0)*(Number(a.hectares)||0)) || "")}))
+    : [{produto_id:"", total:""}];
   const sel = new Set(a?a.talhoes:[]);
   const hoje = new Date().toISOString().slice(0,10);
 
   document.getElementById("modal-root").innerHTML=
   '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal modal-lg">'+
     '<h2>'+(a?"Editar aplicação":"Nova aplicação")+'</h2>'+
-    '<p class="sub">A quantidade de cada produto sai da dose vezes a área tratada.</p>'+
+    '<p class="sub">Informe o total gasto de cada produto. O sistema calcula a dose por hectare (total ÷ área) e o custo.</p>'+
     '<div class="frm">'+
       '<div class="g3">'+
         '<div><label for="ap-data">Data</label><input type="date" id="ap-data" value="'+(a?a.data:hoje)+'"></div>'+
@@ -7956,13 +7960,13 @@ function desenharItensApl(){
         prods.map(p=>'<option value="'+p.id+'" '+(it.produto_id===p.id?"selected":"")+'>'+
           esc(p.nome)+(p.preco>0?" · "+moeda(p.preco)+"/"+esc(p.unidade):" · sem preço")+'</option>').join("")+
       '</select>'+
-      '<input type="number" step="0.001" inputmode="decimal" placeholder="'+(un?"dose ("+esc(un)+"/ha)":"dose")+'" value="'+(it.dose||"")+'" '+
-        'oninput="_itensApl['+i+'].dose=this.value;recalcApl()">'+
+      '<input type="number" step="0.001" min="0" inputmode="decimal" placeholder="'+(un?"total gasto ("+esc(un)+")":"total gasto")+'" value="'+(it.total||"")+'" '+
+        'oninput="_itensApl['+i+'].total=this.value;recalcApl()">'+
       (_itensApl.length>1?'<button type="button" onclick="remItemApl('+i+')">✕</button>':'<span></span>')+
     '</div>';
   }).join("");
 }
-function addItemApl(){ _itensApl.push({produto_id:"",dose:""}); desenharItensApl(); recalcApl(); }
+function addItemApl(){ _itensApl.push({produto_id:"",total:""}); desenharItensApl(); recalcApl(); }
 function remItemApl(i){ _itensApl.splice(i,1); desenharItensApl(); recalcApl(); }
 
 function sugerirArea(){
@@ -7980,11 +7984,11 @@ function recalcApl(){
   let total=0, n=0, sem=0;
   _itensApl.forEach(it=>{
     const p=acharProduto(f.id,it.produto_id); if(!p) return;
-    const dose=parseFloat(String(it.dose).replace(",","."))||0;
-    if(dose<=0) return;
+    const tot=parseFloat(String(it.total).replace(",","."))||0;
+    if(tot<=0) return;
     n++;
     if((Number(p.preco)||0)<=0){ sem++; return; }
-    total += dose*ha*Number(p.preco);
+    total += tot*Number(p.preco);
   });
   const box=document.getElementById("ap-calc"); if(!box) return;
   box.innerHTML =
@@ -7992,6 +7996,7 @@ function recalcApl(){
     '<span><i>Área</i><b>'+nf(ha,2)+' ha</b></span>'+
     '<span><i>Custo por hectare</i><b>'+(ha>0?moeda(total/ha):"—")+'</b></span>'+
     '<span><i>Custo da aplicação</i><b class="ok">'+moeda(total)+'</b></span>'+
+    (ha<=0?'<span class="nota">Informe a área tratada para calcular a dose por hectare.</span>':'')+
     (sem?'<span class="nota">'+sem+' produto(s) sem preço — não entram no custo.</span>':'');
 }
 
@@ -8001,9 +8006,10 @@ function gravarAplicacao(id){
   if(ha<=0){ toast("Informe a área tratada"); return; }
   const ids=[...document.querySelectorAll('.tsel input:checked')].map(x=>x.value);
   if(!ids.length){ toast("Escolha ao menos um talhão"); return; }
-  const itens=_itensApl.filter(i=>i.produto_id && parseFloat(String(i.dose).replace(",","."))>0)
-    .map(i=>({produto_id:i.produto_id, dose:parseFloat(String(i.dose).replace(",","."))}));
-  if(!itens.length){ toast("Informe ao menos um produto com dose"); return; }
+  const itens=_itensApl.filter(i=>i.produto_id && parseFloat(String(i.total).replace(",","."))>0)
+    .map(i=>{ const tot=parseFloat(String(i.total).replace(",","."))||0;
+              return {produto_id:i.produto_id, dose: ha>0 ? tot/ha : 0, total: tot}; });
+  if(!itens.length){ toast("Informe ao menos um produto com o total gasto"); return; }
   salvarAplicacao(f.id,{ data:document.getElementById("ap-data").value||new Date().toISOString().slice(0,10),
     tipo:document.getElementById("ap-tipo").value, talhoes:ids, hectares:ha,
     obs:document.getElementById("ap-obs").value, itens }, id);
