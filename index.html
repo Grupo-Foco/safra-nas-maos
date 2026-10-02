@@ -930,7 +930,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.95.0";
+const APP_VERSION = "2.97.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -1237,6 +1237,22 @@ function _mergeLog(local, nuvem, pendente, lastPull){
   });
   return res;
 }
+/* Mescla para a SUBIDA: antes de enviar um bloco-lista, une o local com o que
+   já está na nuvem (por id), para não apagar registros lançados em OUTRO
+   aparelho. O local manda nos registros que ele tem; registros que só existem
+   na nuvem e foram criados depois do último download (de outro aparelho) são
+   mantidos; registros antigos que sumiram do local (apagados aqui) não voltam. */
+function _mergeSubida(local, nuvem, lastPull){
+  local=local||[]; nuvem=nuvem||[];
+  const res = local.slice();
+  const temLocal = {}; local.forEach(it=>{ if(it&&it.id!=null) temLocal[it.id]=true; });
+  nuvem.forEach(it=>{
+    if(!it || it.id==null || temLocal[it.id]) return;
+    const t = Date.parse(it.criado_em||it.criado||it.data||"") || 0;
+    if(!lastPull || t > lastPull) res.push(it);   // novo de outro aparelho → mantém
+  });
+  return res;
+}
 const Sync = {
   sujos(){ return Store.get("sync_sujo", []); },
   marcar(chave){
@@ -1314,7 +1330,26 @@ const Sync = {
           if(!fid) continue;
           // Blocos usam upsert normalmente: aqui o vínculo de membro já existe
           // (a fazenda subiu antes), então a política de UPDATE passa.
-          const payload = Store.get(chave, null);
+          let payload = Store.get(chave, null);
+          // Bloco-LISTA (aplicações, cargas, pedidos, abastecimentos…): une com a
+          // nuvem por id ANTES de enviar, senão este envio apagaria o que outro
+          // aparelho lançou. Sem isso, o último a subir sobrescrevia os demais.
+          if(_ehLog(payload)){
+            try{
+              const r = await this._comRetry(()=>api("safra_estado?fazenda_id=eq."+encodeURIComponent(fid)+"&chave=eq."+encodeURIComponent(bloco)+"&select=dados"));
+              const nuvem = (r && r[0]) ? r[0].dados : null;
+              if(_ehLog(nuvem)){
+                const lastPull = Date.parse(Store.get("sync_ultimo","")) || 0;
+                const merged = _mergeSubida(payload, nuvem, lastPull);
+                if(JSON.stringify(merged)!==JSON.stringify(payload)){
+                  payload = merged;
+                  const apl=this._aplicando; this._aplicando=true;   // grava sem remarcar sujo
+                  Store.set(chave, merged);
+                  this._aplicando=apl;
+                }
+              }
+            }catch(e){ /* sem leitura da nuvem: envia o local mesmo */ }
+          }
           enviados[chave] = JSON.stringify(payload===undefined?null:payload);
           await this._comRetry(()=>api("safra_estado", { method:"POST",
             prefer:"resolution=merge-duplicates,return=minimal",
@@ -4334,7 +4369,7 @@ function telaOperacoes(){
   h += '<div class="kpis kpis-4">'+
     kpi("Aplicações", todas.length, _fTipo?R.aplicacoes.length+" no filtro":"")+
     kpi("Custo total", moeda(R.total).replace("R$ ",""), "R$")+
-    kpi("Área aplicada", nf(R.haAplicada,0), "ha acumulados")+
+    kpi("Área aplicada", nf(R.haAplicada,Number.isInteger(R.haAplicada)?0:2), "ha acumulados")+
     kpi("Custo por hectare", nf(R.custoHa,2), "R$/ha aplicado")+
   '</div>';
 
@@ -4411,7 +4446,7 @@ function abaRelatorio(f,R){
                  (a.obs?'<u class="ob">'+esc(a.obs)+'</u>':'')+'</td>' : '')+
         '<td>'+esc(l.produto)+'</td>'+
         '<td class="num mono">'+nf(l.dose,l.dose<1?3:2)+'</td>'+
-        '<td class="num mono">'+nf(l.hectares,0)+'</td>'+
+        '<td class="num mono">'+nf(l.hectares,Number.isInteger(l.hectares)?0:2)+'</td>'+
         '<td class="num mono">'+nf(l.qtd,1)+' <i class="un">'+esc(l.unidade)+'</i></td>'+
         '<td class="num mono hide-sm">'+(l.semPreco?'<i class="sp">sem preço</i>':moeda(l.preco))+'</td>'+
         '<td class="num mono forte">'+(l.semPreco?"—":moeda(l.valor))+'</td>'+
@@ -4822,7 +4857,7 @@ function modalPedido(id){
         '<datalist id="pd-resp-list">'+respSugestoes(f).map(n=>'<option value="'+esc(n)+'"></option>').join("")+'</datalist></div>'+
       '<div style="display:flex;gap:10px"><div style="flex:1"><label for="pd-qtd">Quantidade pedida</label>'+
         '<input id="pd-qtd" type="number" inputmode="decimal" placeholder="0" value="'+(ed&&ed.qtd!=null?ed.qtd:"")+'"></div>'+
-        '<div style="flex:1"><label for="pd-un">Unidade</label><input id="pd-un" placeholder="t, sc, L, kg" value="'+esc(ed?(ed.unidade||""):"")+'"></div></div>'+
+        '<div style="flex:1"><label for="pd-un">Unidade</label><input id="pd-un" placeholder="kg, sc, L, Bag" value="'+esc(ed?(ed.unidade||""):"")+'"></div></div>'+
       '<div><label for="pd-val">Valor por unidade (R$)</label>'+
         '<input id="pd-val" type="number" inputmode="decimal" placeholder="0,00" value="'+(ed&&ed.valor?ed.valor:"")+'"></div>'+
       '<div><label for="pd-nf">Número da nota fiscal</label>'+
@@ -5560,7 +5595,7 @@ function modalRemanescente(id){
         '<datalist id="rm-prod-list">'+prods.map(p=>'<option value="'+esc(p.nome)+'"></option>').join("")+'</datalist></div>'+
       '<div style="display:flex;gap:10px"><div style="flex:1"><label for="rm-qtd">Quantidade</label>'+
         '<input id="rm-qtd" type="number" inputmode="decimal" placeholder="0" value="'+(x&&x.qtd!=null?x.qtd:"")+'"></div>'+
-        '<div style="flex:1"><label for="rm-un">Unidade</label><input id="rm-un" placeholder="t, sc, L, kg" value="'+esc(x?(x.unidade||""):"")+'"></div></div>'+
+        '<div style="flex:1"><label for="rm-un">Unidade</label><input id="rm-un" placeholder="kg, sc, L, Bag" value="'+esc(x?(x.unidade||""):"")+'"></div></div>'+
       '<div><label for="rm-preco">Preço por unidade (R$)</label>'+
         '<input id="rm-preco" type="number" step="0.01" inputmode="decimal" placeholder="0,00 (opcional)" value="'+(x&&x.preco?x.preco:"")+'"></div>'+
     '</div>'+
@@ -8411,6 +8446,24 @@ function semearPrimeiraVez(){
 }
 
 semearPrimeiraVez();
+/* Troca única do rótulo de unidade "t" (tonelada) → "kg", sem mexer nos números */
+function _ehTon(u){ return ["t","ton","tonelada","toneladas"].indexOf(String(u||"").trim().toLowerCase())>=0; }
+function migrarTonParaKg(){
+  if(Store.get("migr_tkg_v1", false)) return;
+  try{
+    fazendas().forEach(f=>{
+      [kProd, kPedidos, kRemanescente].forEach(kf=>{
+        const k=kf(f.id); const l=Store.get(k,null);
+        if(!Array.isArray(l)) return;
+        let mudou=false;
+        l.forEach(it=>{ if(it && _ehTon(it.unidade)){ it.unidade="kg"; mudou=true; } });
+        if(mudou) Store.set(k, l);   // marca sujo → sobe com a mescla por id
+      });
+    });
+  }catch(e){}
+  Store.set("migr_tkg_v1", true);
+}
+migrarTonParaKg();
 render();
 if(SUPABASE.ligado() && Auth.logado()) Sync.rodar();
 setInterval(()=>{ if(navigator.onLine && Auth.logado()) Sync.rodar(); }, 60000);
