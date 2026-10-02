@@ -930,7 +930,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.97.0";
+const APP_VERSION = "2.100.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -2035,17 +2035,21 @@ function kApl(f){ return "faz_"+f+"_aplicacoes"; }
 function produtosDe(f){ return Store.get(kProd(f), []); }
 function aplicacoesDe(f){ return Store.get(kApl(f), []); }
 function acharProduto(f,id){ return produtosDe(f).find(p=>p.id===id) || produtosDisponiveis(f).find(p=>p.id===id) || null; }
+/* Produto cuja unidade é tonelada: preço e estoque em t, mas o uso é lançado em kg. */
+function _unidTon(u){ return ["t","ton","tonelada","toneladas"].indexOf(String(u||"").trim().toLowerCase())>=0; }
 /* Produtos disponíveis para aplicar = cadastrados + os que estão no estoque
    (produtos dos pedidos, ex.: KCl, MAP), com o preço do pedido. */
 function produtosDisponiveis(f){
   const base = produtosDe(f).slice();
   const nomes = new Set(base.map(p=>_normNome(p.nome)));
-  (typeof pedidosDe==="function"? pedidosDe(f):[]).forEach(p=>{
-    const nm=(p.produto||"").trim(); if(!nm) return;
+  const add=(nm,un,preco)=>{
+    nm=(nm||"").trim(); if(!nm) return;
     const k=_normNome(nm); if(nomes.has(k)) return; nomes.add(k);
     base.push({ id:"pp_"+k.replace(/[^a-z0-9]+/g,""), fazenda_id:f, nome:nm,
-      unidade:p.unidade||"kg", preco:Number(p.valor)||0, doEstoque:true });
-  });
+      unidade:un||"kg", preco:Number(preco)||0, doEstoque:true });
+  };
+  (typeof pedidosDe==="function"? pedidosDe(f):[]).forEach(p=>add(p.produto, p.unidade, p.valor));
+  (typeof remanescenteDe==="function"? remanescenteDe(f):[]).forEach(x=>add(x.produto, x.unidade, x.preco));
   return base;
 }
 
@@ -4567,7 +4571,7 @@ function telaLavoura(){
   h += '<div class="tbl lav"><table><thead><tr>'+
     '<th>Área</th><th>Variedade</th><th class="num">Área-ha</th>'+
     '<th class="num">Sementes/m</th><th>Início</th><th>Fim</th>'+
-    '<th class="num hide-sm">Dias</th></tr></thead><tbody>';
+    '<th class="num hide-sm">Dias</th><th></th></tr></thead><tbody>';
   R.linhas.forEach(l=>{
     h += '<tr'+(l.plantado?'':' class="pendente"')+'>'+
       '<td class="forte">'+esc(l.nome)+'</td>'+
@@ -4583,11 +4587,12 @@ function telaLavoura(){
       '<td><input class="lv lv-d" type="date" value="'+esc(l.fim)+'" '+
         'onchange="gravarLav(\''+l.id+'\',\'fim\',this.value)"></td>'+
       '<td class="num mono hide-sm">'+(l.dias!=null?l.dias:"—")+'</td>'+
+      '<td class="num">'+(l.plantado?'<button class="rm" onclick="apagarPlantio(\''+l.id+'\')" title="Apagar plantio deste talhão">✕</button>':'')+'</td>'+
     '</tr>';
   });
   h += '</tbody><tfoot><tr><td class="fix">Total plantado</td><td></td>'+
     '<td class="num mono tot">'+nf(R.areaPlantada,2)+'</td>'+
-    '<td></td><td></td><td></td><td class="hide-sm"></td></tr></tfoot></table></div>';
+    '<td></td><td></td><td></td><td class="hide-sm"></td><td></td></tr></tfoot></table></div>';
 
   if(R.variedades.length){
     h += '<div class="resumo"><div class="resumo-t">Área por variedade</div><div class="acum">'+
@@ -4603,6 +4608,15 @@ function gravarLav(id, campo, valor){
   if(campo==="area"){ v = String(valor).trim()===""? null : (parseFloat(String(valor).replace(",","."))||0); }
   salvarPlantio(f.id,id,campo,v);
   render();
+}
+function apagarPlantio(id){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const todo=lavouraDe(f.id);
+  if(!todo[id]){ toast("Esse talhão não tem plantio lançado"); return; }
+  if(!confirm("Apagar o plantio deste talhão?\n\nVariedade, datas e sementes serão limpos. O talhão deixa de contar como plantado.")) return;
+  delete todo[id];
+  Store.set(kLavoura(f.id), todo);
+  toast("Plantio apagado"); render();
 }
 
 function modalVariedades(){
@@ -4857,7 +4871,7 @@ function modalPedido(id){
         '<datalist id="pd-resp-list">'+respSugestoes(f).map(n=>'<option value="'+esc(n)+'"></option>').join("")+'</datalist></div>'+
       '<div style="display:flex;gap:10px"><div style="flex:1"><label for="pd-qtd">Quantidade pedida</label>'+
         '<input id="pd-qtd" type="number" inputmode="decimal" placeholder="0" value="'+(ed&&ed.qtd!=null?ed.qtd:"")+'"></div>'+
-        '<div style="flex:1"><label for="pd-un">Unidade</label><input id="pd-un" placeholder="kg, sc, L, Bag" value="'+esc(ed?(ed.unidade||""):"")+'"></div></div>'+
+        '<div style="flex:1"><label for="pd-un">Unidade</label><input id="pd-un" placeholder="t, kg, sc, L, Bag" value="'+esc(ed?(ed.unidade||""):"")+'"></div></div>'+
       '<div><label for="pd-val">Valor por unidade (R$)</label>'+
         '<input id="pd-val" type="number" inputmode="decimal" placeholder="0,00" value="'+(ed&&ed.valor?ed.valor:"")+'"></div>'+
       '<div><label for="pd-nf">Número da nota fiscal</label>'+
@@ -5595,7 +5609,7 @@ function modalRemanescente(id){
         '<datalist id="rm-prod-list">'+prods.map(p=>'<option value="'+esc(p.nome)+'"></option>').join("")+'</datalist></div>'+
       '<div style="display:flex;gap:10px"><div style="flex:1"><label for="rm-qtd">Quantidade</label>'+
         '<input id="rm-qtd" type="number" inputmode="decimal" placeholder="0" value="'+(x&&x.qtd!=null?x.qtd:"")+'"></div>'+
-        '<div style="flex:1"><label for="rm-un">Unidade</label><input id="rm-un" placeholder="kg, sc, L, Bag" value="'+esc(x?(x.unidade||""):"")+'"></div></div>'+
+        '<div style="flex:1"><label for="rm-un">Unidade</label><input id="rm-un" placeholder="t, kg, sc, L, Bag" value="'+esc(x?(x.unidade||""):"")+'"></div></div>'+
       '<div><label for="rm-preco">Preço por unidade (R$)</label>'+
         '<input id="rm-preco" type="number" step="0.01" inputmode="decimal" placeholder="0,00 (opcional)" value="'+(x&&x.preco?x.preco:"")+'"></div>'+
     '</div>'+
@@ -7948,9 +7962,13 @@ function modalAplicacao(id){
   const a = id ? aplicacoesDe(f.id).find(x=>x.id===id) : null;
   const tals = talhoesDe(f.id).slice().sort((x,y)=>x.nome.localeCompare(y.nome,"pt-BR",{numeric:true}));
   _itensApl = a && a.itens && a.itens.length
-    ? a.itens.map(i=>({produto_id:i.produto_id,
-        total:(i.total!=null && i.total!=="") ? i.total
-              : (((Number(i.dose)||0)*(Number(a.hectares)||0)) || "")}))
+    ? a.itens.map(i=>{
+        const p=acharProduto(f.id,i.produto_id);
+        const fator=(p&&_unidTon(p.unidade))?1000:1;   // guardado em t → mostra em kg
+        const prodTotal=(i.total!=null && i.total!=="") ? Number(i.total)
+                        : ((Number(i.dose)||0)*(Number(a.hectares)||0));
+        return { produto_id:i.produto_id, total: prodTotal ? (prodTotal*fator) : "" };
+      })
     : [{produto_id:"", total:""}];
   const sel = new Set(a?a.talhoes:[]);
   const hoje = new Date().toISOString().slice(0,10);
@@ -7999,13 +8017,14 @@ function desenharItensApl(){
   document.getElementById("ap-itens").innerHTML = _itensApl.map((it,i)=>{
     const ps = it.produto_id ? prods.find(p=>p.id===it.produto_id) : null;
     const un = ps ? (ps.unidade||"") : "";
+    const unEntrada = _unidTon(un) ? "kg" : esc(un);   // produto em t → lança em kg
     return '<div class="item item-p">'+
       '<select onchange="_itensApl['+i+'].produto_id=this.value;desenharItensApl();recalcApl()">'+
         '<option value="">— produto —</option>'+
         prods.map(p=>'<option value="'+p.id+'" '+(it.produto_id===p.id?"selected":"")+'>'+
           esc(p.nome)+(p.preco>0?" · "+moeda(p.preco)+"/"+esc(p.unidade):" · sem preço")+'</option>').join("")+
       '</select>'+
-      '<input type="number" step="0.001" min="0" inputmode="decimal" placeholder="'+(un?"total gasto ("+esc(un)+")":"total gasto")+'" value="'+(it.total||"")+'" '+
+      '<input type="number" step="0.001" min="0" inputmode="decimal" placeholder="'+(un?"total gasto ("+unEntrada+")":"total gasto")+'" value="'+(it.total||"")+'" '+
         'oninput="_itensApl['+i+'].total=this.value;recalcApl()">'+
       (_itensApl.length>1?'<button type="button" onclick="remItemApl('+i+')">✕</button>':'<span></span>')+
     '</div>';
@@ -8029,11 +8048,12 @@ function recalcApl(){
   let total=0, n=0, sem=0;
   _itensApl.forEach(it=>{
     const p=acharProduto(f.id,it.produto_id); if(!p) return;
-    const tot=parseFloat(String(it.total).replace(",","."))||0;
-    if(tot<=0) return;
+    const typed=parseFloat(String(it.total).replace(",","."))||0;
+    if(typed<=0) return;
+    const prodTotal = typed / (_unidTon(p.unidade)?1000:1);   // kg digitado → t (unidade do produto)
     n++;
     if((Number(p.preco)||0)<=0){ sem++; return; }
-    total += tot*Number(p.preco);
+    total += prodTotal*Number(p.preco);
   });
   const box=document.getElementById("ap-calc"); if(!box) return;
   box.innerHTML =
@@ -8052,8 +8072,10 @@ function gravarAplicacao(id){
   const ids=[...document.querySelectorAll('.tsel input:checked')].map(x=>x.value);
   if(!ids.length){ toast("Escolha ao menos um talhão"); return; }
   const itens=_itensApl.filter(i=>i.produto_id && parseFloat(String(i.total).replace(",","."))>0)
-    .map(i=>{ const tot=parseFloat(String(i.total).replace(",","."))||0;
-              return {produto_id:i.produto_id, dose: ha>0 ? tot/ha : 0, total: tot}; });
+    .map(i=>{ const p=acharProduto(f.id,i.produto_id);
+              const typed=parseFloat(String(i.total).replace(",","."))||0;
+              const prodTotal=typed/((p&&_unidTon(p.unidade))?1000:1);   // guarda em t
+              return {produto_id:i.produto_id, dose: ha>0 ? prodTotal/ha : 0, total: prodTotal}; });
   if(!itens.length){ toast("Informe ao menos um produto com o total gasto"); return; }
   salvarAplicacao(f.id,{ data:document.getElementById("ap-data").value||new Date().toISOString().slice(0,10),
     tipo:document.getElementById("ap-tipo").value, talhoes:ids, hectares:ha,
@@ -8446,24 +8468,6 @@ function semearPrimeiraVez(){
 }
 
 semearPrimeiraVez();
-/* Troca única do rótulo de unidade "t" (tonelada) → "kg", sem mexer nos números */
-function _ehTon(u){ return ["t","ton","tonelada","toneladas"].indexOf(String(u||"").trim().toLowerCase())>=0; }
-function migrarTonParaKg(){
-  if(Store.get("migr_tkg_v1", false)) return;
-  try{
-    fazendas().forEach(f=>{
-      [kProd, kPedidos, kRemanescente].forEach(kf=>{
-        const k=kf(f.id); const l=Store.get(k,null);
-        if(!Array.isArray(l)) return;
-        let mudou=false;
-        l.forEach(it=>{ if(it && _ehTon(it.unidade)){ it.unidade="kg"; mudou=true; } });
-        if(mudou) Store.set(k, l);   // marca sujo → sobe com a mescla por id
-      });
-    });
-  }catch(e){}
-  Store.set("migr_tkg_v1", true);
-}
-migrarTonParaKg();
 render();
 if(SUPABASE.ligado() && Auth.logado()) Sync.rodar();
 setInterval(()=>{ if(navigator.onLine && Auth.logado()) Sync.rodar(); }, 60000);
