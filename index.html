@@ -614,7 +614,6 @@ input.lv-d{font-family:var(--mono);font-size:12.5px;min-width:130px}
 @media(max-width:620px){.dev-cred{display:none}}
 .tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:10px}
 @media(max-width:640px){.tbl-wrap .arm-grid{min-width:600px}}
-.un-sel{font-family:var(--mono);font-size:12px;color:var(--muted);border:1px solid var(--line-soft);background:#fff;border-radius:5px;padding:1px 4px;cursor:pointer}
 
 .tbl tr.neg-row td{background:#FDF4F2}
 
@@ -931,7 +930,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.101.0";
+const APP_VERSION = "2.102.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -4840,7 +4839,7 @@ function importarPedidos(){
     const qtd=_numBR(iQtd>=0?c[iQtd]:""); if(!(qtd>0)) return;
     l.push({ id:"pd_"+Date.now().toString(36)+"_"+(add++),
       produto:prod, responsavel:(iResp>=0?c[iResp]:"").trim(),
-      unidade:(iUn>=0?c[iUn]:"").trim(), qtd:qtd,
+      unidade:"t", qtd:qtd,
       valor:_numBR(iVal>=0?c[iVal]:""), nf:(iNf>=0?c[iNf]:"").trim(),
       categoria:(iCat>=0 && c[iCat] ? c[iCat].trim() : "Defensivo"),   // planilha = defensivo por padrão
       entregue:0, criado_em:new Date().toISOString() });
@@ -4872,7 +4871,7 @@ function modalPedido(id){
         '<datalist id="pd-resp-list">'+respSugestoes(f).map(n=>'<option value="'+esc(n)+'"></option>').join("")+'</datalist></div>'+
       '<div style="display:flex;gap:10px"><div style="flex:1"><label for="pd-qtd">Quantidade pedida</label>'+
         '<input id="pd-qtd" type="number" inputmode="decimal" placeholder="0" value="'+(ed&&ed.qtd!=null?ed.qtd:"")+'"></div>'+
-        '<div style="flex:1"><label for="pd-un">Unidade</label><input id="pd-un" placeholder="t, kg, sc, L, Bag" value="'+esc(ed?(ed.unidade||""):"")+'"></div></div>'+
+        '<div style="flex:1"><label for="pd-un">Unidade</label><input id="pd-un" value="t" readonly title="O sistema usa sempre tonelada"></div></div>'+
       '<div><label for="pd-val">Valor por unidade (R$)</label>'+
         '<input id="pd-val" type="number" inputmode="decimal" placeholder="0,00" value="'+(ed&&ed.valor?ed.valor:"")+'"></div>'+
       '<div><label for="pd-nf">Número da nota fiscal</label>'+
@@ -5542,31 +5541,6 @@ function abaEst(id,rot,n){
          esc(rot)+(n?'<b>'+n+'</b>':'')+'</button>';
 }
 
-/* Troca a unidade de um produto em TODOS os lugares (pedidos, remanescente, cadastro) de uma vez. */
-function padronizarUnidade(nome, un){
-  const f=acharFazenda(App.fazendaId); if(!f) return;
-  const k=_normNome(nome);
-  const peds=pedidosDe(f.id); let m1=false;
-  peds.forEach(p=>{ if(_normNome(p.produto)===k && (p.unidade||"")!==un){ p.unidade=un; m1=true; } });
-  if(m1) salvarPedidos(f.id, peds);
-  const rem=remanescenteDe(f.id); let m2=false;
-  rem.forEach(x=>{ if(_normNome(x.produto)===k && (x.unidade||"")!==un){ x.unidade=un; m2=true; } });
-  if(m2) salvarRemanescente(f.id, rem);
-  const prods=produtosDe(f.id); let m3=false;
-  prods.forEach(p=>{ if(_normNome(p.nome)===k && (p.unidade||"")!==un){ p.unidade=un; m3=true; } });
-  if(m3) Store.set(kProd(f.id), prods);
-  toast("Unidade de "+nome+" → "+un); render();
-}
-function _selUnidade(nome, atual){
-  const base=["t","kg","sc","L","Bag","un"];
-  const cur=(atual||"").trim();
-  const lista=base.some(u=>u.toLowerCase()===cur.toLowerCase())?base:[cur||"—"].concat(base);
-  const nmEsc=esc(nome).replace(/'/g,"\\'");
-  return '<select class="un-sel" title="Unidade — muda em todos os lançamentos deste produto" '+
-    'onchange="padronizarUnidade(\''+nmEsc+'\',this.value)">'+
-    lista.map(u=>'<option'+(u.toLowerCase()===cur.toLowerCase()?" selected":"")+'>'+esc(u)+'</option>').join("")+
-    '</select>';
-}
 function abaSaldo(f,E){
   const ls = E.linhas.filter(l=>l.entrou>0||l.saiu>0);
   let h = '<div class="acts">'+
@@ -5585,7 +5559,7 @@ function abaSaldo(f,E){
       '<td class="forte">'+esc(l.nome)+
         (l.semEntrada?'<u class="ob">aplicado sem recebimento lançado</u>':'')+
         (l.negativo&&!l.semEntrada?'<u class="ob">aplicou mais do que entrou</u>':'')+'</td>'+
-      '<td class="num mono">'+nf(l.entrou,1)+' '+_selUnidade(l.nome,l.unidade)+'</td>'+
+      '<td class="num mono">'+nf(l.entrou,1)+' <i class="un">t</i></td>'+
       '<td class="num mono">'+nf(l.saiu,1)+'</td>'+
       '<td class="num mono forte'+cor+'">'+nf(l.saldo,1)+'</td>'+
       '<td class="num mono hide-sm">'+(l.medio>0?moeda(l.medio):"—")+'</td>'+
@@ -5635,7 +5609,7 @@ function modalRemanescente(id){
         '<datalist id="rm-prod-list">'+prods.map(p=>'<option value="'+esc(p.nome)+'"></option>').join("")+'</datalist></div>'+
       '<div style="display:flex;gap:10px"><div style="flex:1"><label for="rm-qtd">Quantidade</label>'+
         '<input id="rm-qtd" type="number" inputmode="decimal" placeholder="0" value="'+(x&&x.qtd!=null?x.qtd:"")+'"></div>'+
-        '<div style="flex:1"><label for="rm-un">Unidade</label><input id="rm-un" placeholder="t, kg, sc, L, Bag" value="'+esc(x?(x.unidade||""):"")+'"></div></div>'+
+        '<div style="flex:1"><label for="rm-un">Unidade</label><input id="rm-un" value="t" readonly title="O sistema usa sempre tonelada"></div></div>'+
       '<div><label for="rm-preco">Preço por unidade (R$)</label>'+
         '<input id="rm-preco" type="number" step="0.01" inputmode="decimal" placeholder="0,00 (opcional)" value="'+(x&&x.preco?x.preco:"")+'"></div>'+
     '</div>'+
@@ -8131,9 +8105,7 @@ function modalProduto(id){
       '<div><label for="pd-nome">Nome</label>'+
         '<input id="pd-nome" value="'+esc(p?p.nome:"")+'" placeholder="Engeo Pleno, Ochima, Adjust…"></div>'+
       '<div class="g2">'+
-        '<div><label for="pd-un">Unidade</label><select id="pd-un">'+
-          ["L","kg","un","sc"].map(u=>'<option '+(p&&p.unidade===u?"selected":"")+'>'+u+'</option>').join("")+
-        '</select></div>'+
+        '<div><label for="pd-un">Unidade</label><input id="pd-un" value="t" readonly title="O sistema usa sempre tonelada"></div>'+
         '<div><label for="pd-preco">Preço por unidade (R$)</label>'+
           '<input id="pd-preco" type="number" step="0.01" inputmode="decimal" value="'+(p&&p.preco?p.preco:"")+'" placeholder="0,00"></div>'+
       '</div>'+
@@ -8486,6 +8458,23 @@ function semearPrimeiraVez(){
 }
 
 semearPrimeiraVez();
+/* Padroniza TUDO em tonelada (uma vez por aparelho) — só o rótulo da unidade, sem mexer nos números */
+function migrarTudoTonelada(){
+  if(Store.get("migr_tt_v1", false)) return;
+  try{
+    fazendas().forEach(f=>{
+      [kProd, kPedidos, kRemanescente].forEach(kf=>{
+        const k=kf(f.id); const l=Store.get(k,null);
+        if(!Array.isArray(l)) return;
+        let mud=false;
+        l.forEach(it=>{ if(it && (it.unidade||"")!=="t"){ it.unidade="t"; mud=true; } });
+        if(mud) Store.set(k, l);
+      });
+    });
+  }catch(e){}
+  Store.set("migr_tt_v1", true);
+}
+migrarTudoTonelada();
 render();
 if(SUPABASE.ligado() && Auth.logado()) Sync.rodar();
 setInterval(()=>{ if(navigator.onLine && Auth.logado()) Sync.rodar(); }, 60000);
