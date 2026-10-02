@@ -926,7 +926,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.85.0";
+const APP_VERSION = "2.87.0";
 
 /* ═══════════════════════════════════════════════════
    ÍCONES — traço próprio, herdam a cor do contexto
@@ -1066,6 +1066,23 @@ const Auth = {
     if(Date.now() > s.expira - 60000){ await this.renovar(); }
     const n = this.sessao();
     return n ? n.token : null;
+  },
+  // Operador recém-criado: precisa definir a própria senha no 1º acesso
+  precisaTrocarSenha(){
+    const u=this.usuario();
+    return !!(u && u.user_metadata && u.user_metadata.trocar_senha);
+  },
+  async atualizarSenha(nova){
+    const t = await this.token(); if(!t) throw new Error("sem sessão");
+    const r = await fetch(SUPABASE.url+"/auth/v1/user", {
+      method:"PUT",
+      headers:{ "apikey":SUPABASE.anonKey, "Authorization":"Bearer "+t, "Content-Type":"application/json" },
+      body: JSON.stringify({ password:nova, data:{ trocar_senha:false } })
+    });
+    const d = await r.json();
+    if(!r.ok) throw new Error(d.error_description || d.msg || d.message || "Não consegui trocar a senha");
+    const s=this.sessao(); if(s){ s.user=d; Store.set("sb_sessao", s); }  // limpa o flag na sessão guardada
+    return d;
   }
 };
 
@@ -2567,6 +2584,9 @@ const PERFIS = {
   operador:      { nome:"Operador",      papel:"operador",
                    modulos:["colheita","chuva"],
                    desc:"Lançamentos de campo (colheita e pluviometria)" },
+  maquina:       { nome:"Operador de máquina", papel:"operador",
+                   modulos:["maquinario"],
+                   desc:"Só abastecimento das máquinas (sem cadastrar/editar)" },
   leitura:       { nome:"Só leitura",    papel:"leitura",  modulos:null,
                    desc:"Vê tudo, não edita" }
 };
@@ -2642,6 +2662,13 @@ function modulosLiberados(fid){        // null => todos
 function podeModulo(fid, mid){
   const m = modulosLiberados(fid);
   return !m || m.indexOf(mid) >= 0;
+}
+// Operador cujo único módulo é o maquinário: só pode abastecer (não cadastra/edita)
+function soAbastece(fid){
+  if(ehGestor(fid)) return false;
+  const a = Acesso.daFaz(fid);
+  return !!a && a.papel==="operador" && Array.isArray(a.modulos)
+         && a.modulos.length===1 && a.modulos[0]==="maquinario";
 }
 
 /* ═══════════════════════════════════════════════════
@@ -2832,9 +2859,9 @@ function telaLogin(){
     '<div class="login-topo">'+ICON.folha+
       '<b>SAFRA NAS MÃOS</b><span>GRUPO FOCO</span></div>'+
     '<div class="frm">'+
-      '<div><label for="lg-email">E-mail</label>'+
-        '<input id="lg-email" type="email" inputmode="email" autocomplete="username" '+
-        'value="'+esc(Store.get("ult_email",""))+'" placeholder="voce@exemplo.com" '+
+      '<div><label for="lg-email">E-mail ou CPF</label>'+
+        '<input id="lg-email" type="text" autocomplete="username" '+
+        'value="'+esc(Store.get("ult_email",""))+'" placeholder="voce@exemplo.com ou seu CPF" '+
         'onkeydown="if(event.key===\'Enter\')document.getElementById(\'lg-senha\').focus()"></div>'+
       '<div><label for="lg-senha">Senha</label>'+
         '<input id="lg-senha" type="password" autocomplete="current-password" '+
@@ -2855,13 +2882,21 @@ function telaLogin(){
 }
 
 async function enviarLogin(){
-  const email=(document.getElementById("lg-email").value||"").trim();
+  const idTxt=(document.getElementById("lg-email").value||"").trim();
   const senha=document.getElementById("lg-senha").value||"";
   const err=document.getElementById("lg-erro");
   const btn=document.getElementById("lg-btn");
   err.textContent="";
-  if(!email || !email.includes("@")){ err.textContent="Informe um e-mail válido"; return; }
-  if(senha.length<6){ err.textContent="A senha precisa de pelo menos 6 caracteres"; return; }
+  // CPF? (só dígitos, 11 casas) → login vira cpf@operador.foco
+  const soDig=idTxt.replace(/\D/g,"");
+  const ehCpf = !idTxt.includes("@") && /^\d{11}$/.test(soDig);
+  const email = ehCpf ? (soDig+"@operador.foco") : idTxt;
+  if(ehCpf){
+    if(senha.length<4){ err.textContent="Informe a senha (os 5 primeiros dígitos do seu CPF no 1º acesso)"; return; }
+  }else{
+    if(!email || !email.includes("@")){ err.textContent="Informe um e-mail válido ou o CPF (11 dígitos)"; return; }
+    if(senha.length<6){ err.textContent="A senha precisa de pelo menos 6 caracteres"; return; }
+  }
   if(!navigator.onLine){ err.textContent="Sem internet. Conecte para entrar na conta."; return; }
   btn.disabled=true; btn.textContent="Aguarde…";
   try{
@@ -2874,8 +2909,10 @@ async function enviarLogin(){
     }else{
       await Auth.entrar(email,senha);
     }
-    Store.set("ult_email", email);
-    Store.set("perfil", { nome: email.split("@")[0] });
+    Store.set("ult_email", idTxt);
+    const u=Auth.usuario();
+    const nomeMeta = u && u.user_metadata && u.user_metadata.nome;
+    Store.set("perfil", { nome: nomeMeta || email.split("@")[0] });
     try{ await api("rpc/safra_aceitar_convites", {method:"POST", body:{}}); }catch(e){}
     toast("Bem-vindo");
     await primeiraSincronizacao();
@@ -2913,6 +2950,49 @@ async function primeiraSincronizacao(){
   }catch(e){}
 }
 
+function telaTrocarSenha(){
+  const u=Auth.usuario();
+  const nome=(u && u.user_metadata && u.user_metadata.nome) || "";
+  return '<div class="login-tela"><div class="login-caixa">'+
+    '<div class="login-topo">'+ICON.folha+
+      '<b>SAFRA NAS MÃOS</b><span>GRUPO FOCO</span></div>'+
+    '<h2 style="margin:4px 0 2px;font-size:19px">Crie sua senha</h2>'+
+    '<p class="lg-nota" style="margin-top:0">'+(nome?('Olá, '+esc(nome.split(" ")[0])+'. '):'')+
+      'Este é seu primeiro acesso. Defina uma senha só sua (mínimo 6 caracteres).</p>'+
+    '<div class="frm">'+
+      '<div><label for="ts-s1">Nova senha</label>'+
+        '<input id="ts-s1" type="password" autocomplete="new-password" placeholder="mínimo 6 caracteres" '+
+        'onkeydown="if(event.key===\'Enter\')document.getElementById(\'ts-s2\').focus()"></div>'+
+      '<div><label for="ts-s2">Repita a nova senha</label>'+
+        '<input id="ts-s2" type="password" autocomplete="new-password" placeholder="digite de novo" '+
+        'onkeydown="if(event.key===\'Enter\')gravarNovaSenha()"></div>'+
+      '<div id="ts-erro" class="lg-erro"></div>'+
+    '</div>'+
+    '<button class="btn-primary" id="ts-btn" onclick="gravarNovaSenha()">Salvar e entrar</button>'+
+    '<button class="lg-troca" onclick="Auth.sair();render()">Sair</button>'+
+    '<p class="ver">versão '+APP_VERSION+'</p>'+
+  '</div></div>';
+}
+async function gravarNovaSenha(){
+  const s1=(document.getElementById("ts-s1").value||"");
+  const s2=(document.getElementById("ts-s2").value||"");
+  const err=document.getElementById("ts-erro");
+  const btn=document.getElementById("ts-btn");
+  err.textContent="";
+  if(s1.length<6){ err.textContent="A senha precisa de pelo menos 6 caracteres"; return; }
+  if(s1!==s2){ err.textContent="As duas senhas não são iguais"; return; }
+  if(!navigator.onLine){ err.textContent="Sem internet. Conecte para salvar a senha."; return; }
+  btn.disabled=true; btn.textContent="Salvando…";
+  try{
+    await Auth.atualizarSenha(s1);
+    try{ await Acesso.carregar(); }catch(e){}
+    toast("Senha definida. Bem-vindo!");
+    render();
+  }catch(e){
+    err.textContent=String(e.message||"Não consegui salvar agora");
+    btn.disabled=false; btn.textContent="Salvar e entrar";
+  }
+}
 function sairDaConta(){
   if(!confirm("Sair da conta?\n\nOs dados continuam neste aparelho.")) return;
   Auth.sair(); toast("Você saiu"); render();
@@ -2921,7 +3001,7 @@ function sairDaConta(){
 /* ── Equipe e acessos ──────────────────────── */
 let _equipe = { membros:[], convites:[] };
 let _editAcesso = null;
-const PERFIL_ORDEM = ["administrador","geral","producao","operador","leitura"];
+const PERFIL_ORDEM = ["administrador","geral","producao","operador","maquina","leitura"];
 function opcoesPerfil(sel){
   return PERFIL_ORDEM.map(k=>'<option value="'+k+'"'+(k===sel?" selected":"")+'>'+
     esc(PERFIS[k].nome)+'</option>').join("");
@@ -3244,6 +3324,11 @@ async function confirmarExcluirFazenda(fid){
 function render(){
   if(SUPABASE.ligado() && !Auth.logado()){
     document.getElementById("root").innerHTML = telaLogin();
+    return;
+  }
+  if(SUPABASE.ligado() && Auth.logado() && Auth.precisaTrocarSenha()){
+    document.getElementById("root").innerHTML = telaTrocarSenha();
+    setTimeout(()=>{const e=document.getElementById("ts-s1");if(e)e.focus();},60);
     return;
   }
   let h = topbar();
@@ -4975,13 +5060,14 @@ function telaMaquinario(){
     salvarAbastec(f.id, abastecDe(f.id).filter(a=>!ids.has(a.maquina_id)));
   }
   const maqs=maquinasDe(f.id), abast=abastecDe(f.id);
+  const soAb=soAbastece(f.id);
   let h='<div class="wrap wrap-wide">';
   h+='<div class="farm-head"><button class="btn-back" onclick="irPara(\'fazenda\')">← '+esc(f.nome)+'</button>'+
      '<div class="farm-head-mid"><h1>Maquinário</h1><p>Máquinas, horímetro e abastecimento</p></div>'+
-     '<div class="ch-head-acts"><button class="btn-act primary" onclick="modalMaquina()">+ Nova máquina</button>'+
+     (soAb?'':'<div class="ch-head-acts"><button class="btn-act primary" onclick="modalMaquina()">+ Nova máquina</button>'+
      '<button class="btn-act" onclick="modalImportarMaquinas()">Importar</button>'+
      botaoExportar([{rotulo:"Planilha",fn:"exportarMaquinario('csv')"},{rotulo:"Imagem",fn:"exportarMaquinario('png')"},{rotulo:"PDF",fn:"exportarMaquinario('pdf')"}])+
-     '</div></div>';
+     '</div>')+'</div>';
   const tl=maqs.reduce((s,m)=>s+resumoMaquina(f.id,m).litros,0);
   const th=maqs.reduce((s,m)=>s+resumoMaquina(f.id,m).horas,0);
   h+='<div class="kpis kpis-4">'+
@@ -5039,7 +5125,7 @@ function modalMaquina(id){
       '<p class="resumo-obs" style="margin:0">A leitura de hoje é o ponto de partida. A cada abastecimento você anota o novo horímetro + litros — daí sai o rodado e a média.</p>'+
     '</div>'+
     '<div class="modal-acts">'+
-      (ed?'<button class="btn-del-maq" onclick="removerMaquina(\''+ed.id+'\')">Excluir máquina</button>':'')+
+      (ed && !soAbastece(App.fazendaId)?'<button class="btn-del-maq" onclick="removerMaquina(\''+ed.id+'\')">Excluir máquina</button>':'')+
       '<button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
       '<button class="btn-save" onclick="gravarMaquina('+(ed?"'"+ed.id+"'":"")+')">'+(ed?"Salvar":"Adicionar")+'</button></div></div></div>';
   setTimeout(()=>{const e=document.getElementById("mq-nome");if(e)e.focus();},60);
