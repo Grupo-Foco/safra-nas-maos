@@ -930,7 +930,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.110.0";
+const APP_VERSION = "2.111.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -1217,9 +1217,28 @@ function _ehLog(x){
 /* Para a mescla campo a campo: valor "vazio" que não deve sobrescrever um preenchido.
    0 conta como vazio (ex.: entregue 0 não apaga entregue 25 de outra versão). */
 function _vazioCampo(v){ return v==null || v==="" || v===0 || (Array.isArray(v)&&v.length===0); }
+/* Une duas listas de registros COM id, por id (nunca perde um item lançado em
+   outro aparelho — ex.: duas entregas diferentes no mesmo pedido). Itens com o
+   mesmo id são mesclados campo a campo. Mantém a união; não apaga (uma exclusão
+   feita num aparelho não se propaga — o certo aqui é nunca perder lançamento). */
+function _uniaoPorId(aa, bb, preferA){
+  const res=[]; const idx={};
+  const juntar = it=>{
+    if(it && typeof it==="object" && it.id!=null){
+      if(idx[it.id]!=null) res[idx[it.id]] = _mergeRec(res[idx[it.id]], it, preferA);
+      else { idx[it.id]=res.length; res.push(it); }
+    } else res.push(it);
+  };
+  aa.forEach(juntar); bb.forEach(juntar);
+  return res;
+}
 /* Mescla dois registros com o MESMO id, mantendo o mais completo de cada campo.
    Nunca zera um campo que já tinha valor (corrige a perda de entregas/categoria).
-   Listas (ex.: entregas) ficam com a versão mais longa. Em empate, preferA decide. */
+   Listas com id (ex.: entregas) ficam com a UNIÃO por id; listas sem id, a mais
+   longa. Em empate de valor simples, preferA decide.
+   PEDIDOS: "entregue" é um total derivado das "entregas"; depois de mesclar,
+   reconcilia entregue = maior(entregue dos dois, soma das entregas) para o total
+   nunca ficar atrás do detalhe (era o que sumia o volume no estoque). */
 function _mergeRec(a, b, preferA){
   a=a||{}; b=b||{};
   const out={}; const keys=new Set([...Object.keys(a),...Object.keys(b)]);
@@ -1227,11 +1246,19 @@ function _mergeRec(a, b, preferA){
     const va=a[k], vb=b[k];
     if(Array.isArray(va)||Array.isArray(vb)){
       const aa=Array.isArray(va)?va:[], bb=Array.isArray(vb)?vb:[];
-      out[k] = aa.length>=bb.length ? aa : bb;      // lista: a mais completa
+      const todos=aa.concat(bb);
+      const comId = todos.length>0 && todos.every(e=>e && typeof e==="object" && e.id!=null);
+      out[k] = comId ? _uniaoPorId(aa, bb, preferA)
+                     : (aa.length>=bb.length ? aa : bb);   // sem id: a mais completa
     } else if(_vazioCampo(va) && !_vazioCampo(vb)) out[k]=vb;
     else if(_vazioCampo(vb) && !_vazioCampo(va)) out[k]=va;
     else out[k] = preferA ? (va!==undefined?va:vb) : (vb!==undefined?vb:va);
   });
+  if(("entregas" in a) || ("entregas" in b)){
+    const lista = Array.isArray(out.entregas) ? out.entregas : [];
+    const som = lista.reduce((s,e)=>s+(Number(e&&e.qtd)||0),0);
+    out.entregue = Math.max(Number(a.entregue)||0, Number(b.entregue)||0, som);
+  }
   return out;
 }
 /* Mescla local + nuvem por id. Regras:
