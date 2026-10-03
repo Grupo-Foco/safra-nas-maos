@@ -930,7 +930,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.102.0";
+const APP_VERSION = "2.103.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -8381,17 +8381,19 @@ function exportarProdutividadeImg(fmt){
 }
 
 function relChuva(f){
+  // Pontos nas LINHAS (nome inteiro à esquerda) e dias nas COLUNAS — evita cortar nomes.
   const pts=pontosDe(f.id), dias=diasDeChuva(f.id,f.safra);
-  const larg=[100].concat(pts.map(()=>66)).concat([80]);
-  const aligns=['center'].concat(pts.map(()=>'right')).concat(['right']);
-  const linhas=[{t:'cab',cs:['Dia'].concat(pts.map(p=>p.nome)).concat(['Total'])}];
-  const tot={}; pts.forEach(p=>tot[p.id]=0); let geral=0;
-  dias.forEach(k=>{ let soma=0;
-    const cs=[diaCurto(k)].concat(pts.map(p=>{ const v=lerChuva(f.id,k,p.id); if(v!=null){soma+=v;tot[p.id]+=v;} return v==null?"—":nf(v,1); }));
-    cs.push(nf(soma,1)); geral+=soma; linhas.push({t:'dado',cs});
+  const npts=pts.length||1;
+  const larg=[170].concat(dias.map(()=>58)).concat([72]);
+  const aligns=['left'].concat(dias.map(()=>'right')).concat(['right']);
+  const linhas=[{t:'cab',cs:['Ponto'].concat(dias.map(k=>diaCurto(k))).concat(['Total'])}];
+  const daySum={}; dias.forEach(k=>daySum[k]=0); let geral=0;
+  pts.forEach(p=>{ let totalP=0;
+    const cs=[p.nome].concat(dias.map(k=>{ const v=lerChuva(f.id,k,p.id); if(v!=null){totalP+=v;daySum[k]+=v;} return v==null?"—":nf(v,1); }));
+    cs.push(nf(totalP,1)); geral+=totalP; linhas.push({t:'dado',cs});
   });
-  linhas.push({t:'total',cs:['Total'].concat(pts.map(p=>nf(tot[p.id],1))).concat([nf(geral,1)])});
-  linhas.push({t:'total',cs:['Média'].concat(pts.map(()=>nf(geral/(pts.length||1),1))).concat([nf(geral/(pts.length||1),1)])});
+  linhas.push({t:'total',cs:['Total'].concat(dias.map(k=>nf(daySum[k],1))).concat([nf(geral,1)])});
+  linhas.push({t:'total',cs:['Média'].concat(dias.map(k=>nf(daySum[k]/npts,1))).concat([nf(geral/npts,1)])});
   return {titulo:"Pluviometria · "+f.nome, sub:"Safra "+f.safra, larguras:larg, aligns, linhas};
 }
 function exportarChuvaImg(fmt){
