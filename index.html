@@ -930,7 +930,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.111.0";
+const APP_VERSION = "2.112.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -2131,6 +2131,11 @@ function acharProduto(f,id){
 }
 /* Produto cuja unidade é tonelada: preço e estoque em t, mas o uso é lançado em kg. */
 function _unidTon(u){ return ["t","ton","tonelada","toneladas"].indexOf(String(u||"").trim().toLowerCase())>=0; }
+/* Unidades sugeridas para pedidos/produtos/remanescente. A unidade é só um rótulo:
+   todas as contas (pedido, entrega, saldo, valor) usam o mesmo número, qualquer que
+   seja a unidade. O usuário pode digitar outra livremente. */
+const UNIDADES = ["t","kg","g","L","mL","sc","Bag","un","cx","DS","dose","pct"];
+function _datalistUnid(){ return '<datalist id="un-list">'+UNIDADES.map(u=>'<option value="'+esc(u)+'"></option>').join("")+'</datalist>'; }
 /* Produtos disponíveis para aplicar = cadastrados + os que estão no estoque
    (produtos dos pedidos, ex.: KCl, MAP), com o preço do pedido. */
 function produtosDisponiveis(f){
@@ -4942,7 +4947,7 @@ function importarPedidos(){
     const qtd=_numBR(iQtd>=0?c[iQtd]:""); if(!(qtd>0)) return;
     l.push({ id:"pd_"+Date.now().toString(36)+"_"+(add++),
       produto:prod, responsavel:(iResp>=0?c[iResp]:"").trim(),
-      unidade:"t", qtd:qtd,
+      unidade:((iUn>=0 && c[iUn] ? c[iUn].trim() : "")||"t"), qtd:qtd,
       valor:_numBR(iVal>=0?c[iVal]:""), nf:(iNf>=0?c[iNf]:"").trim(),
       categoria:(iCat>=0 && c[iCat] ? c[iCat].trim() : "Defensivo"),   // planilha = defensivo por padrão
       entregue:0, criado_em:new Date().toISOString() });
@@ -4974,7 +4979,9 @@ function modalPedido(id){
         '<datalist id="pd-resp-list">'+respSugestoes(f).map(n=>'<option value="'+esc(n)+'"></option>').join("")+'</datalist></div>'+
       '<div style="display:flex;gap:10px"><div style="flex:1"><label for="pd-qtd">Quantidade pedida</label>'+
         '<input id="pd-qtd" type="number" inputmode="decimal" placeholder="0" value="'+(ed&&ed.qtd!=null?ed.qtd:"")+'"></div>'+
-        '<div style="flex:1"><label for="pd-un">Unidade</label><input id="pd-un" value="t" readonly title="O sistema usa sempre tonelada"></div></div>'+
+        '<div style="flex:1"><label for="pd-un">Unidade</label>'+
+          '<input id="pd-un" list="un-list" value="'+esc(ed&&ed.unidade?ed.unidade:"t")+'" placeholder="t, kg, L, sc, Bag, un…"></div></div>'+
+      _datalistUnid()+
       '<div><label for="pd-val">Valor por unidade (R$)</label>'+
         '<input id="pd-val" type="number" inputmode="decimal" placeholder="0,00" value="'+(ed&&ed.valor?ed.valor:"")+'"></div>'+
       '<div><label for="pd-nf">Número da nota fiscal</label>'+
@@ -8208,7 +8215,8 @@ function modalProduto(id){
       '<div><label for="pd-nome">Nome</label>'+
         '<input id="pd-nome" value="'+esc(p?p.nome:"")+'" placeholder="Engeo Pleno, Ochima, Adjust…"></div>'+
       '<div class="g2">'+
-        '<div><label for="pd-un">Unidade</label><input id="pd-un" value="t" readonly title="O sistema usa sempre tonelada"></div>'+
+        '<div><label for="pd-un">Unidade</label>'+
+          '<input id="pd-un" list="un-list" value="'+esc(p&&p.unidade?p.unidade:"t")+'" placeholder="t, kg, L, sc, Bag, un…">'+_datalistUnid()+'</div>'+
         '<div><label for="pd-preco">Preço por unidade (R$)</label>'+
           '<input id="pd-preco" type="number" step="0.01" inputmode="decimal" value="'+(p&&p.preco?p.preco:"")+'" placeholder="0,00"></div>'+
       '</div>'+
@@ -8579,7 +8587,9 @@ function migrarTudoTonelada(){
   }catch(e){}
   Store.set("migr_tt_v1", true);
 }
-migrarTudoTonelada();
+/* NÃO rodar mais a padronização forçada em tonelada: agora cada item tem a sua
+   unidade (t, kg, L, sc, Bag, un…), editável no pedido e no produto. Deixar a
+   migração ligada apagaria a unidade correta num aparelho novo ao sincronizar. */
 render();
 if(SUPABASE.ligado() && Auth.logado()) Sync.rodar();
 setInterval(()=>{ if(navigator.onLine && Auth.logado()) Sync.rodar(); }, 60000);
