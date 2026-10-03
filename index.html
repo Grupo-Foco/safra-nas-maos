@@ -930,7 +930,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.114.0";
+const APP_VERSION = "2.116.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -2058,7 +2058,8 @@ function diasDeChuva(f, safra){
   const ini = chaveDia(meses[0].ano, meses[0].mes, 1);
   const ult = meses[meses.length-1];
   const fim = chaveDia(ult.ano, ult.mes, diasNoMes(ult.ano,ult.mes));
-  return Object.keys(todo).filter(k=>k>=ini && k<=fim).sort();
+  return Object.keys(todo).filter(k=>k>=ini && k<=fim &&
+    todo[k] && typeof todo[k]==="object" && Object.values(todo[k]).some(v=>v!=null)).sort();
 }
 const MES_ABREV = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
 function diaCurto(k){
@@ -2074,11 +2075,12 @@ function gravarChuva(f,dia,pontoId,mm){
   const todo = chuvaDe(f);
   const v = (mm===""||mm==null) ? null : Number(String(mm).replace(",","."));
   if(!todo[dia]) todo[dia] = {};
-  if(v==null || isNaN(v) || v<0) delete todo[dia][pontoId];
-  else todo[dia][pontoId] = v;
-  if(!Object.keys(todo[dia]).length) delete todo[dia];
+  // Limpar grava null (lápide), NÃO apaga a chave: o merge de chuva é por objeto
+  // (une as chaves) e um valor apagado voltaria da nuvem ao sincronizar. O null
+  // conta como "sem medição" nos relatórios e, no merge, a edição local pendente
+  // vence — assim a limpeza se propaga para os outros aparelhos.
+  todo[dia][pontoId] = (v==null || isNaN(v) || v<0) ? null : v;
   Store.set(kChuva(f), todo);
-  Sync.push("chuva","upsert",{fazenda_id:f, dia:dia, ponto_id:pontoId, mm:v});
 }
 
 /* Totais do mês: por ponto, por dia e geral */
@@ -2841,7 +2843,15 @@ function toast(m){
   t.textContent=m; t.style.display="block";
   clearTimeout(_tt); _tt=setTimeout(()=>{t.style.display="none";},2600);
 }
-function fecharModal(){ document.getElementById("modal-root").innerHTML=""; }
+function fecharModal(){ document.getElementById("modal-root").innerHTML=""; if(window._recarregarPendente) _aplicarRecarregamento(); }
+/* Recarregamento por versão nova: nunca no meio de um cadastro aberto (não perde
+   o que a pessoa está digitando). Se houver modal aberto, espera ele fechar. */
+function _modalAberto(){ const m=document.getElementById("modal-root"); return !!(m && m.innerHTML.trim()!==""); }
+function _aplicarRecarregamento(){
+  if(window._recarregando) return;
+  if(_modalAberto()){ window._recarregarPendente=true; return; }
+  window._recarregando=true; location.reload();
+}
 
 const App = { tela:"fazendas", fazendaId:null, moduloId:null };
 function irPara(tela, o){ Object.assign(App,{tela},o||{}); window.scrollTo(0,0); render(); }
@@ -4275,7 +4285,10 @@ function limparChuva(){
   if(!inp || inp.value.trim().toUpperCase()!=="LIMPAR"){ toast("Digite LIMPAR"); return; }
   const safra=_chuvaSafra||f.safra;
   const todo=chuvaDe(f.id);
-  Object.keys(todo).forEach(dia=>{ if(safraDaDataChuva(dia)===safra) delete todo[dia]; });
+  // lápide: zera cada ponto para null (não apaga o dia), senão o merge aditivo
+  // traria os dias de volta da nuvem ao sincronizar.
+  Object.keys(todo).forEach(dia=>{ if(safraDaDataChuva(dia)===safra && todo[dia] && typeof todo[dia]==="object")
+    Object.keys(todo[dia]).forEach(pid=>todo[dia][pid]=null); });
   Store.set(kChuva(f.id), todo);
   if(typeof Sync!=="undefined" && Sync.marcar) Sync.marcar(kChuva(f.id));
   fecharModal(); toast("Chuva da safra "+safra+" apagada"); render();
@@ -4308,7 +4321,9 @@ function substituirPontos(){
     lista.push({ id:"pt_"+k.replace(/[^a-z0-9]+/g,""), nome:n }); });
   salvarPontosChuva(f.id, lista);
   if(document.getElementById("pt-limpa") && document.getElementById("pt-limpa").checked){
-    Store.set(kChuva(f.id), {}); if(typeof Sync!=="undefined" && Sync.marcar) Sync.marcar(kChuva(f.id));
+    const todo=chuvaDe(f.id);   // lápide (null) em vez de {}, para a limpeza sincronizar
+    Object.keys(todo).forEach(dia=>{ if(todo[dia] && typeof todo[dia]==="object") Object.keys(todo[dia]).forEach(pid=>todo[dia][pid]=null); });
+    Store.set(kChuva(f.id), todo); if(typeof Sync!=="undefined" && Sync.marcar) Sync.marcar(kChuva(f.id));
   }
   fecharModal();
   toast(lista.length? lista.length+" ponto(s) definidos" : "Voltou a usar os talhões");
@@ -8608,17 +8623,13 @@ document.addEventListener("visibilitychange", ()=>{
    cache, procura versão nova ao abrir e a cada minuto, e recarrega
    sozinho quando a nova assume. */
 if("serviceWorker" in navigator && location.protocol.startsWith("http")){
-  let _recarregando = false;
-  navigator.serviceWorker.addEventListener("controllerchange", ()=>{
-    if(_recarregando) return;
-    _recarregando = true;
-    location.reload();
-  });
+  window._recarregando = false; window._recarregarPendente = false;
+  navigator.serviceWorker.addEventListener("controllerchange", ()=>_aplicarRecarregamento());
   navigator.serviceWorker.register("sw.js", {updateViaCache:"none"}).then(reg=>{
     reg.update();
     setInterval(()=>reg.update(), 60000);
     document.addEventListener("visibilitychange", ()=>{
-      if(document.visibilityState === "visible") reg.update();
+      if(document.visibilityState === "visible"){ reg.update(); if(window._recarregarPendente) _aplicarRecarregamento(); }
     });
     reg.addEventListener("updatefound", ()=>{
       const nova = reg.installing;
