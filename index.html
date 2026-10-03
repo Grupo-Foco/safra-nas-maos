@@ -930,7 +930,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.106.0";
+const APP_VERSION = "2.108.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -1214,6 +1214,26 @@ async function pintarArquivo(caminho, alvoId){
 function _ehLog(x){
   return Array.isArray(x) && x.every(e=>e && typeof e==="object" && e.id!=null);
 }
+/* Para a mescla campo a campo: valor "vazio" que não deve sobrescrever um preenchido.
+   0 conta como vazio (ex.: entregue 0 não apaga entregue 25 de outra versão). */
+function _vazioCampo(v){ return v==null || v==="" || v===0 || (Array.isArray(v)&&v.length===0); }
+/* Mescla dois registros com o MESMO id, mantendo o mais completo de cada campo.
+   Nunca zera um campo que já tinha valor (corrige a perda de entregas/categoria).
+   Listas (ex.: entregas) ficam com a versão mais longa. Em empate, preferA decide. */
+function _mergeRec(a, b, preferA){
+  a=a||{}; b=b||{};
+  const out={}; const keys=new Set([...Object.keys(a),...Object.keys(b)]);
+  keys.forEach(k=>{
+    const va=a[k], vb=b[k];
+    if(Array.isArray(va)||Array.isArray(vb)){
+      const aa=Array.isArray(va)?va:[], bb=Array.isArray(vb)?vb:[];
+      out[k] = aa.length>=bb.length ? aa : bb;      // lista: a mais completa
+    } else if(_vazioCampo(va) && !_vazioCampo(vb)) out[k]=vb;
+    else if(_vazioCampo(vb) && !_vazioCampo(va)) out[k]=va;
+    else out[k] = preferA ? (va!==undefined?va:vb) : (vb!==undefined?vb:va);
+  });
+  return out;
+}
 /* Mescla local + nuvem por id. Regras:
    - registro nos dois: a nuvem manda; se o bloco tem edição local pendente, o local manda.
    - só na nuvem: entra (veio de outro aparelho).
@@ -1227,7 +1247,9 @@ function _mergeLog(local, nuvem, pendente, lastPull){
   local.forEach(it=>{
     if(!it || it.id==null) return;
     if(idx[it.id]!=null){
-      if(pendente) res[idx[it.id]] = it;          // edição local não enviada vence
+      // nos dois lados: mescla campo a campo (nunca apaga entregas/categoria/etc.);
+      // em conflito de valor, o lado pendente (local) decide.
+      res[idx[it.id]] = _mergeRec(res[idx[it.id]], it, !!pendente);
     } else {
       const t = Date.parse(it.criado_em||it.criado||it.data||"") || 0;
       if(pendente || !lastPull || t > lastPull){   // novo local → mantém
@@ -1260,12 +1282,17 @@ function _mergeObj(local, nuvem, preferLocal){
 }
 function _mergeSubida(local, nuvem, lastPull){
   local=local||[]; nuvem=nuvem||[];
-  const res = local.slice();
-  const temLocal = {}; local.forEach(it=>{ if(it&&it.id!=null) temLocal[it.id]=true; });
+  const res = local.slice(); const idx={};
+  res.forEach((it,i)=>{ if(it&&it.id!=null) idx[it.id]=i; });
+  const nmap={}; nuvem.forEach(it=>{ if(it&&it.id!=null) nmap[it.id]=it; });
+  // registros nos dois lados: mescla campo a campo (local manda em conflito, mas
+  // NÃO apaga campo que só a nuvem tem — ex.: entregas/categoria de outro aparelho).
+  Object.keys(nmap).forEach(id=>{ if(idx[id]!=null) res[idx[id]] = _mergeRec(res[idx[id]], nmap[id], true); });
+  // só na nuvem e novo (de outro aparelho) → mantém
   nuvem.forEach(it=>{
-    if(!it || it.id==null || temLocal[it.id]) return;
+    if(!it || it.id==null || idx[it.id]!=null) return;
     const t = Date.parse(it.criado_em||it.criado||it.data||"") || 0;
-    if(!lastPull || t > lastPull) res.push(it);   // novo de outro aparelho → mantém
+    if(!lastPull || t > lastPull){ idx[it.id]=res.length; res.push(it); }
   });
   return res;
 }
@@ -5658,7 +5685,7 @@ function modalRemanescente(id){
         '<datalist id="rm-prod-list">'+prods.map(p=>'<option value="'+esc(p.nome)+'"></option>').join("")+'</datalist></div>'+
       '<div style="display:flex;gap:10px"><div style="flex:1"><label for="rm-qtd">Quantidade</label>'+
         '<input id="rm-qtd" type="number" inputmode="decimal" placeholder="0" value="'+(x&&x.qtd!=null?x.qtd:"")+'"></div>'+
-        '<div style="flex:1"><label for="rm-un">Unidade</label><input id="rm-un" value="t" readonly title="O sistema usa sempre tonelada"></div></div>'+
+        '<div style="flex:1"><label for="rm-un">Unidade</label><input id="rm-un" placeholder="t, kg, L, sc, Bag, un" value="'+esc(x?(x.unidade||"t"):"t")+'"></div></div>'+
       '<div><label for="rm-preco">Preço por unidade (R$)</label>'+
         '<input id="rm-preco" type="number" step="0.01" inputmode="decimal" placeholder="0,00 (opcional)" value="'+(x&&x.preco?x.preco:"")+'"></div>'+
     '</div>'+
@@ -5671,7 +5698,7 @@ function gravarRemanescente(id){
   const g=i=>String((document.getElementById(i)||{}).value||"").trim();
   const produto=g("rm-prod"); if(!produto){ toast("Informe o produto"); return; }
   const qtd=parseFloat(g("rm-qtd").replace(",",".")); if(!qtd||qtd<=0){ toast("Informe a quantidade"); return; }
-  const un=g("rm-un"), preco=parseFloat(g("rm-preco").replace(",","."))||0;
+  const un=g("rm-un")||"t", preco=parseFloat(g("rm-preco").replace(",","."))||0;
   const l=remanescenteDe(f.id);
   if(id){ const x=l.find(r=>r.id===id); if(x){ x.produto=produto; x.qtd=qtd; x.unidade=un; x.preco=preco; } }
   else l.push({id:"rem_"+Date.now().toString(36), produto:produto, qtd:qtd, unidade:un, preco:preco, criado_em:new Date().toISOString()});
