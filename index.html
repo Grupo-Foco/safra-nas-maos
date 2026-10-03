@@ -930,7 +930,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.103.0";
+const APP_VERSION = "2.106.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -1242,6 +1242,22 @@ function _mergeLog(local, nuvem, pendente, lastPull){
    aparelho. O local manda nos registros que ele tem; registros que só existem
    na nuvem e foram criados depois do último download (de outro aparelho) são
    mantidos; registros antigos que sumiram do local (apagados aqui) não voltam. */
+function _ehObj(x){ return x!=null && typeof x==="object" && !Array.isArray(x); }
+/* Mescla blocos-OBJETO (ex.: chuva = dia→ponto→mm; lavoura = talhão→dados) unindo
+   as chaves recursivamente — nunca descarta o que só existe de um lado. Em conflito
+   de valor-folha, preferLocal decide (na subida o local manda; na descida, a nuvem,
+   a menos que o bloco esteja com edição local pendente). */
+function _mergeObj(local, nuvem, preferLocal){
+  if(!_ehObj(local)) return _ehObj(nuvem) ? nuvem : (preferLocal ? local : (nuvem!=null?nuvem:local));
+  if(!_ehObj(nuvem)) return local;
+  const out = Object.assign({}, nuvem);
+  for(const k in local){
+    if(!(k in out)) out[k] = local[k];
+    else if(_ehObj(local[k]) && _ehObj(nuvem[k])) out[k] = _mergeObj(local[k], nuvem[k], preferLocal);
+    else out[k] = preferLocal ? local[k] : nuvem[k];
+  }
+  return out;
+}
 function _mergeSubida(local, nuvem, lastPull){
   local=local||[]; nuvem=nuvem||[];
   const res = local.slice();
@@ -1349,6 +1365,22 @@ const Sync = {
                 }
               }
             }catch(e){ /* sem leitura da nuvem: envia o local mesmo */ }
+          } else if(_ehObj(payload)){
+            // Bloco-OBJETO (chuva, lavoura…): une com a nuvem por chave ANTES de enviar,
+            // senão este envio apagaria o que outro aparelho lançou (ex.: chuva do dia).
+            try{
+              const r = await this._comRetry(()=>api("safra_estado?fazenda_id=eq."+encodeURIComponent(fid)+"&chave=eq."+encodeURIComponent(bloco)+"&select=dados"));
+              const nuvem = (r && r[0]) ? r[0].dados : null;
+              if(_ehObj(nuvem)){
+                const merged = _mergeObj(payload, nuvem, true);   // na subida o local manda nos conflitos
+                if(JSON.stringify(merged)!==JSON.stringify(payload)){
+                  payload = merged;
+                  const apl=this._aplicando; this._aplicando=true;
+                  Store.set(chave, merged);
+                  this._aplicando=apl;
+                }
+              }
+            }catch(e){ /* sem leitura da nuvem: envia o local mesmo */ }
           }
           enviados[chave] = JSON.stringify(payload===undefined?null:payload);
           await this._comRetry(()=>api("safra_estado", { method:"POST",
@@ -1429,8 +1461,12 @@ const Sync = {
         // Bloco tipo LOG (lista de registros com id): mescla por id — nunca perde
         // um lançamento local, mesmo se a nuvem estiver com versão antiga.
         Store.set(chave, _mergeLog(local, r.dados, dirty, lastPull));
+      } else if(_ehObj(local) && _ehObj(r.dados)){
+        // Bloco OBJETO (ex.: chuva, lavoura): une por chave — nunca apaga o que já
+        // existe de um lado. Em conflito, nuvem manda; se há edição local pendente, local.
+        Store.set(chave, _mergeObj(local, r.dados, dirty));
       } else if(!dirty){
-        Store.set(chave, r.dados);   // blocos não-lista: nuvem manda (se não há edição local pendente)
+        Store.set(chave, r.dados);   // escalares: nuvem manda (se não há edição local pendente)
       }
     });
     (fz||[]).forEach(r=>recontarFazenda(r.id));
@@ -2034,23 +2070,36 @@ function kProd(f){ return "faz_"+f+"_produtos"; }
 function kApl(f){ return "faz_"+f+"_aplicacoes"; }
 function produtosDe(f){ return Store.get(kProd(f), []); }
 function aplicacoesDe(f){ return Store.get(kApl(f), []); }
-function acharProduto(f,id){ return produtosDe(f).find(p=>p.id===id) || produtosDisponiveis(f).find(p=>p.id===id) || null; }
+function acharProduto(f,id){
+  const c = produtosDe(f).find(p=>p.id===id);
+  if(c && (Number(c.preco)||0)>0) return c;           // cadastrado com preço: usa direto
+  return produtosDisponiveis(f).find(p=>p.id===id) || c || null;  // senão, pega o preço mesclado
+}
 /* Produto cuja unidade é tonelada: preço e estoque em t, mas o uso é lançado em kg. */
 function _unidTon(u){ return ["t","ton","tonelada","toneladas"].indexOf(String(u||"").trim().toLowerCase())>=0; }
 /* Produtos disponíveis para aplicar = cadastrados + os que estão no estoque
    (produtos dos pedidos, ex.: KCl, MAP), com o preço do pedido. */
 function produtosDisponiveis(f){
-  const base = produtosDe(f).slice();
-  const nomes = new Set(base.map(p=>_normNome(p.nome)));
-  const add=(nm,un,preco)=>{
+  // Reúne cadastro + pedidos + remanescente por nome. O PREÇO vem de qualquer fonte
+  // que tenha (não fica "sem preço" só porque a 1ª fonte veio com valor 0).
+  const out=[], byKey={};
+  const add=(src,nm,un,preco)=>{
     nm=(nm||"").trim(); if(!nm) return;
-    const k=_normNome(nm); if(nomes.has(k)) return; nomes.add(k);
-    base.push({ id:"pp_"+k.replace(/[^a-z0-9]+/g,""), fazenda_id:f, nome:nm,
-      unidade:un||"kg", preco:Number(preco)||0, doEstoque:true });
+    const k=_normNome(nm); preco=Number(preco)||0;
+    if(byKey[k]){ const e=byKey[k];
+      if((Number(e.preco)||0)<=0 && preco>0) e.preco=preco;
+      if((!e.unidade) && un) e.unidade=un;
+      return; }
+    const e = src ? Object.assign({}, src)
+                  : { id:"pp_"+k.replace(/[^a-z0-9]+/g,""), fazenda_id:f, doEstoque:true };
+    e.nome=nm; e.unidade=e.unidade||un||"t";
+    e.preco=(Number(e.preco)||0)>0 ? Number(e.preco) : preco;
+    byKey[k]=e; out.push(e);
   };
-  (typeof pedidosDe==="function"? pedidosDe(f):[]).forEach(p=>add(p.produto, p.unidade, p.valor));
-  (typeof remanescenteDe==="function"? remanescenteDe(f):[]).forEach(x=>add(x.produto, x.unidade, x.preco));
-  return base;
+  produtosDe(f).forEach(p=>add(p, p.nome, p.unidade, p.preco));
+  (typeof pedidosDe==="function"? pedidosDe(f):[]).forEach(p=>add(null, p.produto, p.unidade, p.valor));
+  (typeof remanescenteDe==="function"? remanescenteDe(f):[]).forEach(x=>add(null, x.produto, x.unidade, x.preco));
+  return out;
 }
 
 function salvarProduto(f, d, id){
@@ -2584,7 +2633,7 @@ const MODULOS = [
     { id:"ndvi",      ic:"ndvi",      nome:"Mapa", desc:"Talhões, vias e imagem de satélite", pronto:true },
     { id:"tempo",     ic:"chuva",     nome:"Previsão do tempo", desc:"Sete dias para a sede da fazenda", pronto:true,
       resumo:f=>{const t=tempoCache(f.id); return t? Math.round(t.atual.temperature_2m)+"° agora · "+descTempo(t.atual.weather_code)[0] : "Toque para ver a previsão";} },
-    { id:"chuva",     ic:"chuva",     nome:"Pluviometria", desc:"Lançar e comparar chuvas", pronto:true, resumo:f=>{const a=acumuladoSafra(f.id,f.safra); return a.total>0 ? Math.round(a.media)+" mm na safra" : "Lance a primeira chuva";} },
+    { id:"chuva",     ic:"chuva",     nome:"Pluviometria", desc:"Lançar e comparar chuvas", pronto:true, resumo:f=>{const a=acumuladoSafra(f.id,f.safra); return a.total>0 ? nf(a.media,1)+" mm na safra" : "Lance a primeira chuva";} },
     { id:"colheita",  ic:"colheita",  nome:"Colheita", desc:"Cargas, caminhões e produtividade por talhão", pronto:true, resumo:f=>{const n=cargasDe(f.id).length; return n? n+" cargas lançadas" : "Lance a primeira carga";} }
   ]},
   { grupo:"Dinheiro e máquinas", itens:[
@@ -4033,7 +4082,7 @@ function telaChuva(){
   h += '<div class="kpis kpis-4">'+
     kpi("No mês", nf(r.mediaPontos,0), "mm (média)")+
     kpi("Dias com chuva", r.diasComChuva, "de "+r.nd)+
-    kpi("Acumulado da safra", nf(ac.media,0), "mm (média)")+
+    kpi("Acumulado da safra", nf(ac.media,1), "mm (média)")+
     kpi("Talhões", pts.length, "com medição")+
   '</div>';
 
@@ -4059,10 +4108,10 @@ function telaChuva(){
   // Acumulado por ponto
   h += '<div class="resumo"><div class="resumo-t">Acumulado da safra por talhão</div>'+
     '<div class="acum">'+ pts.map(p=>
-      '<div class="ac"><span>'+esc(p.nome)+'</span><b>'+nf(ac.porPonto[p.id]||0,0)+' <i>mm</i></b></div>'
+      '<div class="ac"><span>'+esc(p.nome)+'</span><b>'+nf(ac.porPonto[p.id]||0,1)+' <i>mm</i></b></div>'
     ).join("")+'</div>'+
-    '<p class="resumo-obs">Total lançado na safra: '+nf(ac.total,0)+' mm somando todos os pontos. '+
-    'A média entre os '+pts.length+' pontos é '+nf(ac.media,0)+' mm.</p></div>';
+    '<p class="resumo-obs">Total lançado na safra: '+nf(ac.total,1)+' mm somando todos os pontos. '+
+    'A média entre os '+pts.length+' pontos é '+nf(ac.media,1)+' mm.</p></div>';
 
   const comp = safrasVer.map(s=>{const a=acumuladoSafra(f.id,s); return {safra:s, media:a.media, total:a.total};})
                         .filter(x=>x.total>0);
@@ -4070,7 +4119,7 @@ function telaChuva(){
     h+='<div class="resumo"><div class="resumo-t">Comparativo entre safras</div>'+
       '<table class="arm-grid"><thead><tr><th>Safra</th><th>Média (mm)</th><th>Total lançado (mm)</th></tr></thead><tbody>'+
       comp.map(x=>'<tr'+(x.safra===safra?' class="arm-tot"':'')+'><td>'+esc(x.safra)+
-        '</td><td>'+nf(x.media,0)+'</td><td>'+nf(x.total,0)+'</td></tr>').join("")+
+        '</td><td>'+nf(x.media,1)+'</td><td>'+nf(x.total,1)+'</td></tr>').join("")+
       '</tbody></table><p class="resumo-obs">Suba os anos anteriores em “Importar” para o comparativo ficar completo.</p></div>';
   }
 
