@@ -930,7 +930,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.113.0";
+const APP_VERSION = "2.114.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -5673,7 +5673,7 @@ function abaSaldo(f,E){
       '<td class="forte">'+esc(l.nome)+
         (l.semEntrada?'<u class="ob">aplicado sem recebimento lançado</u>':'')+
         (l.negativo&&!l.semEntrada?'<u class="ob">aplicou mais do que entrou</u>':'')+'</td>'+
-      '<td class="num mono">'+nf(l.entrou,1)+' <i class="un">t</i></td>'+
+      '<td class="num mono">'+nf(l.entrou,1)+' <i class="un">'+esc(l.unidade||"")+'</i></td>'+
       '<td class="num mono">'+nf(l.saiu,1)+'</td>'+
       '<td class="num mono forte'+cor+'">'+nf(l.saldo,1)+'</td>'+
       '<td class="num mono hide-sm">'+(l.medio>0?moeda(l.medio):"—")+'</td>'+
