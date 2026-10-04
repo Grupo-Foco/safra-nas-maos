@@ -791,7 +791,8 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 .vis-foto{margin-top:12px}
 .vis-foto img{max-width:220px;width:100%;border-radius:9px;cursor:zoom-in;display:block}
 .vis-fotos{margin-top:12px;display:flex;flex-wrap:wrap;gap:8px}
-.vis-fotos img{width:120px;height:120px;object-fit:cover;border-radius:9px;cursor:zoom-in;display:block;background:var(--line-soft)}
+.vis-fotos img,.vis-fotos video{width:120px;height:120px;object-fit:cover;border-radius:9px;cursor:zoom-in;display:block;background:var(--line-soft)}
+.vis-fotos video{cursor:default}
 @media(max-width:640px){ .kpis-3{grid-template-columns:1fr} .vis-foto img{max-width:100%} }
 
 /* ── Contratos ───────────────────────────── */
@@ -930,7 +931,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.116.0";
+const APP_VERSION = "2.117.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -1201,9 +1202,9 @@ async function pintarArquivo(caminho, alvoId){
   const img = document.getElementById(alvoId); if(!img) return;
   try{
     let blob = await pegarArquivo(caminho);
-    if(!blob && navigator.onLine){ blob = await stBaixar(caminho); if(blob) guardarArquivo(caminho, blob); }
+    if(!blob && navigator.onLine){ try{ blob = await stBaixar(caminho); if(blob) guardarArquivo(caminho, blob); }catch(e){} }
     if(blob){ img.src = URL.createObjectURL(blob); return; }
-    if(navigator.onLine){ img.src = await stUrlAssinada(caminho, 3600); }
+    if(navigator.onLine){ img.src = await stUrlAssinada(caminho, 3600); }  // reserva: URL assinada
   }catch(e){ /* deixa o alt aparecer */ }
 }
 
@@ -2097,7 +2098,7 @@ function resumoMes(f, ano, mes){
       if(v!=null){ soma += v; n++; porPonto[p.id] += v; }
     });
     porDia[d] = { soma, n, media: n ? soma/n : 0 };
-    if(n) diasComChuva++;
+    if(soma>0) diasComChuva++;   // só conta dia que REALMENTE choveu (sem chuva = registro com 0)
     geral += soma;
   }
   const medias = pts.map(p=>porPonto[p.id]);
@@ -4341,8 +4342,10 @@ function chuvaPorDia(f,ano,mes,pts,r){
   for(let d=1; d<=nd; d++){
     const info = r.porDia[d];
     const cls = d===dia ? " sel" : (info.n ? " tem" : "");
+    // dia registrado sem chuva = "✓"; com chuva = a média; sem registro = nada
+    const selo = info.n ? (info.soma>0 ? nf(info.media,0) : "✓") : "";
     h += '<button class="dq'+cls+'" onclick="selDia('+ano+','+mes+','+d+')">'+
-         '<i>'+d+'</i>'+(info.n?'<u>'+nf(info.media,0)+'</u>':'')+'</button>';
+         '<i>'+d+'</i>'+(selo?'<u>'+selo+'</u>':'')+'</button>';
   }
   h += '</div>';
 
@@ -4350,14 +4353,17 @@ function chuvaPorDia(f,ano,mes,pts,r){
   const lanc = pts.filter(p=>lerChuva(f.id,k,p.id)!=null).length;
   h += '<div class="lanc"><div class="lanc-h">'+
     '<h3>'+dia+' de '+MESES[mes]+'</h3>'+
-    '<span>'+(r.porDia[dia].n ? nf(r.porDia[dia].media,1)+' mm de média em '+lanc+' talhões'
-                              : "sem registro")+'</span></div>';
+    '<span>'+(r.porDia[dia].n
+        ? (r.porDia[dia].soma>0 ? nf(r.porDia[dia].media,1)+' mm de média em '+lanc+' talhões'
+                                : 'sem chuva · registrado em '+lanc+' ponto(s)')
+        : "sem registro — ninguém lançou ainda")+'</span></div>';
 
   h += '<div class="lanc-tudo">'+
     '<input id="mm-tudo" type="number" inputmode="decimal" step="0.5" min="0" placeholder="mm">'+
     '<button class="btn-act" onclick="chuvaEmTodos(\''+k+'\')">Aplicar em todos</button>'+
+    '<button class="btn-act" onclick="semChuva(\''+k+'\')">Sem chuva</button>'+
     (lanc?'<button class="btn-act" onclick="limparDia(\''+k+'\')">Limpar o dia</button>':'')+
-    '<span class="dica">Choveu parelho na fazenda? Preencha uma vez só e ajuste as exceções.</span>'+
+    '<span class="dica">Choveu parelho na fazenda? Preencha uma vez só e ajuste as exceções. <b>Sem chuva</b> marca o dia como conferido (0 mm).</span>'+
   '</div>';
 
   pts.forEach(p=>{
@@ -4381,7 +4387,7 @@ function chuvaPlanilha(f,ano,mes,pts,r){
       'Use o modo <b>Por dia</b> para registrar. Aqui aparecem só os dias que choveram.</div>';
 
   const tot = {}; pts.forEach(p=>tot[p.id]=0);
-  let geral = 0;
+  let geral = 0, comChuva = 0;
 
   let h = '<div class="tbl grade"><table><thead><tr>'+
     '<th class="fix">'+esc(String(f.safra).replace("/","/"))+'</th>'+
@@ -4397,7 +4403,7 @@ function chuvaPlanilha(f,ano,mes,pts,r){
         'value="'+(v==null?"":v)+'" '+
         'onchange="gravarChuva(\''+f.id+'\',\''+k+'\',\''+p.id+'\',this.value);render()"></td>';
     }).join("");
-    geral += soma;
+    geral += soma; if(soma>0) comChuva++;
     h += '<tr class="molhado"><td class="fix mono dia">'+diaCurto(k)+'</td>'+cels+
          '<td class="num mono tot">'+nf(soma,1)+'</td></tr>';
   });
@@ -4408,7 +4414,7 @@ function chuvaPlanilha(f,ano,mes,pts,r){
     '<tr class="med"><td class="fix">Média</td>'+
     pts.map(()=>'<td class="num mono">'+nf(geral/pts.length,1)+'</td>').join("")+
     '<td class="num mono tot">'+nf(geral/pts.length,1)+'</td></tr></tfoot></table></div>'+
-    '<p class="ver">'+dias.length+' dias com chuva na safra</p>';
+    '<p class="ver">'+comChuva+' dias com chuva · '+dias.length+' dias registrados na safra</p>';
   return h;
 }
 
@@ -4427,6 +4433,13 @@ function limparDia(dia){
   if(!confirm("Apagar a chuva lançada neste dia?")) return;
   pontosDe(f.id).forEach(p=>gravarChuva(f.id,dia,p.id,""));
   toast("Dia limpo"); render();
+}
+/* Marca o dia como CONFERIDO sem chuva: grava 0 em todos os pontos. Fica diferente
+   de "sem registro" (ninguém lançou) — o gestor passa a distinguir os dois. */
+function semChuva(dia){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  pontosDe(f.id).forEach(p=>gravarChuva(f.id,dia,p.id,0));
+  toast("Dia registrado como sem chuva"); render();
 }
 
 /* Enter salva e pula para o talhão seguinte — lançar 36 talhões
@@ -6022,10 +6035,11 @@ function telaMapa(){
 async function abrirMapaCheia(caminho){
   try{
     let blob = await pegarArquivo(caminho);
-    if(!blob && navigator.onLine){ blob = await stBaixar(caminho); if(blob) guardarArquivo(caminho, blob); }
-    const url = blob ? URL.createObjectURL(blob) : (navigator.onLine ? await stUrlAssinada(caminho,3600) : null);
-    if(url) window.open(url, "_blank", "noopener"); else toast("Mapa indisponível offline");
-  }catch(e){ toast("Não consegui abrir o mapa"); }
+    if(!blob && navigator.onLine){ try{ blob = await stBaixar(caminho); if(blob) guardarArquivo(caminho, blob); }catch(e){} }
+    let url = blob ? URL.createObjectURL(blob) : null;
+    if(!url && navigator.onLine) url = await stUrlAssinada(caminho,3600);   // reserva: URL assinada
+    if(url) window.open(url, "_blank", "noopener"); else toast("Arquivo indisponível offline");
+  }catch(e){ toast("Não consegui abrir o arquivo"); }
 }
 
 function modalMapa(){
@@ -6540,6 +6554,8 @@ function salvarVisita(f, v, id){
     fazenda_id:f, criado_em:new Date().toISOString()}, dados);
   l.push(novo); Store.set(kVisitas(f),l); return novo;
 }
+/* Arquivo de visita que é vídeo (pelo final do nome/caminho). */
+function _ehVideo(path){ return /\.(mp4|mov|m4v|webm|3gp|avi|mkv)$/i.test(String(path||"")); }
 /* Fotos de uma visita, tolerando o formato antigo (foto única). */
 function fotosDaVisita(v){
   if(Array.isArray(v.fotos) && v.fotos.length) return v.fotos;
@@ -6612,7 +6628,9 @@ function telaVisitas(){
       (v.texto?'<p class="vis-txt">'+esc(v.texto)+'</p>':'')+
       (fotos.length?'<div class="vis-fotos">'+
         fotos.map((ft,k)=> ft.path
-          ? '<img id="vf-'+v.id+'-'+k+'" alt="Foto da visita" onclick="verFotoVisita(\''+esc(ft.path)+'\')">'
+          ? (_ehVideo(ft.path)
+              ? '<video id="vf-'+v.id+'-'+k+'" class="vfoto" controls preload="metadata" playsinline></video>'
+              : '<img id="vf-'+v.id+'-'+k+'" class="vfoto" alt="Foto da visita" onclick="verFotoVisita(\''+esc(ft.path)+'\')">')
           : '<span class="vazio">Foto no aparelho</span>').join("")+
         '</div>':'')+
     '</div>';
@@ -6651,8 +6669,8 @@ function modalVisita(id){
         '<textarea id="vs-txt" rows="4" placeholder="O que foi visto no talhão e o que fazer">'+esc(v?v.texto:"")+'</textarea></div>'+
       '<label class="drop" for="vs-file">'+
         '<b id="vs-lbl">'+(jaTem?jaTem+" foto(s) já anexada(s) · adicionar mais":"Tirar ou anexar fotos (até 5)")+'</b>'+
-        '<span>Fotos do talhão · até 5 · máx. 20 MB cada</span>'+
-        '<input id="vs-file" type="file" accept="image/*" multiple onchange="escolherFotoVisita(this,'+jaTem+')">'+
+        '<span>Fotos ou vídeos do talhão · até 5 · foto máx. 20 MB · vídeo máx. 50 MB</span>'+
+        '<input id="vs-file" type="file" accept="image/*,video/*" multiple onchange="escolherFotoVisita(this,'+jaTem+')">'+
       '</label>'+
     '</div>'+
     '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
@@ -6672,11 +6690,13 @@ function escolherFotoVisita(input, jaTem){
   const arqs=[...(input.files||[])];
   const lbl=document.getElementById("vs-lbl");
   const rest=Math.max(0, 5-(jaTem||0));
-  const bons=arqs.filter(a=>a.size<=20*1024*1024).slice(0, rest);
-  if(arqs.some(a=>a.size>20*1024*1024)) toast("Alguma foto acima de 20 MB foi ignorada");
-  if(arqs.length>rest) toast("Máximo de 5 fotos por visita");
+  // foto até 20 MB; vídeo até 50 MB
+  const limite=a=>(/^video\//.test(a.type)||_ehVideo(a.name)) ? 50*1024*1024 : 20*1024*1024;
+  const bons=arqs.filter(a=>a.size<=limite(a)).slice(0, rest);
+  if(arqs.some(a=>a.size>limite(a))) toast("Algum arquivo acima do limite foi ignorado (foto 20 MB · vídeo 50 MB)");
+  if(arqs.length>rest) toast("Máximo de 5 arquivos por visita");
   window._visitaFotos=bons;
-  if(lbl) lbl.textContent = bons.length ? (bons.length+" nova(s) foto(s) selecionada(s)") : "Nenhuma foto";
+  if(lbl) lbl.textContent = bons.length ? (bons.length+" novo(s) arquivo(s) selecionado(s)") : "Nenhum arquivo";
 }
 
 async function gravarVisita(id){
