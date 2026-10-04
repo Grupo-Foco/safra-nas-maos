@@ -931,7 +931,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.121.0";
+const APP_VERSION = "2.122.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -2149,6 +2149,9 @@ const UNIDADES = ["t","kg","g","L","mL","sc","Bag","un","cx","DS","dose","pct"];
 /* Diesel/combustível: no remanescente não há categoria, então reconhecemos pelo nome.
    Serve para mandar o diesel para o tanque do Maquinário e tirá-lo do estoque de insumos. */
 function _ehDiesel(nome){ return /diesel|combustivel/.test(_normNome(nome)); }
+/* Item do remanescente que é diesel: pela categoria explícita OU pelo nome (reserva
+   para itens antigos sem categoria). Vai para o tanque e sai do estoque de insumos. */
+function _remEhDiesel(x){ return !!x && (x.categoria==="Diesel" || _ehDiesel(x.produto)); }
 function _datalistUnid(){ return '<datalist id="un-list">'+UNIDADES.map(u=>'<option value="'+esc(u)+'"></option>').join("")+'</datalist>'; }
 /* Produtos disponíveis para aplicar = cadastrados + os que estão no estoque
    (produtos dos pedidos, ex.: KCl, MAP), com o preço do pedido. */
@@ -2171,7 +2174,7 @@ function produtosDisponiveis(f){
   };
   produtosDe(f).forEach(p=>add(p, p.nome, p.unidade, p.preco));
   (typeof pedidosDe==="function"? pedidosDe(f):[]).forEach(p=>{ if(p.categoria==="Diesel") return; add(null, p.produto, p.unidade, p.valor); });
-  (typeof remanescenteDe==="function"? remanescenteDe(f):[]).forEach(x=>{ if(_ehDiesel(x.produto)) return; add(null, x.produto, x.unidade, x.preco); });
+  (typeof remanescenteDe==="function"? remanescenteDe(f):[]).forEach(x=>{ if(_remEhDiesel(x)) return; add(null, x.produto, x.unidade, x.preco); });
   return out;
 }
 
@@ -2392,7 +2395,7 @@ function estoqueDe(f){
   });
   // ENTROU — estoque remanescente (diesel NÃO entra aqui: vive no tanque do Maquinário)
   remanescenteDe(f).forEach(x=>{
-    if(_ehDiesel(x.produto)) return;
+    if(_remEhDiesel(x)) return;
     const r=ensure(x.produto, x.unidade, Number(x.preco)||0); if(!r) return;
     const q=Number(x.qtd)||0; r.entrou+=q; r.gasto+=q*(Number(x.preco)||0);
   });
@@ -5297,7 +5300,7 @@ function saldoTanque(f){
                    .reduce((s,p)=>s+(Number(p.entregue)||0),0);
   // diesel lançado no estoque remanescente (abertura) também entra no tanque
   const entRem = (typeof remanescenteDe==="function"?remanescenteDe(f):[])
-                   .filter(x=>_ehDiesel(x.produto))
+                   .filter(_remEhDiesel)
                    .reduce((s,x)=>s+(Number(x.qtd)||0),0);
   const entMan = dieselDe(f).reduce((s,e)=>s+(Number(e.litros)||0),0);
   const ent = entPed + entRem + entMan;
@@ -5746,7 +5749,7 @@ function abaRemanescente(f){
     '<th class="num hide-sm">Preço un.</th><th class="num">Valor</th><th></th></tr></thead><tbody>';
   let tot=0;
   l.forEach(x=>{ const val=(Number(x.qtd)||0)*(Number(x.preco)||0); tot+=val;
-    h += '<tr><td class="forte">'+esc(x.produto)+'</td>'+
+    h += '<tr><td class="forte">'+esc(x.produto)+(x.categoria?' <small style="color:var(--muted);font-weight:600">· '+esc(x.categoria)+'</small>':'')+'</td>'+
       '<td class="num mono">'+nf(x.qtd,1)+' <i class="un">'+esc(x.unidade||"")+'</i></td>'+
       '<td class="num mono hide-sm">'+(x.preco>0?moeda(x.preco):"—")+'</td>'+
       '<td class="num mono forte">'+(val>0?moeda(val):"—")+'</td>'+
@@ -5769,6 +5772,9 @@ function modalRemanescente(id){
       '<div><label for="rm-prod">Produto</label>'+
         '<input id="rm-prod" list="rm-prod-list" value="'+esc(x?x.produto:"")+'" placeholder="KCL, MAP, Ureia…">'+
         '<datalist id="rm-prod-list">'+prods.map(p=>'<option value="'+esc(p.nome)+'"></option>').join("")+'</datalist></div>'+
+      '<div><label for="rm-cat">Categoria</label><select id="rm-cat" onchange="if(this.value===\'Diesel\'){var u=document.getElementById(\'rm-un\');if(u)u.value=\'L\';}">'+
+        CAT_PEDIDO.map(c=>'<option value="'+esc(c)+'" '+((x?(x.categoria||""):"")===c?"selected":"")+'>'+(c||"— sem categoria —")+'</option>').join("")+
+        '</select><span class="dica" style="margin-top:4px;display:block">Diesel vai para o tanque do Maquinário (em litros), fora do estoque de insumos.</span></div>'+
       '<div style="display:flex;gap:10px"><div style="flex:1"><label for="rm-qtd">Quantidade</label>'+
         '<input id="rm-qtd" type="number" inputmode="decimal" placeholder="0" value="'+(x&&x.qtd!=null?x.qtd:"")+'"></div>'+
         '<div style="flex:1"><label for="rm-un">Unidade</label><input id="rm-un" placeholder="t, kg, L, sc, Bag, un" value="'+esc(x?(x.unidade||"t"):"t")+'"></div></div>'+
@@ -5786,10 +5792,12 @@ function gravarRemanescente(id){
   const qtdRaw=g("rm-qtd"); const qtd=parseFloat(qtdRaw.replace(",","."));
   // aceita 0 (ex.: zerar um item sem apagá-lo); rejeita vazio, negativo ou não-número
   if(qtdRaw==="" || isNaN(qtd) || qtd<0){ toast("Informe a quantidade"); return; }
-  const un=g("rm-un")||"t", preco=parseFloat(g("rm-preco").replace(",","."))||0;
+  const cat=(document.getElementById("rm-cat")||{}).value||"";
+  const un=(cat==="Diesel") ? "L" : (g("rm-un")||"t");   // diesel sempre em litros
+  const preco=parseFloat(g("rm-preco").replace(",","."))||0;
   const l=remanescenteDe(f.id);
-  if(id){ const x=l.find(r=>r.id===id); if(x){ x.produto=produto; x.qtd=qtd; x.unidade=un; x.preco=preco; } }
-  else l.push({id:"rem_"+Date.now().toString(36), produto:produto, qtd:qtd, unidade:un, preco:preco, criado_em:new Date().toISOString()});
+  if(id){ const x=l.find(r=>r.id===id); if(x){ x.produto=produto; x.qtd=qtd; x.unidade=un; x.preco=preco; x.categoria=cat; } }
+  else l.push({id:"rem_"+Date.now().toString(36), produto:produto, qtd:qtd, unidade:un, preco:preco, categoria:cat, criado_em:new Date().toISOString()});
   salvarRemanescente(f.id,l);
   fecharModal(); toast(id?"Atualizado":"Adicionado ao estoque"); render();
 }
