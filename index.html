@@ -931,7 +931,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.118.0";
+const APP_VERSION = "2.120.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -1215,9 +1215,13 @@ async function pintarArquivo(caminho, alvoId){
 function _ehLog(x){
   return Array.isArray(x) && x.every(e=>e && typeof e==="object" && e.id!=null);
 }
-/* Para a mescla campo a campo: valor "vazio" que não deve sobrescrever um preenchido.
-   0 conta como vazio (ex.: entregue 0 não apaga entregue 25 de outra versão). */
-function _vazioCampo(v){ return v==null || v==="" || v===0 || (Array.isArray(v)&&v.length===0); }
+/* Para a mescla campo a campo: valor "vazio" que não deve sobrescrever um preenchido
+   (campo ausente/""/lista vazia de uma versão não apaga o da outra).
+   ATENÇÃO: 0 NÃO é vazio — é um valor que o usuário pode querer gravar (ex.: zerar um
+   preço). Antes o 0 contava como vazio e a nuvem devolvia o valor antigo ao sincronizar.
+   O caso do "entregue 0 não apaga entregue 25" é tratado à parte, na reconciliação de
+   entregue = maior(dos dois, soma das entregas), logo abaixo. */
+function _vazioCampo(v){ return v==null || v==="" || (Array.isArray(v)&&v.length===0); }
 /* Une duas listas de registros COM id, por id (nunca perde um item lançado em
    outro aparelho — ex.: duas entregas diferentes no mesmo pedido). Itens com o
    mesmo id são mesclados campo a campo. Mantém a união; não apaga (uma exclusão
@@ -2163,7 +2167,7 @@ function produtosDisponiveis(f){
     byKey[k]=e; out.push(e);
   };
   produtosDe(f).forEach(p=>add(p, p.nome, p.unidade, p.preco));
-  (typeof pedidosDe==="function"? pedidosDe(f):[]).forEach(p=>add(null, p.produto, p.unidade, p.valor));
+  (typeof pedidosDe==="function"? pedidosDe(f):[]).forEach(p=>{ if(p.categoria==="Diesel") return; add(null, p.produto, p.unidade, p.valor); });
   (typeof remanescenteDe==="function"? remanescenteDe(f):[]).forEach(x=>add(null, x.produto, x.unidade, x.preco));
   return out;
 }
@@ -2377,8 +2381,9 @@ function estoqueDe(f){
   };
   // produtos cadastrados entram no mapa (mesmo sem movimento)
   produtosDe(f).forEach(p=>ensure(p.nome, p.unidade, p.preco));
-  // ENTROU — entregue dos pedidos
+  // ENTROU — entregue dos pedidos (diesel NÃO entra aqui: vive no tanque do Maquinário)
   (typeof pedidosDe==="function"?pedidosDe(f):[]).forEach(p=>{
+    if(p.categoria==="Diesel") return;
     const r=ensure(p.produto, p.unidade, Number(p.valor)||0); if(!r) return;
     const q=Number(p.entregue)||0; r.entrou+=q; r.gasto+=q*(Number(p.valor)||0);
   });
@@ -4796,7 +4801,7 @@ function exportarLavoura(fmt){
 let _abaEst = "saldo";
 let _buscaPed = "";
 let _fCatPed = "";
-const CAT_PEDIDO = ["","Defensivo","Biológicos","Fertilizantes","Sementes"];
+const CAT_PEDIDO = ["","Defensivo","Biológicos","Fertilizantes","Sementes","Diesel"];
 function _catClasse(c){
   const k=_normNome(c||"");
   if(k.startsWith("defensiv")) return "cat-def";
@@ -5003,9 +5008,9 @@ function modalPedido(id){
     '<h2>'+(ed?"Editar pedido":"Novo pedido")+'</h2><p class="sub">O que foi comprado e em nome de quem. Quando chegar, você registra a entrega.</p>'+
     '<div class="frm">'+
       '<div><label for="pd-prod">Produto</label><input id="pd-prod" placeholder="KCL, MAP, Ureia…" value="'+esc(ed?ed.produto:"")+'"></div>'+
-      '<div><label for="pd-cat">Categoria</label><select id="pd-cat">'+
+      '<div><label for="pd-cat">Categoria</label><select id="pd-cat" onchange="if(this.value===\'Diesel\'){var u=document.getElementById(\'pd-un\');if(u)u.value=\'L\';}">'+
         CAT_PEDIDO.map(c=>'<option value="'+esc(c)+'" '+((ed?(ed.categoria||""):"")===c?"selected":"")+'>'+(c||"— sem categoria —")+'</option>').join("")+
-      '</select></div>'+
+      '</select><span class="dica" style="margin-top:4px;display:block">Diesel entra no tanque do Maquinário ao registrar a entrega.</span></div>'+
       '<div><label for="pd-resp">Em nome de</label>'+
         '<input id="pd-resp" list="pd-resp-list" placeholder="Neila, João, Ivan, Adriana…" value="'+esc(ed?(ed.responsavel||""):"")+'">'+
         '<datalist id="pd-resp-list">'+respSugestoes(f).map(n=>'<option value="'+esc(n)+'"></option>').join("")+'</datalist></div>'+
@@ -5040,11 +5045,12 @@ async function gravarPedido(id){
   const qtd=Number((document.getElementById("pd-qtd").value||"").replace(",","."));
   if(!prod){ toast("Informe o produto"); return; }
   if(!qtd||qtd<=0){ toast("Informe a quantidade"); return; }
-  const un=(document.getElementById("pd-un").value||"").trim();
+  const cat=(document.getElementById("pd-cat")||{}).value||"";
+  // Diesel é sempre em litros (vai para o tanque do Maquinário)
+  const un=(cat==="Diesel") ? "L" : (document.getElementById("pd-un").value||"").trim();
   const resp=(document.getElementById("pd-resp").value||"").trim();
   const valor=Number((document.getElementById("pd-val").value||"").replace(",","."))||0;
   const nfNum=(document.getElementById("pd-nf").value||"").trim();
-  const cat=(document.getElementById("pd-cat")||{}).value||"";
   const l=pedidosDe(f.id);
   let pid=id;
   if(id){ const p=l.find(x=>x.id===id); if(!p){fecharModal();return;}
@@ -5281,9 +5287,15 @@ function kDiesel(f){ return "faz_"+f+"_diesel"; }
 function dieselDe(f){ return Store.get(kDiesel(f), []); }
 function salvarDiesel(f,l){ Store.set(kDiesel(f), l); }
 function saldoTanque(f){
-  const ent = dieselDe(f).reduce((s,e)=>s+(Number(e.litros)||0),0);
+  // Entradas = entregas de PEDIDOS da categoria Diesel (fonte única) + entradas manuais
+  // antigas (histórico; a entrada manual nova foi desativada). Saídas = abastecimentos.
+  const entPed = (typeof pedidosDe==="function"?pedidosDe(f):[])
+                   .filter(p=>p.categoria==="Diesel")
+                   .reduce((s,p)=>s+(Number(p.entregue)||0),0);
+  const entMan = dieselDe(f).reduce((s,e)=>s+(Number(e.litros)||0),0);
+  const ent = entPed + entMan;
   const sai = abastecDe(f).reduce((s,a)=>s+(Number(a.litros)||0),0);
-  return { entradas:ent, saidas:sai, saldo:ent-sai };
+  return { entradas:ent, saidas:sai, saldo:ent-sai, entPed, entMan };
 }
 function resumoMaquina(f, maq){
   const ab = abastecDe(f).filter(a=>a.maquina_id===maq.id);
@@ -5332,8 +5344,9 @@ function telaMaquinario(){
     '<div class="tq-l"><span class="tq-cap">TANQUE · DIESEL</span>'+
       '<span class="tq-val'+(TQ.saldo<0?" neg":"")+'">'+nf(TQ.saldo,0)+' <b>L</b></span>'+
       '<span class="tq-sub">Entradas '+nf(TQ.entradas,0)+' L · Abastecido '+nf(TQ.saidas,0)+' L</span></div>'+
-    '<div class="tq-acts"><button class="btn-act primary" onclick="modalEntradaDiesel()">+ Entrada de diesel</button>'+
-      (dieselDe(f.id).length?' <button class="btn-act" onclick="modalEntradasDiesel()">Entradas</button>':'')+
+    '<div class="tq-acts">'+
+      (dieselDe(f.id).length?'<button class="btn-act" onclick="modalEntradasDiesel()">Entradas manuais (histórico)</button>':'')+
+      '<span class="dica">O diesel entra pela <b>entrega de um pedido</b> da categoria <b>Diesel</b> (aba Estoque → Pedidos).</span>'+
     '</div></div>';
   if(!maqs.length) return h+'<p class="vazio">Nenhuma máquina. Cadastre a primeira para controlar horímetro e combustível.</p></div>';
   const bq=(_buscaMaq||"").toLowerCase().trim();
@@ -5529,11 +5542,11 @@ function modalEntradasDiesel(){
     : '<tr><td colspan="5" class="vazio">Nenhuma entrada.</td></tr>';
   document.getElementById("modal-root").innerHTML=
   '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal">'+
-    '<h2>Entradas de diesel</h2>'+
+    '<h2>Entradas de diesel (histórico)</h2>'+
+    '<p class="sub">Entradas manuais antigas. Agora o diesel entra pela entrega de pedidos da categoria Diesel.</p>'+
     '<table class="arm-grid"><thead><tr><th>Data</th><th style="text-align:right">Litros</th><th>NF</th><th>Observação</th><th></th></tr></thead>'+
     '<tbody>'+linhas+'</tbody></table>'+
-    '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Fechar</button>'+
-      '<button class="btn-save" onclick="modalEntradaDiesel()">+ Nova entrada</button></div></div></div>';
+    '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Fechar</button></div></div></div>';
 }
 function removerEntradaDiesel(id){
   const f=acharFazenda(App.fazendaId); if(!f) return;
