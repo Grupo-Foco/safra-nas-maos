@@ -931,7 +931,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.117.0";
+const APP_VERSION = "2.118.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -5763,7 +5763,9 @@ function gravarRemanescente(id){
   const f=acharFazenda(App.fazendaId); if(!f) return;
   const g=i=>String((document.getElementById(i)||{}).value||"").trim();
   const produto=g("rm-prod"); if(!produto){ toast("Informe o produto"); return; }
-  const qtd=parseFloat(g("rm-qtd").replace(",",".")); if(!qtd||qtd<=0){ toast("Informe a quantidade"); return; }
+  const qtdRaw=g("rm-qtd"); const qtd=parseFloat(qtdRaw.replace(",","."));
+  // aceita 0 (ex.: zerar um item sem apagá-lo); rejeita vazio, negativo ou não-número
+  if(qtdRaw==="" || isNaN(qtd) || qtd<0){ toast("Informe a quantidade"); return; }
   const un=g("rm-un")||"t", preco=parseFloat(g("rm-preco").replace(",","."))||0;
   const l=remanescenteDe(f.id);
   if(id){ const x=l.find(r=>r.id===id); if(x){ x.produto=produto; x.qtd=qtd; x.unidade=un; x.preco=preco; } }
