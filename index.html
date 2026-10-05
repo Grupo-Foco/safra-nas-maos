@@ -931,7 +931,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.122.0";
+const APP_VERSION = "2.124.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -3230,6 +3230,7 @@ async function carregarAcessos(){
 function modalConvidarPessoa(email){
   const geridas=fazendasGeridas();
   const emailN=(email||"").toLowerCase();
+  const emailDisp = /^\d{11}@operador\.foco$/.test(email||"") ? email.split("@")[0] : (email||"");
   const itens=[].concat(_acessosData.membros, _acessosData.convites).filter(x=>(x.email||"").toLowerCase()===emailN);
   const jaTem=new Set(itens.map(x=>x.fazenda_id));
   const base=itens[0]||null;
@@ -3238,9 +3239,10 @@ function modalConvidarPessoa(email){
   document.getElementById("modal-root").innerHTML=
   '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal modal-lg">'+
     '<h2>'+(email?"Editar acesso":"Convidar pessoa")+'</h2>'+
-    '<p class="sub">Perfil, fazendas e módulos. Mudanças valem para as fazendas marcadas.</p>'+
+    '<p class="sub">Perfil, fazendas e módulos. Convide por <b>CPF</b> (a pessoa entra só com o CPF) ou por e-mail.</p>'+
     '<div class="frm">'+
-      '<div><label for="ac-email">E-mail</label><input id="ac-email" type="email" inputmode="email" placeholder="pessoa@exemplo.com" value="'+esc(email||"")+'"'+(email?" readonly":"")+'></div>'+
+      '<div><label for="ac-email">CPF ou e-mail</label><input id="ac-email" placeholder="CPF (só números) ou pessoa@exemplo.com" value="'+esc(emailDisp)+'"'+(email?" readonly":"")+'></div>'+
+      '<div><label for="ac-nome">Nome (opcional, para convite por CPF)</label><input id="ac-nome" placeholder="Nome da pessoa"></div>'+
       '<div><label for="ac-perfil">Perfil</label><select id="ac-perfil" onchange="_acPerfilMudou()">'+opcoesPerfil(perfilAtual)+'</select></div>'+
     '</div>'+
     '<label class="lbl" style="margin-top:12px">Fazendas</label>'+
@@ -3263,8 +3265,10 @@ function _acPerfilMudou(){
     (p&&p.papel==="leitura"? "Só leitura: vê os módulos marcados, sem editar." : "");
 }
 async function salvarAcessoPessoa(){
-  const email=(document.getElementById("ac-email").value||"").trim().toLowerCase();
-  if(!email||!email.includes("@")){ toast("Informe um e-mail válido"); return; }
+  const raw=(document.getElementById("ac-email").value||"").trim();
+  const mSint=raw.toLowerCase().match(/^(\d{11})@operador\.foco$/);
+  const dig = mSint ? mSint[1] : raw.replace(/\D/g,"");
+  const ehCpf = !!mSint || (!raw.includes("@") && dig.length===11);
   const perfil=PERFIS[document.getElementById("ac-perfil").value]||PERFIS.geral;
   const papel=perfil.papel;
   const fids=[...document.querySelectorAll("[data-fid]")].filter(i=>i.checked).map(i=>i.getAttribute("data-fid"));
@@ -3275,6 +3279,46 @@ async function salvarAcessoPessoa(){
     if(!ids.length){ toast("Marque ao menos um módulo"); return; }
     modulos = ids.length>=todosModulos().length ? null : ids;
   }
+  // ── Convite por CPF: cria/atualiza a conta (login só com CPF) via a função do banco ──
+  if(ehCpf){
+    const nome=((document.getElementById("ac-nome")||{}).value||"").trim();
+    const emailSint=dig+"@operador.foco";
+    const escolhidas=new Set(fids), geridas=fazendasGeridas(), eu=Auth.usuario();
+    let senha=dig.slice(0,5), jaExistia=false;
+    try{
+      for(const fid of fids){
+        const r=await api("rpc/safra_criar_operador",{ method:"POST",
+          body:{ p_cpf:dig, p_nome:nome, p_fazenda_id:fid, p_papel:papel,
+                 p_modulos:(modulos&&modulos.length)?modulos:null } });
+        const info=Array.isArray(r)?r[0]:r;
+        if(info&&info.senha_inicial) senha=info.senha_inicial;
+        if(info&&info.ja_existia) jaExistia=true;
+      }
+      for(const f of geridas){            // tira das fazendas desmarcadas
+        if(escolhidas.has(f.id)) continue;
+        const membro=_acessosData.membros.find(x=>(x.email||"").toLowerCase()===emailSint && x.fazenda_id===f.id);
+        if(membro && !(eu&&membro.user_id===eu.id))
+          await api("safra_membros?fazenda_id=eq."+encodeURIComponent(f.id)+"&user_id=eq."+encodeURIComponent(membro.user_id),{method:"DELETE",prefer:"return=minimal"});
+        const conv=_acessosData.convites.find(x=>(x.email||"").toLowerCase()===emailSint && x.fazenda_id===f.id);
+        if(conv) await api("safra_convites?id=eq."+conv.id,{method:"DELETE",prefer:"return=minimal"});
+      }
+      alert((jaExistia?"Acesso atualizado.":"Acesso criado!")+
+            "\n\nLogin (CPF): "+dig+"\nSenha inicial: "+senha+
+            "\n\nA pessoa entra SÓ com o CPF e essa senha, e define a senha dela no 1º acesso.");
+      const meu=Auth.usuario();
+      if(meu && (meu.email||"").toLowerCase()===emailSint) await Acesso.carregar();
+      modalAcessos();
+    }catch(e){
+      const m=String(e.message||e);
+      toast(/Sem permiss|42501/i.test(m)?"Sem permissão para alguma fazenda"
+        :/does not exist|PGRST202|PGRST1|404|Not Found/i.test(m)?"Falta instalar a função no banco (rode safra-funcao-criar-operador.sql)"
+        :/CPF inval/i.test(m)?"CPF inválido (11 dígitos)"
+        :"Não consegui salvar o acesso por CPF");
+    }
+    return;
+  }
+  const email=raw.toLowerCase();
+  if(!email.includes("@")){ toast("Informe um CPF (11 dígitos) ou um e-mail válido"); return; }
   const eu=Auth.usuario();
   const escolhidas=new Set(fids);
   const geridas=fazendasGeridas();
@@ -5323,6 +5367,21 @@ function _ehMaqCabecalho(m){
   const n=_normNome((m&&m.nome)||"");
   return n==="ordem" || n==="item" || n==="nome" || n==="maquina";   // linhas de cabeçalho que entraram na importação
 }
+/* Máquina cujo "nome" é só um número (numeração incluída por engano) e que tem a
+   descrição real guardada no Tipo. Essas podem ser normalizadas: nome ← descrição. */
+function _maqNumerica(m){ return !!m && /^\d+$/.test(String(m&&m.nome||"").trim()) && String(m&&m.tipo||"").trim()!==""; }
+/* Troca o nome-número pela descrição (Tipo) nas máquinas desta fazenda. A numeração
+   da lista passa a ser a coluna "#". Não toca em máquinas com nome de texto. */
+function normalizarNomesMaq(){
+  const f=acharFazenda(App.fazendaId); if(!f||soAbastece(f.id)) return;
+  const l=maquinasDe(f.id);
+  const alvo=l.filter(_maqNumerica);
+  if(!alvo.length){ toast("Nenhum nome numérico para ajustar"); return; }
+  if(!confirm("Ajustar "+alvo.length+" máquina(s): usar a descrição como nome e numerar a lista pela coluna #? O número antigo (sem uso fixo) será descartado.")) return;
+  alvo.forEach(m=>{ m.nome=String(m.tipo||"").trim(); m.tipo=""; });
+  salvarMaquinas(f.id, l);
+  toast(alvo.length+" máquina(s) ajustada(s)"); render();
+}
 function telaMaquinario(){
   const f=acharFazenda(App.fazendaId); if(!f){ App.tela="fazendas"; return telaFazendas(); }
   // Limpeza: remove linhas-cabeçalho ("Ordem", "Máquina"…) que viraram máquina na importação
@@ -5332,13 +5391,16 @@ function telaMaquinario(){
     salvarMaquinas(f.id, maquinasDe(f.id).filter(m=>!ids.has(m.id)));
     salvarAbastec(f.id, abastecDe(f.id).filter(a=>!ids.has(a.maquina_id)));
   }
-  const maqs=maquinasDe(f.id), abast=abastecDe(f.id);
+  // lista ordenada por nome (numérico-aware: 1,2,10 e não 1,10,2; e A–Z para nomes de texto)
+  const maqs=maquinasDe(f.id).slice().sort((a,b)=>String(a.nome||"").localeCompare(String(b.nome||""),"pt-BR",{numeric:true,sensitivity:"base"}));
+  const abast=abastecDe(f.id);
   const soAb=soAbastece(f.id);
   let h='<div class="wrap wrap-wide">';
   h+='<div class="farm-head"><button class="btn-back" onclick="irPara(\'fazenda\')">← '+esc(f.nome)+'</button>'+
      '<div class="farm-head-mid"><h1>Maquinário</h1><p>Máquinas, horímetro e abastecimento</p></div>'+
      (soAb?'':'<div class="ch-head-acts"><button class="btn-act primary" onclick="modalMaquina()">+ Nova máquina</button>'+
      '<button class="btn-act" onclick="modalImportarMaquinas()">Importar</button>'+
+     (maqs.some(_maqNumerica)?'<button class="btn-act" onclick="normalizarNomesMaq()">Ajustar nomes numéricos</button>':'')+
      botaoExportar([{rotulo:"Planilha",fn:"exportarMaquinario('csv')"},{rotulo:"Imagem",fn:"exportarMaquinario('png')"},{rotulo:"PDF",fn:"exportarMaquinario('pdf')"}])+
      '</div>')+'</div>';
   const tl=maqs.reduce((s,m)=>s+resumoMaquina(f.id,m).litros,0);
