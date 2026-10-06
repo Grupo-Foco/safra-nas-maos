@@ -931,7 +931,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.127.0";
+const APP_VERSION = "2.128.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -2387,16 +2387,16 @@ function estoqueDe(f){
   };
   // produtos cadastrados entram no mapa (mesmo sem movimento)
   produtosDe(f).forEach(p=>ensure(p.nome, p.unidade, p.preco));
-  // ENTROU — entregue dos pedidos (diesel NÃO entra aqui: vive no tanque do Maquinário)
+  // ENTROU — entregue dos pedidos (o diesel entra; a baixa dele vem dos abastecimentos, abaixo)
   (typeof pedidosDe==="function"?pedidosDe(f):[]).forEach(p=>{
-    if(p.categoria==="Diesel") return;
     const r=ensure(p.produto, p.unidade, Number(p.valor)||0); if(!r) return;
+    if(p.categoria==="Diesel") r.diesel=true;
     const q=Number(p.entregue)||0; r.entrou+=q; r.gasto+=q*(Number(p.valor)||0);
   });
-  // ENTROU — estoque remanescente (diesel NÃO entra aqui: vive no tanque do Maquinário)
+  // ENTROU — estoque remanescente
   remanescenteDe(f).forEach(x=>{
-    if(_remEhDiesel(x)) return;
     const r=ensure(x.produto, x.unidade, Number(x.preco)||0); if(!r) return;
+    if(_remEhDiesel(x)) r.diesel=true;
     const q=Number(x.qtd)||0; r.entrou+=q; r.gasto+=q*(Number(x.preco)||0);
   });
   // SAIU — aplicações (por produto → nome)
@@ -2405,6 +2405,14 @@ function estoqueDe(f){
       const r=ensure(prod.nome, prod.unidade, prod.preco); if(!r) return;
       r.saiu += (Number(i.dose)||0)*ha; });
   });
+  // SAIU do DIESEL — vem dos ABASTECIMENTOS (não das aplicações). O total abastecido é
+  // rateado entre as linhas de diesel, de modo que o saldo bate com o tanque do Maquinário.
+  const _totAbast = (typeof abastecDe==="function"?abastecDe(f):[]).reduce((s,a)=>s+(Number(a.litros)||0),0);
+  if(_totAbast>0){
+    const _ds=Object.values(byName).filter(r=>r.diesel || _ehDiesel(r.nome));
+    const _te=_ds.reduce((s,r)=>s+(r.entrou||0),0);
+    if(_te>0) _ds.forEach(r=>{ r.saiu += _totAbast*(r.entrou/_te); });
+  }
   const linhas = Object.values(byName).map(r=>{
     const saldo=r.entrou-r.saiu;
     const medio=r.entrou>0 ? r.gasto/r.entrou : r.preco;
