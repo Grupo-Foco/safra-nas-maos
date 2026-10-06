@@ -931,7 +931,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.130.0";
+const APP_VERSION = "2.131.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -2382,6 +2382,32 @@ function consumoProduto(f, prodId){
 function kRemanescente(f){ return "faz_"+f+"_remanescente"; }
 function remanescenteDe(f){ return Store.get(kRemanescente(f), []); }
 function salvarRemanescente(f,l){ Store.set(kRemanescente(f), l); Sync.push("remanescente","upsert",{lista:l}); }
+/* Estoque remanescente de abertura — Fazenda Mayara (contagem safra 26/27). Carrega
+   uma vez por aparelho ao abrir o Estoque da Mayara; pula produto que já exista
+   (por nome), então sincroniza sem duplicar. Tudo em litros. Tilt pendente (valor). */
+const REM_MAYARA=[
+ ["Zap QI 620",1000],["Cruzaro",90],["Achima",10],["Stimulat",100],["Re leaf",40],
+ ["Mazur",270],["Dual Gold",240],["Ampligo",39],["Ruler",50],["Instivo",20],
+ ["Bravonil",30],["Elatus",34],["Bluem",15],["Protec Ad",100],["Uingat Zion",39],
+ ["Priori Extra",17],["Mitrion",40],["Joya",26],["Clorimuron",50],
+ ["Reverb",35],["Pyriproxyfem",10],["Cypress",60],["Alad",10],["Curiom 550",20],
+ ["Score Flex",7],["Trunador K Max",70],["Estoler Boro",820]
+];
+function _seedRemanescente(f){
+  if(!f || _normNome(f.nome).indexOf("mayara")<0 || Store.get("rem_mayara_v1",false)) return;
+  const l=remanescenteDe(f.id);
+  const tem=new Set(l.map(x=>_normNome(x.produto||"")));
+  let add=0, i=0;
+  REM_MAYARA.forEach(function(e){
+    if(tem.has(_normNome(e[0]))) return;
+    tem.add(_normNome(e[0]));
+    l.push({id:"rem_seed_"+Date.now().toString(36)+"_"+(i++), produto:e[0], qtd:e[1],
+            unidade:"L", preco:0, categoria:"", criado_em:new Date().toISOString()});
+    add++;
+  });
+  if(add) salvarRemanescente(f.id, l);
+  Store.set("rem_mayara_v1", true);
+}
 
 /* Saldo por produto (agrupado por nome):
    entrou = entregue dos PEDIDOS + estoque REMANESCENTE;  saiu = APLICAÇÕES. */
@@ -4883,6 +4909,7 @@ function _catClasse(c){
 function telaEstoque(){
   const f = acharFazenda(App.fazendaId);
   if(!f){ App.tela="fazendas"; return telaFazendas(); }
+  _seedRemanescente(f);   // carga única do remanescente de abertura (Mayara)
   const E = estoqueDe(f.id);
   const peds = pedidosDe(f.id);
   const temProd = produtosDe(f.id).length>0;
