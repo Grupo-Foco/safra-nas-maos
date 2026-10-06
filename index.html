@@ -931,7 +931,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.129.0";
+const APP_VERSION = "2.130.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -1259,10 +1259,20 @@ function _mergeRec(a, b, preferA){
     else if(_vazioCampo(vb) && !_vazioCampo(va)) out[k]=va;
     else out[k] = preferA ? (va!==undefined?va:vb) : (vb!==undefined?vb:va);
   });
-  if(("entregas" in a) || ("entregas" in b)){
-    const lista = Array.isArray(out.entregas) ? out.entregas : [];
+  if(("entregas" in a) || ("entregas" in b) || ("entregue_base" in a) || ("entregue_base" in b) || ("entregas_rem" in a) || ("entregas_rem" in b)){
+    // Tombstones: uma entrega apagada fica marcada em entregas_rem (união dos dois
+    // lados) e NUNCA ressuscita — foi isso que fazia o lançamento voltar ao sincronizar.
+    const ra=Array.isArray(a.entregas_rem)?a.entregas_rem:[], rb=Array.isArray(b.entregas_rem)?b.entregas_rem:[];
+    const rem=[...new Set([...ra,...rb])];
+    let lista = Array.isArray(out.entregas) ? out.entregas : [];
+    if(rem.length) lista = lista.filter(e=>!(e && rem.indexOf(e.id)>=0));
+    out.entregas = lista;
+    if(rem.length || ("entregas_rem" in a) || ("entregas_rem" in b)) out.entregas_rem = rem;
+    // entregue = base (ajuste manual / total antigo sem detalhe) + soma das entregas vivas.
     const som = lista.reduce((s,e)=>s+(Number(e&&e.qtd)||0),0);
-    out.entregue = Math.max(Number(a.entregue)||0, Number(b.entregue)||0, som);
+    const base = Math.max(Number(a.entregue_base)||0, Number(b.entregue_base)||0);
+    if(base || ("entregue_base" in a) || ("entregue_base" in b)) out.entregue_base = base;
+    out.entregue = base + som;
   }
   return out;
 }
@@ -5147,6 +5157,30 @@ async function verAnexoPedido(id){
   const p=pedidosDe(f.id).find(x=>x.id===id); if(!p){ toast("Sem anexo"); return; }
   abrirArquivoPath(p.anexo_path);
 }
+/* "entregue" é derivado: base (ajuste manual / total antigo sem detalhe) + soma das
+   entregas vivas. _baseEntregue migra pedidos antigos uma vez (captura como base o
+   que o total tinha além do detalhe), para nada mudar ao adotar o novo cálculo. */
+function _baseEntregue(p){
+  if(p.entregue_base==null){
+    const som=(p.entregas||[]).reduce((s,e)=>s+(Number(e&&e.qtd)||0),0);
+    p.entregue_base=Math.max(0,(Number(p.entregue)||0)-som);
+  }
+  return Number(p.entregue_base)||0;
+}
+function _recalcEntregue(p){
+  const som=(p.entregas||[]).reduce((s,e)=>s+(Number(e&&e.qtd)||0),0);
+  p.entregue=_baseEntregue(p)+som;
+}
+/* Nome de quem está logado, para ficar gravado em cada entrega. Prioriza o nome
+   da conta (user_metadata.nome); cai para o perfil local e, por fim, o e-mail. */
+function _quemLanca(){
+  const u=(typeof Auth!=="undefined") && Auth.usuario();
+  const nm=u && u.user_metadata && u.user_metadata.nome;
+  if(nm) return String(nm).trim();
+  const p=Store.get("perfil",null);
+  if(p && p.nome && p.nome!=="Você") return String(p.nome).trim();
+  return (u && u.email) ? u.email.split("@")[0] : "";
+}
 function modalEntregaPedido(id){
   const f=acharFazenda(App.fazendaId);
   const p=pedidosDe(f.id).find(x=>x.id===id); if(!p) return;
@@ -5207,8 +5241,9 @@ async function gravarEntregaPedido(id){
   }
   const l2=pedidosDe(f.id), p2=l2.find(x=>x.id===id); if(!p2){ fecharModal(); return; }
   p2.entregas=p2.entregas||[];
-  p2.entregas.push({id:entId, qtd:q, data:data, nf:(document.getElementById("pe-nf")?(document.getElementById("pe-nf").value||"").trim():""), anexos:anexos});
-  p2.entregue=(p2.entregue||0)+q;
+  _baseEntregue(p2);   // migra pedido antigo antes de mexer no total
+  p2.entregas.push({id:entId, qtd:q, data:data, nf:(document.getElementById("pe-nf")?(document.getElementById("pe-nf").value||"").trim():""), por:_quemLanca(), anexos:anexos});
+  _recalcEntregue(p2);
   salvarPedidos(f.id,l2);
   window._entArq={}; fecharModal(); toast("Entrega registrada"); render();
 }
@@ -5218,7 +5253,7 @@ function modalEntregas(id){
   const ents=(p.entregas||[]).slice().sort((a,b)=>String(b.data).localeCompare(String(a.data)));
   const body= ents.length ? '<div class="lista-cam">'+ents.map(e=>
       '<div class="eq-row"><div class="who"><b>'+esc(dataBR(e.data))+' · '+nf(e.qtd,0)+(p.unidade?' '+esc(p.unidade):'')+(e.nf?' · NF '+esc(e.nf):'')+'</b>'+
-      '<small>'+((e.anexos&&e.anexos.length)? e.anexos.map((a,i)=>'<a href="#" onclick="abrirArquivoPath(\''+esc(a.path)+'\');return false" style="text-decoration:none">📎 nota '+(i+1)+'</a>').join(" · ") : 'sem nota')+'</small></div>'+
+      '<small>'+(e.por?'👤 '+esc(e.por)+' · ':'')+((e.anexos&&e.anexos.length)? e.anexos.map((a,i)=>'<a href="#" onclick="abrirArquivoPath(\''+esc(a.path)+'\');return false" style="text-decoration:none">📎 nota '+(i+1)+'</a>').join(" · ") : 'sem nota')+'</small></div>'+
       '<button class="mini" onclick="modalEditarEntrega(\''+id+'\',\''+e.id+'\')">Editar</button>'+
       '<button class="mini" onclick="removerEntrega(\''+id+'\',\''+e.id+'\')">✕</button></div>').join("")+'</div>'
     : '<p class="vazio">Entregas antigas não têm detalhe. As novas ficam registradas aqui com data e nota.</p>';
@@ -5248,7 +5283,10 @@ function gravarAjusteEntregue(pid){
   const l=pedidosDe(f.id), p=l.find(x=>x.id===pid); if(!p) return;
   const q=Number((document.getElementById("aj-qtd").value||"").replace(",","."));
   if(isNaN(q)||q<0){ toast("Valor inválido"); return; }
-  p.entregue=q;
+  // ajusta o total sem mexer no detalhe: base = total pedido − soma das entregas vivas.
+  const som=(p.entregas||[]).reduce((s,e)=>s+(Number(e&&e.qtd)||0),0);
+  p.entregue_base=Math.max(0,q-som);
+  _recalcEntregue(p);
   salvarPedidos(f.id,l);
   toast("Total ajustado"); render(); modalEntregas(pid);
 }
@@ -5307,9 +5345,10 @@ async function gravarEditarEntrega(pid, eid){
     catch(err){ toast("Não consegui guardar a nota "+slot); }
   }
   const l2=pedidosDe(f.id), p2=l2.find(x=>x.id===pid), e2=(p2.entregas||[]).find(x=>x.id===eid); if(!e2) return;
+  _baseEntregue(p2);   // migra pedido antigo antes de mexer no total
   e2.qtd=q; e2.data=data; e2.anexos=anexos.filter(Boolean);
   if(document.getElementById("pe-nf")) e2.nf=(document.getElementById("pe-nf").value||"").trim();
-  p2.entregue=Math.max(0,(p2.entregue||0)+(q-oldQtd));
+  _recalcEntregue(p2);
   salvarPedidos(f.id,l2);
   window._entArq={}; toast("Entrega atualizada"); render(); modalEntregas(pid);
 }
@@ -5319,8 +5358,11 @@ function removerEntrega(pid, eid){
   const e=(p.entregas||[]).find(x=>x.id===eid); if(!e) return;
   if(!confirm("Remover esta entrega de "+nf(e.qtd,0)+"?"+((e.anexos&&e.anexos.length)?"\nAs notas também saem.":""))) return;
   (e.anexos||[]).forEach(a=>{ stApagar(a.path); removerArquivo(a.path); });
+  _baseEntregue(p);   // migra pedido antigo antes de mexer no total
   p.entregas=p.entregas.filter(x=>x.id!==eid);
-  p.entregue=Math.max(0,(p.entregue||0)-e.qtd);
+  // marca de exclusão: impede a entrega apagada de voltar na sincronização.
+  p.entregas_rem=[...new Set([...(Array.isArray(p.entregas_rem)?p.entregas_rem:[]), eid])];
+  _recalcEntregue(p);
   salvarPedidos(f.id,l);
   toast("Entrega removida"); render(); modalEntregas(pid);
 }
@@ -5368,7 +5410,16 @@ function resumoMaquina(f, maq){
   ab.forEach(a=>{ const ha=Number(a.hor_ant), hb=Number(a.horimetro);
     if(!isNaN(ha)&&!isNaN(hb)&&hb>ha) rodou += hb-ha; });
   const hatual = Number(maq.horimetro)||Number(maq.horimetro_ini)||0;
-  return { litros, horas:rodou, rodou, consumo: rodou>0? litros/rodou : 0, abast: ab.length, hatual };
+  const marcador = (maq.marcador==="km") ? "km" : "h";
+  // Média certa por tipo de marcador:
+  //  · horímetro (H): litros por hora rodada  → L/h
+  //  · hodômetro (Km): quilômetros por litro   → km/L
+  const media = marcador==="km"
+    ? (litros>0 ? rodou/litros : 0)      // km/L
+    : (rodou>0 ? litros/rodou : 0);      // L/h
+  return { litros, horas:rodou, rodou, consumo: rodou>0? litros/rodou : 0,
+           marcador, media, mediaUnid: marcador==="km"?"km/L":"L/h", rodUnid: marcador,
+           abast: ab.length, hatual };
 }
 let _buscaMaq="";
 function _ehMaqCabecalho(m){
@@ -5459,12 +5510,14 @@ function telaMaquinario(){
   const mostrar = bq ? maqs.filter(m=>((m.nome||"")+" "+(m.placa||"")+" "+(m.tipo||"")).toLowerCase().includes(bq)) : maqs;
   h+='<div class="acts"><input class="busca" placeholder="Buscar máquina ou tipo…" value="'+esc(_buscaMaq)+'" '+
      'oninput="clearTimeout(window._bmq);window._bmq=setTimeout(()=>{_buscaMaq=this.value;render();},200)"></div>';
-  h+='<table class="arm-grid mq-grid"><thead><tr><th>#</th><th>Máquina</th><th>Placa / Chassi</th><th>Horímetro atual</th><th>Rodou (h/km)</th><th>Litros</th><th>Média (L/h)</th><th></th></tr></thead><tbody>';
+  h+='<table class="arm-grid mq-grid"><thead><tr><th>#</th><th>Máquina</th><th>Placa / Chassi</th><th>Marcador</th><th>Leitura atual</th><th>Rodou</th><th>Litros</th><th>Média</th><th></th></tr></thead><tbody>';
   mostrar.forEach(m=>{ const R=resumoMaquina(f.id,m); const nAb=(abast.filter(a=>a.maquina_id===m.id)).length;
     const idx=maqs.indexOf(m)+1;
     h+='<tr><td><button class="link-maq" onclick="modalHistoricoMaq(\''+m.id+'\')" title="Ver abastecimentos / cancelar">'+idx+(nAb?' <b>'+nAb+'</b>':'')+'</button></td>'+
        '<td><button class="link-maq" onclick="modalHistoricoMaq(\''+m.id+'\')" title="Ver abastecimentos">'+esc((/^\d+$/.test(String(m.nome||"").trim())&&m.tipo)?m.tipo:m.nome)+'</button></td><td>'+esc(m.placa||"—")+'</td>'+
-       '<td>'+nf(R.hatual,0)+'</td><td>'+nf(R.rodou,0)+'</td><td>'+nf(R.litros,0)+'</td><td>'+(R.consumo?nf(R.consumo,1):"—")+'</td>'+
+       '<td>'+(R.marcador==="km"?"Km":"H")+'</td>'+
+       '<td>'+nf(R.hatual,0)+'</td><td>'+(R.rodou?nf(R.rodou,0)+' '+R.rodUnid:"—")+'</td><td>'+nf(R.litros,0)+'</td>'+
+       '<td>'+(R.media?nf(R.media,R.marcador==="km"?2:1)+' '+R.mediaUnid:"—")+'</td>'+
        '<td style="white-space:nowrap;text-align:right"><button class="mini" onclick="modalAbastecer(\''+m.id+'\')">Abastecer</button> '+
        '<button class="mini" onclick="modalMaquina(\''+m.id+'\')">Editar</button></td></tr>';
   });
@@ -5493,8 +5546,12 @@ function modalMaquina(id){
     '<div class="frm">'+
       '<div><label for="mq-nome">Nome</label><input id="mq-nome" placeholder="Colheitadeira, Trator JD 6110…" value="'+esc(ed?ed.nome:"")+'"></div>'+
       '<div style="display:flex;gap:10px"><div style="flex:1"><label for="mq-placa">Placa / Chassi</label><input id="mq-placa" placeholder="Placa ou nº do chassi (opcional)" value="'+esc(ed?(ed.placa||""):"")+'"></div>'+
-      '<div style="flex:1"><label for="mq-hor">Horímetro / hodômetro atual</label><input id="mq-hor" type="number" inputmode="decimal" placeholder="leitura de hoje" value="'+(ed&&ed.horimetro!=null?ed.horimetro:"")+'"></div></div>'+
-      '<p class="resumo-obs" style="margin:0">A leitura de hoje é o ponto de partida. A cada abastecimento você anota o novo horímetro + litros — daí sai o rodado e a média.</p>'+
+      '<div style="flex:1"><label for="mq-hor">Leitura atual</label><input id="mq-hor" type="number" inputmode="decimal" placeholder="leitura de hoje" value="'+(ed&&ed.horimetro!=null?ed.horimetro:"")+'"></div></div>'+
+      '<div><label for="mq-marc">Marcador</label><select id="mq-marc">'+
+        '<option value="h"'+(!ed||ed.marcador!=="km"?" selected":"")+'>Horímetro (H) — média em L/h</option>'+
+        '<option value="km"'+(ed&&ed.marcador==="km"?" selected":"")+'>Hodômetro (Km) — média em km/L</option>'+
+      '</select></div>'+
+      '<p class="resumo-obs" style="margin:0">A leitura de hoje é o ponto de partida. A cada abastecimento você anota a nova leitura + litros — daí sai o rodado e a média. Use <b>Km</b> para camionetes/veículos e <b>H</b> para tratores e colheitadeiras.</p>'+
     '</div>'+
     '<div class="modal-acts">'+
       (ed && !soAbastece(App.fazendaId)?'<button class="btn-del-maq" onclick="removerMaquina(\''+ed.id+'\')">Excluir máquina</button>':'')+
@@ -5508,11 +5565,12 @@ function gravarMaquina(id){
   if(!nome){ toast("Informe o nome"); return; }
   const placa=(document.getElementById("mq-placa").value||"").trim();
   const hor=Number((document.getElementById("mq-hor").value||"").replace(",","."))||0;
+  const marc=((document.getElementById("mq-marc")||{}).value==="km")?"km":"h";
   const l=maquinasDe(f.id);
   if(id){ const m=l.find(x=>x.id===id); if(!m){fecharModal();return;}
-    m.nome=nome; m.placa=placa; m.horimetro=hor; if(m.horimetro_ini==null) m.horimetro_ini=hor;
+    m.nome=nome; m.placa=placa; m.horimetro=hor; m.marcador=marc; if(m.horimetro_ini==null) m.horimetro_ini=hor;
   } else {
-    l.push({id:"mq_"+Date.now().toString(36), nome:nome, placa:placa, horimetro:hor, horimetro_ini:hor, criado_em:new Date().toISOString()});
+    l.push({id:"mq_"+Date.now().toString(36), nome:nome, placa:placa, horimetro:hor, horimetro_ini:hor, marcador:marc, criado_em:new Date().toISOString()});
   }
   salvarMaquinas(f.id,l); fecharModal(); toast(id?"Máquina atualizada":"Máquina adicionada"); render();
 }
@@ -5535,11 +5593,11 @@ function modalAbastecer(id){
       '<div style="flex:1"><label for="ab-hor">Horímetro / km atual</label><input id="ab-hor" type="number" inputmode="decimal" placeholder="'+nf(hAnt,0)+'" oninput="_abConsumo()"></div></div>'+
       '<div style="display:flex;gap:10px"><div style="flex:1"><label for="ab-litros">Litros abastecidos</label><input id="ab-litros" type="number" inputmode="decimal" placeholder="0" oninput="_abConsumo()"></div>'+
       '<div style="flex:1"><label for="ab-op">Operador (opcional)</label><input id="ab-op" placeholder="Quem abasteceu"></div></div>'+
-      '<div class="ab-calc" id="ab-calc">Rodou <b>—</b> desde a última · consumo <b>—</b></div>'+
+      '<div class="ab-calc" id="ab-calc">Rodou <b>—</b> desde a última · média <b>—</b></div>'+
     '</div>'+
     '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
       '<button class="btn-save" onclick="gravarAbastecer(\''+id+'\')">Registrar</button></div></div></div>';
-  window._abHant=hAnt;
+  window._abHant=hAnt; window._abMarc=(m.marcador==="km")?"km":"h";
   setTimeout(()=>{const e=document.getElementById("ab-hor");if(e)e.focus();},60);
 }
 function _abConsumo(){
@@ -5547,8 +5605,10 @@ function _abConsumo(){
   const lit=nv("ab-litros"), a=Number(window._abHant)||0, b=nv("ab-hor");
   const dif = b>a ? b-a : 0;
   const el=document.getElementById("ab-calc"); if(!el) return;
-  el.innerHTML = "Rodou <b>"+(dif>0?nf(dif,1)+" h/km":"—")+"</b> desde a última · consumo <b>"+
-    (dif>0&&lit>0?nf(lit/dif,2)+" L/h":"—")+"</b>";
+  const ehKm=window._abMarc==="km";
+  const med = dif>0&&lit>0 ? (ehKm? dif/lit : lit/dif) : 0;
+  el.innerHTML = "Rodou <b>"+(dif>0?nf(dif,1)+" "+(ehKm?"km":"h"):"—")+"</b> desde a última · média <b>"+
+    (med?nf(med,2)+" "+(ehKm?"km/L":"L/h"):"—")+"</b>";
 }
 function gravarAbastecer(id){
   const f=acharFazenda(App.fazendaId);
@@ -5578,19 +5638,21 @@ function modalHistoricoMaq(id){
   const R=resumoMaquina(f.id,m);
   const ab=abastecDe(f.id).filter(a=>a.maquina_id===id)
     .sort((a,b)=>String(b.data||"").localeCompare(String(a.data||"")));
+  const ehKm=R.marcador==="km";
   const linhas = ab.length ? ab.map(a=>{
     const ha=Number(a.hor_ant), hb=Number(a.horimetro), lit=Number(a.litros)||0;
     const dif=(!isNaN(ha)&&!isNaN(hb)&&hb>ha)?hb-ha:0;
+    const med = dif>0&&lit>0 ? (ehKm? dif/lit : lit/dif) : 0;
     return '<tr><td>'+esc(dataBR(a.data))+'</td><td style="text-align:right">'+nf(hb||0,0)+'</td>'+
       '<td style="text-align:right">'+nf(lit,0)+' L</td><td style="text-align:right">'+(dif>0?nf(dif,1):"—")+'</td>'+
-      '<td style="text-align:right">'+(dif>0&&lit>0?nf(lit/dif,2):"—")+'</td>'+
+      '<td style="text-align:right">'+(med?nf(med,ehKm?2:2):"—")+'</td>'+
       '<td style="text-align:right"><button class="mini rm" onclick="removerAbastecimento(\''+id+'\',\''+a.id+'\')">✕</button></td></tr>';
   }).join("") : '<tr><td colspan="6" class="vazio">Nenhum abastecimento ainda.</td></tr>';
   document.getElementById("modal-root").innerHTML=
   '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal modal-lg">'+
     '<h2>Abastecimentos · '+esc(m.nome)+'</h2>'+
-    '<p class="sub">Horímetro atual '+nf(R.hatual,0)+' · '+nf(R.horas,0)+' h/km trabalhadas · '+nf(R.litros,0)+' L · média '+(R.consumo?nf(R.consumo,1):"—")+' L/h</p>'+
-    '<table class="arm-grid"><thead><tr><th>Data</th><th style="text-align:right">Horímetro</th><th style="text-align:right">Litros</th><th style="text-align:right">Rodou</th><th style="text-align:right">L/h</th><th></th></tr></thead>'+
+    '<p class="sub">Leitura atual '+nf(R.hatual,0)+' · '+nf(R.horas,0)+' '+R.rodUnid+' rodados · '+nf(R.litros,0)+' L · média '+(R.media?nf(R.media,ehKm?2:1)+' '+R.mediaUnid:"—")+'</p>'+
+    '<table class="arm-grid"><thead><tr><th>Data</th><th style="text-align:right">Leitura</th><th style="text-align:right">Litros</th><th style="text-align:right">Rodou</th><th style="text-align:right">'+R.mediaUnid+'</th><th></th></tr></thead>'+
     '<tbody>'+linhas+'</tbody></table>'+
     '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Fechar</button>'+
       '<button class="btn-save" onclick="modalAbastecer(\''+id+'\')">+ Abastecer</button></div></div></div>';
@@ -5664,9 +5726,10 @@ function exportarMaquinario(fmt){
   const f=acharFazenda(App.fazendaId); if(!f) return;
   const maqs=maquinasDe(f.id);
   if(!maqs.length){ toast("Cadastre máquinas primeiro"); return; }
-  const linhas=[["Máquina","Tipo","Horímetro","Horas","Litros","L/h"]];
+  const linhas=[["Máquina","Marcador","Leitura","Rodou","Litros","Média","Unid. média"]];
   maqs.forEach(m=>{ const R=resumoMaquina(f.id,m);
-    linhas.push([m.nome, m.tipo||"", vBR(R.hatual), vBR(R.horas), vBR(R.litros), R.consumo?vBR(R.consumo.toFixed(1)):"—"]); });
+    linhas.push([m.nome, R.marcador==="km"?"Km":"H", vBR(R.hatual), vBR(R.horas), vBR(R.litros),
+      R.media?vBR(R.media.toFixed(R.marcador==="km"?2:1)):"—", R.mediaUnid]); });
   exportarTabela(fmt, "Maquinário · "+f.nome, linhas,
     "maquinario-"+f.nome.toLowerCase().replace(/[^a-z0-9]+/g,"-"));
 }
