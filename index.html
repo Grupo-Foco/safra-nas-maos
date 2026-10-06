@@ -931,7 +931,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.126.0";
+const APP_VERSION = "2.127.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -5369,6 +5369,8 @@ function _ehMaqCabecalho(m){
 }
 /* Máquina cujo "nome" é só um número (numeração incluída por engano) e que tem a
    descrição real guardada no Tipo. Essas podem ser normalizadas: nome ← descrição. */
+/* Inventário Santa Angelina: nome(normalizado alfanumérico) -> chassis (na ordem). */
+const CHASSI_SA={"aviaoagricolaturboelice":["402B-1457"],"balancarodoviariametalica":["BCM0103-21"],"bazuca25000carretagraneleira":["REI - BJ 10613"],"bazuca25000inoxtankermagnu":["TVI 0012800B00"],"bazucatankermagnu35000":["T35M00073900C00", "T35M00076400C00", "T35M00080300C00"],"caminhaopipa24280":["93ZE2HMH0N8946525"],"caminhaotector11190":["93ZA01BDZN8946343"],"caminhaovolkswagen31330":["9536Y8262PR051598"],"caminhaovolvonkt0h38":["9BVAS02C4AE756872"],"carregadeiraderodascat924k":["CAT0924KTKW401204"],"carregadeiraderodassem01":["3D300504"],"carregadeiraderodassem02":["SEM00636A3D301368"],"carretadetransportedeplataformarma":["CTP 09940820"],"carretaforrageirabasculhantes":["7612190399"],"carretaplataforma45pes":["220022022", "320022022"],"carretatanquecaldapronta":["1912085"],"colheitadeiraaxialflow9250":["JHFY9250CNJB21109"],"colheitadeiradecr890a1090":["JHFY8090TRJ426387", "JHFY8090TRJ426373"],"colheitadeiradegraoss770":["1CQS770APM0140171"],"colheitadeiradegraoss780":["1CQS780ACM0140318", "1CQS780AVN0145318"],"comboio":["2127302"],"distribuidordeaduboprecisa":["528745-1"],"distribuidordenutrientes":["1NW4040DCM0210015"],"embolsadoradegraos":["JMEG 400.0690", "9MBEB100HR2620356"],"enleiradordepedras":["843280002"],"equipamentogr25":["1536Y8262PR051598"],"escavadeirahidraulica":["B10178"],"gradearadoradotrator275":["1090/12248"],"gradesuperpesada01":["78/2020"],"gradesuperpesada02":["79/2020"],"greensystemesteira":["XEUL02D200055", "XEUR02D00027"],"hilux":["8AJDA8CB5R6054803"],"laminatraseiradotrator275":["788-12031"],"plainaniveladora":["FPL001000014"],"plainaniveladoraagricola":["33820"],"plantadeiradb50":["1CQDB50ECP0145135", "1CQDB50EAP0145199"],"plantadeira212220linhas":["ICQ2122AAN0140147"],"plantadeirajohndeere213430linhas":["1CQ2134ATN0140143"],"plataformadacolheitadeira9250":["FPC0628670108"],"plataformadecorte740fd":["1CQ740DAJM0140240"],"plataformadecorte745fd":["1CQ745DAVN0145262", "ICQ745DAHN0140275"],"plataformamacdon":["488158-24", "488159-24"],"pranchacargasemireboque":["9A9SRCT3ELPFU8003"],"pulverizadorautropelido":["INW4030MLKF190308"],"pulverizadordefensor":["PRCYS250KPPC06697"],"rocadeiradearrasto":["2668492"],"subsoladoragricolaterrus":["FDC0186000207"],"tanderpara20linhas":["00.21845"],"tanquecombustivelaviao":["00 40"],"tanqueinoculante":["20220", "20219"],"transformadordedistribuicaotrifasico":["14537"],"trator7m2307m230":["1BM7230CHRH000781", "1BM7230CHRH000778"],"tratorjohndeere":["1BM8270RVLP100503"],"tratorjohndeere5090e":["1BM5090EJP4007616"],"tratorjohndeere6100j":["IBM6100JLKA002426"],"tratorjohndeere6150j":["1BM6150JKKD001278 T"],"tratorjohndeere6210m":["1BM6210MAN3000972"],"tratorjohndeere7230j":["1BM7230JPNH008037"],"tratorjohndeere8370r":["1BM8370RKNS100736"],"tratorjohndeere8400r":["1BM8400RHPS101739", "1BM8400RPNS101534"],"trinturadordepedras":["843280001"]};
 function _maqNumerica(m){ return !!m && /^\d+$/.test(String(m&&m.nome||"").trim()) && String(m&&m.tipo||"").trim()!==""; }
 /* Troca o nome-número pela descrição (Tipo) nas máquinas desta fazenda. A numeração
    da lista passa a ser a coluna "#". Não toca em máquinas com nome de texto. */
@@ -5398,6 +5400,17 @@ function telaMaquinario(){
     const ll=maquinasDe(f.id);
     ll.forEach(m=>{ if(_maqNumerica(m)){ m.nome=String(m.tipo||"").trim(); m.tipo=""; } });
     salvarMaquinas(f.id, ll);
+  }
+  // Preenche Placa/Chassi das máquinas da Santa Angelina pelo inventário (uma vez por
+  // aparelho; só onde a placa está vazia; nomes repetidos recebem os chassis em ordem).
+  if(typeof CHASSI_SA!=="undefined" && _normNome(f.nome).indexOf("angelina")>=0 && !Store.get("chassi_sa_v1",false)){
+    const fila={}; for(const k in CHASSI_SA) fila[k]=CHASSI_SA[k].slice();
+    const lm=maquinasDe(f.id); let mud=false;
+    lm.forEach(m=>{ if(String(m.placa||"").trim()) return;
+      const k=_normNome(m.nome).replace(/[^a-z0-9]/g,"");
+      if(fila[k] && fila[k].length){ m.placa=fila[k].shift(); mud=true; } });
+    if(mud) salvarMaquinas(f.id, lm);
+    Store.set("chassi_sa_v1", true);
   }
   // lista ordenada por nome (numérico-aware: 1,2,10 e não 1,10,2; e A–Z para nomes de texto)
   const maqs=maquinasDe(f.id).slice().sort((a,b)=>String(a.nome||"").localeCompare(String(b.nome||""),"pt-BR",{numeric:true,sensitivity:"base"}));
@@ -5429,14 +5442,14 @@ function telaMaquinario(){
     '</div></div>';
   if(!maqs.length) return h+'<p class="vazio">Nenhuma máquina. Cadastre a primeira para controlar horímetro e combustível.</p></div>';
   const bq=(_buscaMaq||"").toLowerCase().trim();
-  const mostrar = bq ? maqs.filter(m=>((m.nome||"")+" "+(m.tipo||"")).toLowerCase().includes(bq)) : maqs;
+  const mostrar = bq ? maqs.filter(m=>((m.nome||"")+" "+(m.placa||"")+" "+(m.tipo||"")).toLowerCase().includes(bq)) : maqs;
   h+='<div class="acts"><input class="busca" placeholder="Buscar máquina ou tipo…" value="'+esc(_buscaMaq)+'" '+
      'oninput="clearTimeout(window._bmq);window._bmq=setTimeout(()=>{_buscaMaq=this.value;render();},200)"></div>';
-  h+='<table class="arm-grid mq-grid"><thead><tr><th>#</th><th>Máquina</th><th>Tipo</th><th>Horímetro atual</th><th>Rodou (h/km)</th><th>Litros</th><th>Média (L/h)</th><th></th></tr></thead><tbody>';
+  h+='<table class="arm-grid mq-grid"><thead><tr><th>#</th><th>Máquina</th><th>Placa / Chassi</th><th>Horímetro atual</th><th>Rodou (h/km)</th><th>Litros</th><th>Média (L/h)</th><th></th></tr></thead><tbody>';
   mostrar.forEach(m=>{ const R=resumoMaquina(f.id,m); const nAb=(abast.filter(a=>a.maquina_id===m.id)).length;
     const idx=maqs.indexOf(m)+1;
     h+='<tr><td><button class="link-maq" onclick="modalHistoricoMaq(\''+m.id+'\')" title="Ver abastecimentos / cancelar">'+idx+(nAb?' <b>'+nAb+'</b>':'')+'</button></td>'+
-       '<td><button class="link-maq" onclick="modalHistoricoMaq(\''+m.id+'\')" title="Ver abastecimentos">'+esc(m.nome)+'</button></td><td>'+esc(m.tipo||"—")+'</td>'+
+       '<td><button class="link-maq" onclick="modalHistoricoMaq(\''+m.id+'\')" title="Ver abastecimentos">'+esc((/^\d+$/.test(String(m.nome||"").trim())&&m.tipo)?m.tipo:m.nome)+'</button></td><td>'+esc(m.placa||"—")+'</td>'+
        '<td>'+nf(R.hatual,0)+'</td><td>'+nf(R.rodou,0)+'</td><td>'+nf(R.litros,0)+'</td><td>'+(R.consumo?nf(R.consumo,1):"—")+'</td>'+
        '<td style="white-space:nowrap;text-align:right"><button class="mini" onclick="modalAbastecer(\''+m.id+'\')">Abastecer</button> '+
        '<button class="mini" onclick="modalMaquina(\''+m.id+'\')">Editar</button></td></tr>';
@@ -5465,7 +5478,7 @@ function modalMaquina(id){
     '<h2>'+(ed?"Editar máquina":"Nova máquina")+'</h2>'+
     '<div class="frm">'+
       '<div><label for="mq-nome">Nome</label><input id="mq-nome" placeholder="Colheitadeira, Trator JD 6110…" value="'+esc(ed?ed.nome:"")+'"></div>'+
-      '<div style="display:flex;gap:10px"><div style="flex:1"><label for="mq-tipo">Tipo</label><input id="mq-tipo" placeholder="Colheitadeira, trator…" value="'+esc(ed?(ed.tipo||""):"")+'"></div>'+
+      '<div style="display:flex;gap:10px"><div style="flex:1"><label for="mq-placa">Placa / Chassi</label><input id="mq-placa" placeholder="Placa ou nº do chassi (opcional)" value="'+esc(ed?(ed.placa||""):"")+'"></div>'+
       '<div style="flex:1"><label for="mq-hor">Horímetro / hodômetro atual</label><input id="mq-hor" type="number" inputmode="decimal" placeholder="leitura de hoje" value="'+(ed&&ed.horimetro!=null?ed.horimetro:"")+'"></div></div>'+
       '<p class="resumo-obs" style="margin:0">A leitura de hoje é o ponto de partida. A cada abastecimento você anota o novo horímetro + litros — daí sai o rodado e a média.</p>'+
     '</div>'+
@@ -5479,13 +5492,13 @@ function gravarMaquina(id){
   const f=acharFazenda(App.fazendaId);
   const nome=(document.getElementById("mq-nome").value||"").trim();
   if(!nome){ toast("Informe o nome"); return; }
-  const tipo=(document.getElementById("mq-tipo").value||"").trim();
+  const placa=(document.getElementById("mq-placa").value||"").trim();
   const hor=Number((document.getElementById("mq-hor").value||"").replace(",","."))||0;
   const l=maquinasDe(f.id);
   if(id){ const m=l.find(x=>x.id===id); if(!m){fecharModal();return;}
-    m.nome=nome; m.tipo=tipo; m.horimetro=hor; if(m.horimetro_ini==null) m.horimetro_ini=hor;
+    m.nome=nome; m.placa=placa; m.horimetro=hor; if(m.horimetro_ini==null) m.horimetro_ini=hor;
   } else {
-    l.push({id:"mq_"+Date.now().toString(36), nome:nome, tipo:tipo, horimetro:hor, horimetro_ini:hor, criado_em:new Date().toISOString()});
+    l.push({id:"mq_"+Date.now().toString(36), nome:nome, placa:placa, horimetro:hor, horimetro_ini:hor, criado_em:new Date().toISOString()});
   }
   salvarMaquinas(f.id,l); fecharModal(); toast(id?"Máquina atualizada":"Máquina adicionada"); render();
 }
