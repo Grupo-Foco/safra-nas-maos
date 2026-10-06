@@ -931,7 +931,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.124.0";
+const APP_VERSION = "2.126.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -5391,6 +5391,14 @@ function telaMaquinario(){
     salvarMaquinas(f.id, maquinasDe(f.id).filter(m=>!ids.has(m.id)));
     salvarAbastec(f.id, abastecDe(f.id).filter(a=>!ids.has(a.maquina_id)));
   }
+  // Nome que é só número vira a descrição (Tipo): a máquina passa a ser identificada
+  // pelo nome escrito, e a coluna "#" é a numeração sequencial (sem pular, recorrige
+  // ao apagar). As máquinas não têm numeração fixa.
+  if(maquinasDe(f.id).some(_maqNumerica)){
+    const ll=maquinasDe(f.id);
+    ll.forEach(m=>{ if(_maqNumerica(m)){ m.nome=String(m.tipo||"").trim(); m.tipo=""; } });
+    salvarMaquinas(f.id, ll);
+  }
   // lista ordenada por nome (numérico-aware: 1,2,10 e não 1,10,2; e A–Z para nomes de texto)
   const maqs=maquinasDe(f.id).slice().sort((a,b)=>String(a.nome||"").localeCompare(String(b.nome||""),"pt-BR",{numeric:true,sensitivity:"base"}));
   const abast=abastecDe(f.id);
@@ -5400,7 +5408,6 @@ function telaMaquinario(){
      '<div class="farm-head-mid"><h1>Maquinário</h1><p>Máquinas, horímetro e abastecimento</p></div>'+
      (soAb?'':'<div class="ch-head-acts"><button class="btn-act primary" onclick="modalMaquina()">+ Nova máquina</button>'+
      '<button class="btn-act" onclick="modalImportarMaquinas()">Importar</button>'+
-     (maqs.some(_maqNumerica)?'<button class="btn-act" onclick="normalizarNomesMaq()">Ajustar nomes numéricos</button>':'')+
      botaoExportar([{rotulo:"Planilha",fn:"exportarMaquinario('csv')"},{rotulo:"Imagem",fn:"exportarMaquinario('png')"},{rotulo:"PDF",fn:"exportarMaquinario('pdf')"}])+
      '</div>')+'</div>';
   const tl=maqs.reduce((s,m)=>s+resumoMaquina(f.id,m).litros,0);
@@ -6661,6 +6668,27 @@ function apagarVisita(f,id){
 }
 
 let _fVisTal = "";
+/* Recuperação: reenvia à nuvem as fotos de visita que ainda estão NESTE aparelho.
+   Resolve o caso de uma foto que não terminou de subir (o cache local tinha a foto,
+   mas o arquivo nunca chegou ao Storage). Rodar no aparelho que tirou as fotos. */
+async function reenviarFotosVisitas(){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  if(!navigator.onLine){ toast("Sem internet — conecte e tente de novo"); return; }
+  const paths=[];
+  visitasDe(f.id).forEach(v=>fotosDaVisita(v).forEach(ft=>{ if(ft.path) paths.push(ft.path); }));
+  if(!paths.length){ toast("Nenhuma foto para reenviar"); return; }
+  toast("Reenviando fotos…");
+  let ok=0, semBlob=0, erro=0;
+  for(const p of paths){
+    try{
+      const blob=await pegarArquivo(p);
+      if(!blob){ semBlob++; continue; }          // não está neste aparelho
+      await stEnviar(p, blob); tirarArqPendente(p); ok++;
+    }catch(e){ erro++; }
+  }
+  toast("Reenviadas "+ok+" foto(s)"+(semBlob?" · "+semBlob+" não estão neste aparelho":"")+(erro?" · "+erro+" com erro":""));
+  render();
+}
 
 function telaVisitas(){
   const f = acharFazenda(App.fazendaId);
@@ -6686,6 +6714,7 @@ function telaVisitas(){
 
   h += '<div class="acts">'+
     '<button class="btn-act primary" onclick="modalVisita()">+ Nova visita</button>'+
+    (comFoto?'<button class="btn-act" onclick="reenviarFotosVisitas()" title="Reenvia para a nuvem as fotos que ainda estão neste aparelho">Reenviar fotos</button>':'')+
     (tals.length?'<select class="sel-f" onchange="_fVisTal=this.value;render()">'+
       '<option value="">Todos os talhões</option>'+
       tals.slice().sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR",{numeric:true}))
