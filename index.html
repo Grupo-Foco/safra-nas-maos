@@ -297,6 +297,10 @@ svg{display:block}
 .ab.on{color:var(--green);border-bottom-color:var(--gold)}
 .ab b{background:var(--line-soft);color:var(--muted);font-size:10px;padding:2px 6px;border-radius:5px;font-weight:700}
 .ab.on b{background:var(--gold-soft);color:var(--amber)}
+.aviso-baixo{background:#fff6e5;border:1px solid #f0d08a;border-radius:10px;padding:12px 14px;margin-bottom:16px}
+.aviso-baixo>b{display:block;color:#9a6a00;margin-bottom:8px;font-size:14px}
+.aviso-baixo .ab-row{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:5px 0;border-top:1px solid #f0e0bd;font-size:13px}
+.aviso-baixo .ab-row:first-of-type{border-top:none}
 .kpis-4{grid-template-columns:repeat(4,1fr)}
 .kpis-4 .kpi:nth-child(4){border-left-color:var(--gold)}
 .sel-f{padding:10px 13px;border:1px solid var(--line);border-radius:9px;background:#fff;
@@ -931,7 +935,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.133.0";
+const APP_VERSION = "2.134.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -1016,7 +1020,7 @@ const SUPABASE = {
 /* Blocos de estado que sobem para a nuvem */
 const BLOCOS = ["talhoes","cargas","armazens","caminhoes","silocap","bases","chuva",
                 "lavoura","produtos","aplicacoes","entradas","docs","mapa","visitas","contratos","hist","pedidos","maquinas","abastec","diesel","remanescente","pontoschuva",
-                "funcionarios","rhferias","rhretiradas"];
+                "funcionarios","rhferias","rhretiradas","consultor"];
 
 /* ── Sessão ──────────────────────────────── */
 const Auth = {
@@ -2196,10 +2200,11 @@ function salvarProduto(f, d, id){
     const p = l.find(x=>x.id===id); if(!p) return null;
     Object.assign(p,{nome:d.nome.trim(), unidade:d.unidade, preco:Number(d.preco)||0});
     if(d.nf!==undefined) p.nf=d.nf;
+    if(d.minimo!==undefined) p.minimo=Number(d.minimo)||0;
     Store.set(kProd(f),l); Sync.push("produtos","upsert",p); return p;
   }
   const novo = { id:"pr_"+Date.now().toString(36)+Math.random().toString(36).slice(2,4),
-    fazenda_id:f, nome:d.nome.trim(), unidade:d.unidade||"L", preco:Number(d.preco)||0, nf:d.nf||"" };
+    fazenda_id:f, nome:d.nome.trim(), unidade:d.unidade||"L", preco:Number(d.preco)||0, nf:d.nf||"", minimo:Number(d.minimo)||0 };
   l.push(novo); Store.set(kProd(f),l); Sync.push("produtos","upsert",novo);
   return novo;
 }
@@ -5896,10 +5901,69 @@ function abaEst(id,rot,n){
          esc(rot)+(n?'<b>'+n+'</b>':'')+'</button>';
 }
 
+/* ── Consultor da empresa (por fazenda): quem recebe o pedido de reposição ── */
+function kConsultor(f){ return "faz_"+f+"_consultor"; }
+function consultorDe(f){ return Store.get(kConsultor(f), null); }
+function salvarConsultor(f,o){ Store.set(kConsultor(f), o); }
+function _telDigitos(t){ let s=String(t||"").replace(/\D/g,""); if(s && s.length<=11) s="55"+s; return s; }
+function modalConsultor(){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const c=consultorDe(f.id)||{};
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal">'+
+    '<h2>Consultor da empresa</h2><p class="sub">Quem recebe o aviso para providenciar novos pedidos quando um produto chega ao mínimo.</p>'+
+    '<div class="frm">'+
+      '<div><label for="cs-nome">Nome</label><input id="cs-nome" value="'+esc(c.nome||"")+'" placeholder="Nome do consultor"></div>'+
+      '<div><label for="cs-fone">WhatsApp (com DDD)</label><input id="cs-fone" value="'+esc(c.fone||"")+'" placeholder="(62) 99999-9999"></div>'+
+    '</div>'+
+    '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
+      '<button class="btn-save" onclick="gravarConsultor()">Salvar</button></div></div></div>';
+  setTimeout(()=>{const e=document.getElementById("cs-nome");if(e)e.focus();},60);
+}
+function gravarConsultor(){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const nome=String((document.getElementById("cs-nome")||{}).value||"").trim();
+  const fone=String((document.getElementById("cs-fone")||{}).value||"").trim();
+  salvarConsultor(f.id, {nome:nome, fone:fone});
+  fecharModal(); toast("Consultor salvo"); render();
+}
+/* Produtos no fim do estoque: saldo ≤ mínimo (mínimo>0). Casa a linha de saldo com o
+   produto por id ou por nome. */
+function _estoqueBaixo(f, E){
+  const prods=produtosDe(f).filter(p=>Number(p.minimo)>0);
+  const out=[];
+  prods.forEach(p=>{
+    const l=(E.linhas||[]).find(x=>x.id===p.id) || (E.linhas||[]).find(x=>_normNome(x.nome)===_normNome(p.nome));
+    const saldo=l?Number(l.saldo)||0:0;
+    if(saldo<=Number(p.minimo)) out.push({nome:p.nome, unidade:p.unidade||(l&&l.unidade)||"", saldo:saldo, minimo:Number(p.minimo)});
+  });
+  return out;
+}
+function avisarConsultor(idx){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const b=(window._baixos||[])[idx]; if(!b) return;
+  const c=consultorDe(f.id);
+  if(!c || !c.fone){ toast("Cadastre o WhatsApp do consultor primeiro"); modalConsultor(); return; }
+  const quem=(Store.get("perfil",{})||{}).nome||"";
+  const msg="Olá"+(c.nome?", "+c.nome.split(" ")[0]:"")+". Na "+f.nome+" o produto *"+b.nome+
+    "* está no fim: saldo "+nf(b.saldo,1)+" "+b.unidade+" (mínimo "+nf(b.minimo,1)+" "+b.unidade+"). "+
+    "Pode providenciar um novo pedido?"+(quem?" — "+quem:"");
+  window.open("https://wa.me/"+_telDigitos(c.fone)+"?text="+encodeURIComponent(msg), "_blank");
+}
 function abaSaldo(f,E){
   const ls = E.linhas.filter(l=>l.entrou>0||l.saiu>0);
-  let h = '<div class="acts">'+
-    (ls.length?botaoExportar([{rotulo:"Planilha",fn:"exportarEstoque('csv')"},{rotulo:"Imagem",fn:"exportarEstoque('png')"},{rotulo:"PDF",fn:"exportarEstoque('pdf')"}]):'')+'</div>';
+  const baixos=_estoqueBaixo(f.id, E);
+  const c=consultorDe(f.id);
+  let h = '<div class="acts" style="justify-content:space-between">'+
+    '<button class="mini" onclick="modalConsultor()">👤 Consultor'+(c&&c.nome?": "+esc(c.nome.split(" ")[0]):"")+'</button>'+
+    (ls.length?botaoExportar([{rotulo:"Planilha",fn:"exportarEstoque('csv')"},{rotulo:"Imagem",fn:"exportarEstoque('png')"},{rotulo:"PDF",fn:"exportarEstoque('pdf')"}]):'<span></span>')+'</div>';
+  window._baixos=baixos;
+  if(baixos.length){
+    h+='<div class="aviso-baixo"><b>⚠️ '+baixos.length+' produto(s) no fim do estoque</b>'+
+      baixos.map((b,i)=>'<div class="ab-row"><span>'+esc(b.nome)+' — saldo '+nf(b.saldo,1)+' '+esc(b.unidade)+' (mín. '+nf(b.minimo,1)+')</span>'+
+        '<button class="mini" onclick="avisarConsultor('+i+')">Pedir ao consultor</button></div>').join("")+
+    '</div>';
+  }
   if(!ls.length)
     return h+'<div class="empty"><strong>Estoque vazio</strong>'+
       'O saldo vem do que foi <b>entregue nos pedidos</b> e do <b>estoque remanescente</b>. '+
@@ -8752,6 +8816,8 @@ function modalProduto(id){
         '<div><label for="pd-preco">Preço por unidade (R$)</label>'+
           '<input id="pd-preco" type="number" step="0.01" inputmode="decimal" value="'+(p&&p.preco?p.preco:"")+'" placeholder="0,00"></div>'+
       '</div>'+
+      '<div><label for="pd-min">Estoque mínimo (alerta de reposição)</label>'+
+        '<input id="pd-min" type="number" inputmode="decimal" value="'+(p&&p.minimo?p.minimo:"")+'" placeholder="0 = sem alerta"></div>'+
       '<div><label for="pr-nf">Número da nota fiscal</label>'+
         '<input id="pr-nf" value="'+esc(p?(p.nf||""):"")+'" placeholder="Nº da NF (opcional)"></div>'+
       '<div><label for="pr-file">Nota / comprovante (opcional)</label>'+
@@ -8779,8 +8845,9 @@ async function gravarProduto(id){
   const dup=produtosDe(f.id).some(p=>p.id!==id && p.nome.toLowerCase()===nome.toLowerCase());
   if(dup){ toast("Já existe um produto com esse nome"); return; }
   const nf=(document.getElementById("pr-nf").value||"").trim();
+  const minimo=parseFloat(String((document.getElementById("pd-min")||{}).value||"").replace(",","."))||0;
   const p=salvarProduto(f.id,{ nome, unidade:document.getElementById("pd-un").value,
-    preco:parseFloat(String(document.getElementById("pd-preco").value).replace(",","."))||0, nf:nf }, id);
+    preco:parseFloat(String(document.getElementById("pd-preco").value).replace(",","."))||0, nf:nf, minimo:minimo }, id);
   const arq=window._prodArq, pid=p?p.id:id;
   if(arq && pid){
     const ext=(arq.name.match(/\.[a-z0-9]+$/i)||[""])[0].toLowerCase();
