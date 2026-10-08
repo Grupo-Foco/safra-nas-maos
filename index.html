@@ -931,7 +931,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.132.0";
+const APP_VERSION = "2.133.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -954,6 +954,7 @@ const ICON = {
   diesel: S+'<path d="M4.5 20.5V5.2c0-.7.5-1.2 1.2-1.2h5.6c.7 0 1.2.5 1.2 1.2v15.3"/><path d="M3 20.5h11.8"/><path d="M7 8.5h4"/><path d="M13 10.5h2.8c1.1 0 2 .9 2 2v4.8a1.6 1.6 0 0 0 3.2 0V9.2l-2.6-2.6"/></svg>',
 
   visitas: S+'<path d="M9.5 4.5H7.2c-1 0-1.7.8-1.7 1.7v13.1c0 1 .8 1.7 1.7 1.7h9.6c1 0 1.7-.8 1.7-1.7V6.2c0-1-.8-1.7-1.7-1.7h-2.3"/><rect x="9.5" y="2.8" width="5" height="3.4" rx="1"/><path d="M9 13.8l2 2 4-4.2"/></svg>',
+  rh: S+'<circle cx="9" cy="8" r="3"/><path d="M3.5 20v-1.2C3.5 16 6 14.5 9 14.5s5.5 1.5 5.5 4.3V20"/><circle cx="17" cy="9" r="2.3"/><path d="M15.5 14.8c2.5-.2 5 1 5 3.6V20"/></svg>',
   relatorios: S+'<path d="M14 3.2H7.4c-1 0-1.9.8-1.9 1.9v13.8c0 1 .8 1.9 1.9 1.9h9.2c1 0 1.9-.8 1.9-1.9V7.7z"/><path d="M14 3.2v4.5h4.5"/><path d="M9 17.5v-3M12 17.5v-5.2M15 17.5v-2"/></svg>',
   documentos: S+'<path d="M3.2 7.2c0-1 .8-1.9 1.9-1.9h3.7l2 2h8c1 0 1.9.8 1.9 1.9v8.7c0 1-.8 1.9-1.9 1.9H5.1c-1 0-1.9-.8-1.9-1.9z"/></svg>',
   safras: S+'<rect x="3.2" y="4" width="17.6" height="4" rx="1.2"/><path d="M5.2 8v10.8c0 .7.5 1.2 1.2 1.2h11.2c.7 0 1.2-.5 1.2-1.2V8"/><path d="M10 12h4"/></svg>',
@@ -1014,7 +1015,8 @@ const SUPABASE = {
 
 /* Blocos de estado que sobem para a nuvem */
 const BLOCOS = ["talhoes","cargas","armazens","caminhoes","silocap","bases","chuva",
-                "lavoura","produtos","aplicacoes","entradas","docs","mapa","visitas","contratos","hist","pedidos","maquinas","abastec","diesel","remanescente","pontoschuva"];
+                "lavoura","produtos","aplicacoes","entradas","docs","mapa","visitas","contratos","hist","pedidos","maquinas","abastec","diesel","remanescente","pontoschuva",
+                "funcionarios","rhferias","rhretiradas"];
 
 /* ── Sessão ──────────────────────────────── */
 const Auth = {
@@ -2771,6 +2773,8 @@ const MODULOS = [
   { grupo:"Acompanhamento", itens:[
     { id:"visitas",    ic:"visitas",    nome:"Visitas técnicas", desc:"Diário de bordo da cultura: estágio, clima e recomendações", pronto:true,
       resumo:f=>{const n=visitasDe(f.id).length; return n? n+" registro(s) no diário" : "Registre a primeira visita";} },
+    { id:"rh",         ic:"rh",         nome:"RH / Equipe", desc:"Funcionários, admissão, férias e retirada de EPIs/uniformes", pronto:true,
+      resumo:f=>{const n=funcDe(f.id).filter(x=>x.status!=="Desligado").length; return n? n+" funcionário(s) ativo(s)" : "Cadastre a equipe da fazenda";} },
     { id:"relatorios", ic:"relatorios", nome:"Relatórios", desc:"Geral, por operação, chuva e mapa", pronto:false },
     { id:"documentos", ic:"documentos", nome:"Documentos", desc:"Contratos, notas e laudos", pronto:true,
       resumo:f=>{const n=docsDe(f.id).length; return n? n+" documento(s) guardado(s)" : "Guarde o primeiro contrato";} },
@@ -3640,7 +3644,7 @@ function render(){
   if(App.tela==="fazendas")      h += telaFazendas();
   else if(App.tela==="fazenda")  h += telaFazenda();
   else if(App.tela==="modulo" && !podeModulo(App.fazendaId, App.moduloId)){ App.tela="fazenda"; h += telaFazenda(); }
-  else if(App.tela==="modulo")   h += (App.moduloId==="talhoes" ? telaTalhoes() : App.moduloId==="colheita" ? telaColheita() : App.moduloId==="chuva" ? telaChuva() : App.moduloId==="operacoes" ? telaOperacoes() : App.moduloId==="lavoura" ? telaLavoura() : App.moduloId==="estoque" ? telaEstoque() : App.moduloId==="ndvi" ? telaMapa() : App.moduloId==="tempo" ? telaTempo() : App.moduloId==="cotacoes" ? telaCotacoes() : App.moduloId==="documentos" ? telaDocumentos() : App.moduloId==="visitas" ? telaVisitas() : App.moduloId==="contratos" ? telaContratos() : App.moduloId==="safras" ? telaHistorico() : App.moduloId==="diesel" ? telaDiesel() : App.moduloId==="maquinario" ? telaMaquinario() : telaModulo());
+  else if(App.tela==="modulo")   h += (App.moduloId==="talhoes" ? telaTalhoes() : App.moduloId==="colheita" ? telaColheita() : App.moduloId==="chuva" ? telaChuva() : App.moduloId==="operacoes" ? telaOperacoes() : App.moduloId==="lavoura" ? telaLavoura() : App.moduloId==="estoque" ? telaEstoque() : App.moduloId==="ndvi" ? telaMapa() : App.moduloId==="tempo" ? telaTempo() : App.moduloId==="cotacoes" ? telaCotacoes() : App.moduloId==="documentos" ? telaDocumentos() : App.moduloId==="visitas" ? telaVisitas() : App.moduloId==="rh" ? telaRH() : App.moduloId==="contratos" ? telaContratos() : App.moduloId==="safras" ? telaHistorico() : App.moduloId==="diesel" ? telaDiesel() : App.moduloId==="maquinario" ? telaMaquinario() : telaModulo());
   else if(App.tela==="panorama") h += telaPanorama();
   document.getElementById("root").innerHTML = h;
   Sync.render();
@@ -6755,6 +6759,222 @@ function excluirDoc(id){
    ═══════════════════════════════════════════════════ */
 const ESTAGIOS = ["Pré-plantio","Emergência","Vegetativo (V)","Início de floração (R1–R2)",
   "Formação de vagens (R3–R4)","Enchimento de grãos (R5)","Maturação (R6–R8)","Colhido"];
+
+/* ═══════════════════════════════════════════════════
+   RH / EQUIPE — funcionários, admissão, férias e retirada
+   de EPIs/uniformes, por fazenda. Três blocos-LOG (lista
+   com id), que mesclam por id e honram exclusão na sincronização.
+   ═══════════════════════════════════════════════════ */
+function kFunc(f){ return "faz_"+f+"_funcionarios"; }
+function funcDe(f){ return Store.get(kFunc(f), []); }
+function salvarFunc(f,l){ Store.set(kFunc(f), l); }
+function kFerias(f){ return "faz_"+f+"_rhferias"; }
+function feriasDe(f){ return Store.get(kFerias(f), []); }
+function salvarFerias(f,l){ Store.set(kFerias(f), l); }
+function kRetira(f){ return "faz_"+f+"_rhretiradas"; }
+function retiradasDe(f){ return Store.get(kRetira(f), []); }
+function salvarRetiradas(f,l){ Store.set(kRetira(f), l); }
+const RH_TIPOS=["EPI","Uniforme","Ferramenta","Outro"];
+function _nomeFunc(f,id){ const x=funcDe(f).find(y=>y.id===id); return x?x.nome:"—"; }
+/* Situação de férias: anos completos de casa menos períodos de férias já gozados.
+   ≤0 em dia; 1 a agendar; ≥2 vencida (passou do prazo de gozo). */
+function _situacaoFerias(f, fu){
+  if(!fu.admissao) return {txt:"—", cls:""};
+  const ms = Date.now()-Date.parse(fu.admissao+"T00:00:00");
+  const anos = Math.floor(ms/(365.25*24*3600*1000));
+  if(anos<1) return {txt:"1º período em curso", cls:""};
+  const gozadas = feriasDe(f).filter(x=>x.func_id===fu.id).length;
+  const dev = anos - gozadas;
+  if(dev<=0) return {txt:"Em dia", cls:"ok"};
+  if(dev===1) return {txt:"A agendar", cls:"warn"};
+  return {txt:dev+" período(s) vencido(s)", cls:"bad"};
+}
+let _abaRH="equipe";
+function irAbaRH(a){ _abaRH=a; render(); }
+function telaRH(){
+  const f=acharFazenda(App.fazendaId);
+  if(!f){ App.tela="fazendas"; return telaFazendas(); }
+  const fus=funcDe(f.id);
+  const ativos=fus.filter(x=>x.status!=="Desligado");
+  let h='<div class="wrap wrap-wide">';
+  h+='<div class="farm-head">'+
+    '<button class="btn-back" onclick="irPara(\'fazenda\')">← '+esc(f.nome)+'</button>'+
+    '<div class="farm-head-mid"><h1>RH / Equipe</h1>'+
+    '<p>Funcionários, admissão, férias e retirada de EPIs/uniformes</p></div></div>';
+  const vencendo=ativos.filter(x=>_situacaoFerias(f.id,x).cls==="bad"||_situacaoFerias(f.id,x).cls==="warn").length;
+  h+='<div class="kpis kpis-3">'+
+    kpi("Ativos", ativos.length, fus.length>ativos.length?(fus.length-ativos.length)+" desligado(s)":"na equipe")+
+    kpi("Férias a resolver", vencendo, vencendo?"ver aba Férias":"tudo em dia")+
+    kpi("Retiradas", retiradasDe(f.id).length, "EPIs/uniformes")+
+  '</div>';
+  h+='<div class="abas">'+
+    '<button class="ab'+(_abaRH==="equipe"?" on":"")+'" onclick="irAbaRH(\'equipe\')">Equipe'+(fus.length?'<b>'+fus.length+'</b>':'')+'</button>'+
+    '<button class="ab'+(_abaRH==="ferias"?" on":"")+'" onclick="irAbaRH(\'ferias\')">Férias</button>'+
+    '<button class="ab'+(_abaRH==="retiradas"?" on":"")+'" onclick="irAbaRH(\'retiradas\')">EPIs / Uniformes'+(retiradasDe(f.id).length?'<b>'+retiradasDe(f.id).length+'</b>':'')+'</button>'+
+  '</div>';
+  if(_abaRH==="ferias") h+=abaRHFerias(f);
+  else if(_abaRH==="retiradas") h+=abaRHRetiradas(f);
+  else h+=abaRHEquipe(f);
+  return h+'</div>';
+}
+function abaRHEquipe(f){
+  const l=funcDe(f.id).slice().sort((a,b)=>String(a.nome||"").localeCompare(String(b.nome||""),"pt-BR"));
+  let h='<div class="acts" style="justify-content:flex-end"><button class="btn-save" onclick="modalFunc()">+ Funcionário</button></div>';
+  if(!l.length) return h+'<div class="empty"><strong>Nenhum funcionário</strong>Cadastre a equipe da fazenda.</div>';
+  h+='<table class="arm-grid"><thead><tr><th>Nome</th><th>Função</th><th>Admissão</th><th>Situação</th><th></th></tr></thead><tbody>';
+  l.forEach(x=>{
+    const desl=x.status==="Desligado";
+    h+='<tr'+(desl?' style="opacity:.55"':'')+'><td><b>'+esc(x.nome||"—")+'</b>'+(x.fone?'<br><small>'+esc(x.fone)+'</small>':'')+'</td>'+
+       '<td>'+esc(x.funcao||"—")+'</td><td>'+(x.admissao?dataBR(x.admissao):"—")+'</td>'+
+       '<td>'+(desl?'Desligado':'Ativo')+'</td>'+
+       '<td style="text-align:right;white-space:nowrap"><button class="mini" onclick="modalRetirada(\'\',\''+x.id+'\')">Retirada</button> '+
+       '<button class="mini" onclick="modalFunc(\''+x.id+'\')">Editar</button></td></tr>';
+  });
+  return h+'</tbody></table>';
+}
+function abaRHFerias(f){
+  const l=funcDe(f.id).filter(x=>x.status!=="Desligado").slice().sort((a,b)=>String(a.nome||"").localeCompare(String(b.nome||""),"pt-BR"));
+  if(!l.length) return '<div class="empty"><strong>Sem funcionários ativos</strong>Cadastre a equipe na aba Equipe.</div>';
+  let h='<table class="arm-grid"><thead><tr><th>Nome</th><th>Admissão</th><th>Últimas férias</th><th>Situação</th><th></th></tr></thead><tbody>';
+  l.forEach(x=>{
+    const fs=feriasDe(f.id).filter(y=>y.func_id===x.id).sort((a,b)=>String(b.inicio||"").localeCompare(String(a.inicio||"")));
+    const ult=fs[0];
+    const s=_situacaoFerias(f.id,x);
+    const cor=s.cls==="bad"?"var(--red)":s.cls==="warn"?"#b8860b":s.cls==="ok"?"var(--green)":"var(--muted)";
+    h+='<tr><td><b>'+esc(x.nome)+'</b></td><td>'+(x.admissao?dataBR(x.admissao):"—")+'</td>'+
+       '<td>'+(ult?dataBR(ult.inicio)+(ult.fim?' a '+dataBR(ult.fim):""):"—")+(fs.length>1?' <small>(+'+(fs.length-1)+')</small>':"")+'</td>'+
+       '<td style="color:'+cor+';font-weight:600">'+esc(s.txt)+'</td>'+
+       '<td style="text-align:right"><button class="mini" onclick="modalFerias(\''+x.id+'\')">Registrar</button></td></tr>';
+  });
+  return h+'</tbody></table>';
+}
+function abaRHRetiradas(f){
+  const l=retiradasDe(f.id).slice().sort((a,b)=>String(b.data||"").localeCompare(String(a.data||"")));
+  let h='<div class="acts" style="justify-content:flex-end"><button class="btn-save" onclick="modalRetirada()">+ Retirada</button></div>';
+  if(!l.length) return h+'<div class="empty"><strong>Nenhuma retirada</strong>Registre a entrega de EPIs, uniformes e ferramentas.</div>';
+  h+='<table class="arm-grid"><thead><tr><th>Data</th><th>Funcionário</th><th>Tipo</th><th>Item</th><th style="text-align:right">Qtd</th><th></th></tr></thead><tbody>';
+  l.forEach(x=>{
+    h+='<tr><td>'+(x.data?dataBR(x.data):"—")+'</td><td>'+esc(_nomeFunc(f.id,x.func_id))+'</td>'+
+       '<td>'+esc(x.tipo||"—")+'</td><td>'+esc(x.item||"—")+(x.obs?'<br><small>'+esc(x.obs)+'</small>':"")+'</td>'+
+       '<td style="text-align:right">'+nf(x.qtd||0,0)+'</td>'+
+       '<td style="text-align:right"><button class="mini rm" onclick="removerRetirada(\''+x.id+'\')">✕</button></td></tr>';
+  });
+  return h+'</tbody></table>';
+}
+function modalFunc(id){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const x=id?funcDe(f.id).find(y=>y.id===id):null;
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal">'+
+    '<h2>'+(x?"Editar funcionário":"Novo funcionário")+'</h2>'+
+    '<div class="frm">'+
+      '<div><label for="fn-nome">Nome</label><input id="fn-nome" value="'+esc(x?x.nome:"")+'" placeholder="Nome completo"></div>'+
+      '<div class="g2"><div><label for="fn-func">Função / cargo</label><input id="fn-func" value="'+esc(x?(x.funcao||""):"")+'" placeholder="Tratorista, operador…"></div>'+
+        '<div><label for="fn-adm">Admissão</label><input id="fn-adm" type="date" value="'+esc(x?(x.admissao||""):"")+'"></div></div>'+
+      '<div class="g2"><div><label for="fn-fone">Telefone</label><input id="fn-fone" value="'+esc(x?(x.fone||""):"")+'" placeholder="(opcional)"></div>'+
+        '<div><label for="fn-st">Situação</label><select id="fn-st"><option'+(!x||x.status!=="Desligado"?" selected":"")+'>Ativo</option><option'+(x&&x.status==="Desligado"?" selected":"")+'>Desligado</option></select></div></div>'+
+      '<div><label for="fn-obs">Observação</label><textarea id="fn-obs" rows="2" placeholder="(opcional)">'+esc(x?(x.obs||""):"")+'</textarea></div>'+
+    '</div>'+
+    '<div class="modal-acts">'+
+      (x?'<button class="btn-del-maq" onclick="removerFunc(\''+x.id+'\')">Excluir</button>':'')+
+      '<button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
+      '<button class="btn-save" onclick="gravarFunc('+(x?"'"+x.id+"'":"")+')">Salvar</button></div></div></div>';
+  setTimeout(()=>{const e=document.getElementById("fn-nome");if(e)e.focus();},60);
+}
+function gravarFunc(id){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const g=i=>String((document.getElementById(i)||{}).value||"").trim();
+  const nome=g("fn-nome"); if(!nome){ toast("Informe o nome"); return; }
+  const dados={nome:nome, funcao:g("fn-func"), admissao:g("fn-adm"), fone:g("fn-fone"),
+    status:g("fn-st")||"Ativo", obs:g("fn-obs")};
+  const l=funcDe(f.id);
+  if(id){ const i=l.findIndex(y=>y.id===id); if(i<0){fecharModal();return;} l[i]=Object.assign({},l[i],dados); }
+  else l.push(Object.assign({id:"fn_"+Date.now().toString(36)+Math.random().toString(36).slice(2,4), criado_em:new Date().toISOString()}, dados));
+  salvarFunc(f.id,l); fecharModal(); toast(id?"Funcionário atualizado":"Funcionário cadastrado"); render();
+}
+function removerFunc(id){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  if(!confirm("Excluir este funcionário? As férias e retiradas dele também saem.")) return;
+  salvarFunc(f.id, funcDe(f.id).filter(x=>x.id!==id));
+  salvarFerias(f.id, feriasDe(f.id).filter(x=>x.func_id!==id));
+  salvarRetiradas(f.id, retiradasDe(f.id).filter(x=>x.func_id!==id));
+  fecharModal(); toast("Funcionário removido"); render();
+}
+function modalFerias(funcId){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const fu=funcDe(f.id).find(y=>y.id===funcId); if(!fu) return;
+  const fs=feriasDe(f.id).filter(y=>y.func_id===funcId).sort((a,b)=>String(b.inicio||"").localeCompare(String(a.inicio||"")));
+  const lista=fs.length?'<div class="lista-cam">'+fs.map(x=>
+     '<div class="eq-row"><div class="who"><b>'+dataBR(x.inicio)+(x.fim?' a '+dataBR(x.fim):"")+'</b>'+(x.obs?'<small>'+esc(x.obs)+'</small>':"")+'</div>'+
+     '<button class="mini rm" onclick="removerFerias(\''+x.id+'\',\''+funcId+'\')">✕</button></div>').join("")+'</div>':'<p class="vazio">Nenhum período registrado.</p>';
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal">'+
+    '<h2>Férias · '+esc(fu.nome)+'</h2>'+
+    '<p class="sub">Admissão '+(fu.admissao?dataBR(fu.admissao):"—")+' · '+esc(_situacaoFerias(f.id,fu).txt)+'</p>'+
+    '<div class="frm"><div class="g2">'+
+      '<div><label for="fe-ini">Início</label><input id="fe-ini" type="date" value="'+new Date().toISOString().slice(0,10)+'"></div>'+
+      '<div><label for="fe-fim">Fim</label><input id="fe-fim" type="date"></div></div>'+
+      '<div><label for="fe-obs">Observação</label><input id="fe-obs" placeholder="(opcional)"></div>'+
+    '</div>'+
+    '<div class="modal-acts" style="margin-bottom:6px"><button class="btn-cancel" onclick="fecharModal()">Fechar</button>'+
+      '<button class="btn-save" onclick="gravarFerias(\''+funcId+'\')">Registrar período</button></div>'+
+    lista+'</div></div>';
+}
+function gravarFerias(funcId){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const ini=String((document.getElementById("fe-ini")||{}).value||"").trim();
+  if(!ini){ toast("Informe o início"); return; }
+  const l=feriasDe(f.id);
+  l.push({id:"fe_"+Date.now().toString(36)+Math.random().toString(36).slice(2,4), func_id:funcId,
+    inicio:ini, fim:String((document.getElementById("fe-fim")||{}).value||"").trim(),
+    obs:String((document.getElementById("fe-obs")||{}).value||"").trim(), criado_em:new Date().toISOString()});
+  salvarFerias(f.id,l); toast("Férias registradas"); render(); modalFerias(funcId);
+}
+function removerFerias(id, funcId){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  if(!confirm("Remover este período de férias?")) return;
+  salvarFerias(f.id, feriasDe(f.id).filter(x=>x.id!==id));
+  toast("Período removido"); render(); modalFerias(funcId);
+}
+function modalRetirada(id, funcPre){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const x=id?retiradasDe(f.id).find(y=>y.id===id):null;
+  const ativos=funcDe(f.id).filter(y=>y.status!=="Desligado").slice().sort((a,b)=>String(a.nome||"").localeCompare(String(b.nome||""),"pt-BR"));
+  if(!ativos.length && !x){ toast("Cadastre um funcionário primeiro"); return; }
+  const sel=x?x.func_id:(funcPre||"");
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal">'+
+    '<h2>'+(x?"Editar retirada":"Nova retirada")+'</h2>'+
+    '<div class="frm">'+
+      '<div><label for="rt-func">Funcionário</label><select id="rt-func">'+
+        ativos.map(a=>'<option value="'+a.id+'"'+(a.id===sel?" selected":"")+'>'+esc(a.nome)+'</option>').join("")+'</select></div>'+
+      '<div class="g2"><div><label for="rt-data">Data</label><input id="rt-data" type="date" value="'+esc(x?(x.data||""):new Date().toISOString().slice(0,10))+'"></div>'+
+        '<div><label for="rt-tipo">Tipo</label><select id="rt-tipo">'+RH_TIPOS.map(t=>'<option'+(x&&x.tipo===t?" selected":"")+'>'+t+'</option>').join("")+'</select></div></div>'+
+      '<div class="g2"><div><label for="rt-item">Item</label><input id="rt-item" value="'+esc(x?(x.item||""):"")+'" placeholder="Bota, luva, camisa…"></div>'+
+        '<div><label for="rt-qtd">Quantidade</label><input id="rt-qtd" type="number" inputmode="decimal" value="'+(x&&x.qtd!=null?x.qtd:1)+'"></div></div>'+
+      '<div><label for="rt-obs">Observação</label><input id="rt-obs" value="'+esc(x?(x.obs||""):"")+'" placeholder="(opcional)"></div>'+
+    '</div>'+
+    '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
+      '<button class="btn-save" onclick="gravarRetirada('+(x?"'"+x.id+"'":"")+')">Salvar</button></div></div></div>';
+}
+function gravarRetirada(id){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const g=i=>String((document.getElementById(i)||{}).value||"").trim();
+  const func_id=g("rt-func"); if(!func_id){ toast("Escolha o funcionário"); return; }
+  const item=g("rt-item"); if(!item){ toast("Informe o item"); return; }
+  const dados={func_id:func_id, data:g("rt-data"), tipo:g("rt-tipo")||"EPI", item:item,
+    qtd:Number((g("rt-qtd")||"0").replace(",","."))||0, obs:g("rt-obs")};
+  const l=retiradasDe(f.id);
+  if(id){ const i=l.findIndex(y=>y.id===id); if(i<0){fecharModal();return;} l[i]=Object.assign({},l[i],dados); }
+  else l.push(Object.assign({id:"rt_"+Date.now().toString(36)+Math.random().toString(36).slice(2,4), criado_em:new Date().toISOString()}, dados));
+  salvarRetiradas(f.id,l); fecharModal(); toast(id?"Retirada atualizada":"Retirada registrada"); render();
+}
+function removerRetirada(id){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  if(!confirm("Remover esta retirada?")) return;
+  salvarRetiradas(f.id, retiradasDe(f.id).filter(x=>x.id!==id));
+  toast("Retirada removida"); render();
+}
 
 function kVisitas(f){ return "faz_"+f+"_visitas"; }
 function visitasDe(f){ return Store.get(kVisitas(f), []); }
