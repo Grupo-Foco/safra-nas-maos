@@ -935,7 +935,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.134.0";
+const APP_VERSION = "2.135.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -4988,6 +4988,7 @@ function exportarPedidos(fmt){
 }
 function abaPedidos(f, peds){
   let h='<div class="acts"><button class="btn-act primary" onclick="modalPedido()">+ Novo pedido</button>'+
+    '<button class="btn-act" onclick="modalImportarNF()">📄 Nota (XML)</button>'+
     '<button class="btn-act" onclick="modalImportarPedidos()">Importar</button>'+
     (peds.length?botaoExportar([{rotulo:"Planilha",fn:"exportarPedidos('csv')"},{rotulo:"Imagem",fn:"exportarPedidos('png')"},{rotulo:"PDF",fn:"exportarPedidos('pdf')"}]):"")+
     (peds.length?'<select class="sel-f" onchange="_fCatPed=this.value;render()">'+
@@ -5015,6 +5016,7 @@ function abaPedidos(f, peds){
       sP+=p.qtd; sE+=ent; sV+=val;
       h+='<tr><td>'+esc(p.produto)+(p.unidade?' <small style="color:var(--muted)">('+esc(p.unidade)+')</small>':'')+
          (p.nf?' <small style="color:var(--muted)">· NF '+esc(p.nf)+'</small>':'')+
+         (p.fora_pedido?' <span class="cat-tag" style="background:#fde2e2;color:#b00020">fora do pedido</span>':'')+
          (p.anexo_path?' <a href="#" onclick="verAnexoPedido(\''+p.id+'\');return false" title="Ver comprovante/nota" style="text-decoration:none">📎</a>':'')+'</td>'+
          '<td>'+esc(p.responsavel||"—")+'</td>'+
          '<td>'+(p.categoria?'<span class="cat-tag '+_catClasse(p.categoria)+'">'+esc(p.categoria)+'</span>':'<span style="color:var(--muted)">—</span>')+'</td>'+
@@ -5216,6 +5218,153 @@ function _quemLanca(){
   const p=Store.get("perfil",null);
   if(p && p.nome && p.nome!=="Você") return String(p.nome).trim();
   return (u && u.email) ? u.email.split("@")[0] : "";
+}
+/* ═══════════════════════════════════════════════════
+   IMPORTAR ENTREGA PELA NOTA FISCAL (NF-e, XML)
+   Lê o XML da NF-e (offline, nativo), lista os itens e deixa você
+   conferir. Itens que casam com um pedido aberto dão baixa na entrega;
+   itens sem pedido viram um novo pedido já entregue, marcado "fora do
+   pedido". O XML fica anexado como a nota de cada entrega.
+   ═══════════════════════════════════════════════════ */
+function _nfUn(u){
+  const m={LT:"L",L:"L",KG:"kg",KGS:"kg",G:"g",UN:"un",UNID:"un",PC:"un",DS:"DS",SC:"sc",ML:"ml",TON:"t",T:"t",BAG:"Bag"};
+  const k=String(u||"").trim().toUpperCase();
+  return m[k]||String(u||"").trim();
+}
+/* "núcleo" do nome do produto para casar NF×pedido: minúsculo, sem acento,
+   sem embalagem (4X5LT, 1X20, 10 LT, cx, bag…). */
+function _coreProd(s){
+  return _normNome(s)
+    .replace(/\d+\s*x\s*\d+\s*(kg|lt|ml|l|g|ds|un|sc)?/g," ")
+    .replace(/\b\d+(\.\d+)?\s*(kg|lt|ml|l|g|ds|un|sc|cx)?\b/g," ")
+    .replace(/\b(cx|bag|kg|lt|ml|ds|un|sc|l|g)\b/g," ")
+    .replace(/\s+/g," ").trim();
+}
+function _casaPedido(nfNome, abertos){
+  const nc=_coreProd(nfNome); if(!nc) return null;
+  let best=null, bestLen=0;
+  abertos.forEach(p=>{
+    const pc=_coreProd(p.produto); if(!pc) return;
+    if(nc.indexOf(pc)>=0 || pc.indexOf(nc)>=0){
+      if(pc.length>bestLen){ best=p; bestLen=pc.length; }
+    }
+  });
+  return best;
+}
+function parseNFeXML(txt){
+  const doc=new DOMParser().parseFromString(txt, "text/xml");
+  if(doc.getElementsByTagName("parsererror").length) throw new Error("XML inválido");
+  const t=(el,tag)=>{ const n=el&&el.getElementsByTagName(tag)[0]; return n?(n.textContent||"").trim():""; };
+  const infNFe=doc.getElementsByTagName("infNFe")[0];
+  if(!infNFe) throw new Error("Não parece uma NF-e");
+  const emitEl=doc.getElementsByTagName("emit")[0], destEl=doc.getElementsByTagName("dest")[0];
+  const totEl=doc.getElementsByTagName("ICMSTot")[0];
+  const chave=(t(doc,"chNFe")||String((infNFe.getAttribute("Id")||"")).replace(/\D/g,"")).slice(-44);
+  const dados={
+    nf:t(doc,"nNF"), serie:t(doc,"serie"), chave:chave,
+    data:(t(doc,"dhEmi")||"").slice(0,10),
+    emit: emitEl?(t(emitEl,"xFant")||t(emitEl,"xNome")):"",
+    dest: destEl?t(destEl,"xNome"):"",
+    destLocal: destEl?t(destEl,"xLgr"):"",
+    total: Number(totEl?t(totEl,"vNF"):"")||0,
+    itens:[]
+  };
+  const dets=doc.getElementsByTagName("det");
+  for(let i=0;i<dets.length;i++){
+    const prod=dets[i].getElementsByTagName("prod")[0]; if(!prod) continue;
+    dados.itens.push({
+      cProd:t(prod,"cProd"), nome:t(prod,"xProd"),
+      qtd:Number(t(prod,"qCom"))||0, unidade:_nfUn(t(prod,"uCom")),
+      vUnit:Number(t(prod,"vUnCom"))||0, vTotal:Number(t(prod,"vProd"))||0
+    });
+  }
+  return dados;
+}
+function modalImportarNF(){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  window._nfFile=null; window._nfDados=null;
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal modal-lg">'+
+    '<h2>Importar nota (XML)</h2>'+
+    '<p class="sub">Escolha o <b>arquivo .xml da NF-e</b>. O sistema lê os itens, casa com os pedidos abertos e você confere antes de lançar. Entra na fazenda <b>'+esc(f.nome)+'</b>.</p>'+
+    '<div class="frm"><div><label for="nf-file">Arquivo XML da nota</label>'+
+      '<input id="nf-file" type="file" accept=".xml,text/xml,application/xml" onchange="importarNFArquivo(this)"></div>'+
+      '<p class="dica">Só o XML é lido automaticamente. Foto/PDF do DANFE fica para a próxima etapa.</p>'+
+    '</div>'+
+    '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button></div></div></div>';
+}
+async function importarNFArquivo(input){
+  const a=input.files && input.files[0]; if(!a) return;
+  try{
+    const txt=await a.text();
+    const d=parseNFeXML(txt);
+    if(!d.itens.length){ toast("Nenhum item encontrado na nota"); return; }
+    window._nfFile=a; window._nfDados=d;
+    telaConferirNF();
+  }catch(e){ toast("Não consegui ler esse XML — confira se é a NF-e"); }
+}
+function telaConferirNF(){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const d=window._nfDados; if(!d) return;
+  const abertos=pedidosDe(f.id).filter(p=>(p.qtd-(p.entregue||0))>0.001);
+  // já importada? (alguma entrega com a mesma chave)
+  let jaImp=false;
+  pedidosDe(f.id).forEach(p=>(p.entregas||[]).forEach(e=>{ if(e.chave && e.chave===d.chave) jaImp=true; }));
+  const rows=d.itens.map((it,i)=>{
+    const match=_casaPedido(it.nome, abertos);
+    const opts='<option value="__novo__">➕ Novo pedido (fora do pedido)</option>'+
+      abertos.map(p=>'<option value="'+p.id+'"'+(match&&match.id===p.id?" selected":"")+'>'+esc(p.produto)+' · falta '+nf(p.qtd-(p.entregue||0),0)+(p.unidade?" "+esc(p.unidade):"")+'</option>').join("")+
+      '<option value="__ignorar__">✕ Ignorar</option>';
+    return '<tr><td><b>'+esc(it.nome)+'</b><br><small style="color:var(--muted)">'+nf(it.qtd,0)+' '+esc(it.unidade)+' · '+moeda(it.vUnit)+'/un · '+moeda(it.vTotal)+'</small></td>'+
+      '<td><select id="nfm-'+i+'" class="sel-f" style="max-width:100%">'+opts+'</select></td></tr>';
+  }).join("");
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal modal-lg">'+
+    '<h2>Conferir nota '+(d.nf?"NF "+esc(d.nf):"")+'</h2>'+
+    '<p class="sub">'+esc(d.emit||"—")+' · '+(d.data?dataBR(d.data):"—")+(d.destLocal?' · destino '+esc(d.destLocal):"")+' · total '+moeda(d.total)+'</p>'+
+    (jaImp?'<p class="dica" style="color:var(--red)">⚠️ Esta nota (mesma chave) já foi importada antes. Importar de novo vai duplicar as entregas.</p>':"")+
+    '<div class="tbl-wrap" style="max-height:52vh;overflow:auto"><table class="arm-grid"><thead><tr><th>Item da nota</th><th>Lançar em</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+    '<p class="dica">Casados dão baixa na entrega do pedido. "Novo pedido" entra já entregue, marcado <b>fora do pedido</b>. O XML fica anexado como nota.</p>'+
+    '<div class="modal-acts"><button class="btn-cancel" onclick="modalImportarNF()">Voltar</button>'+
+      '<button class="btn-save" onclick="confirmarImportNF()">Lançar entregas</button></div></div></div>';
+}
+async function confirmarImportNF(){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const d=window._nfDados; if(!d) return;
+  const escolhas=d.itens.map((it,i)=>(document.getElementById("nfm-"+i)||{}).value||"__novo__");
+  // anexa o XML uma vez no Storage; cada entrega aponta para ele.
+  let nota=null;
+  if(window._nfFile){
+    const caminho=f.id+"/nf-"+(d.chave||Date.now().toString(36))+".xml";
+    try{ await enviarArquivo(caminho, window._nfFile); nota={path:caminho, nome:"NF "+(d.nf||"")+".xml"}; }catch(e){}
+  }
+  const l=pedidosDe(f.id);
+  let baixas=0, novos=0, ign=0;
+  const quem=_quemLanca();
+  d.itens.forEach((it,i)=>{
+    const ch=escolhas[i];
+    if(ch==="__ignorar__"){ ign++; return; }
+    const entrega={id:"en_"+Date.now().toString(36)+i, qtd:it.qtd, data:d.data||new Date().toISOString().slice(0,10),
+      nf:d.nf||"", chave:d.chave||"", por:quem, anexos:nota?[nota]:[]};
+    if(ch==="__novo__"){
+      const novo={id:"pd_"+Date.now().toString(36)+"_"+i, produto:it.nome, responsavel:"", unidade:it.unidade,
+        qtd:it.qtd, valor:it.vUnit, nf:d.nf||"", categoria:"", fora_pedido:true,
+        entregue_base:0, entregas:[entrega], criado_em:new Date().toISOString()};
+      _recalcEntregue(novo); l.push(novo); novos++;
+    } else {
+      const p=l.find(x=>x.id===ch); if(!p){ return; }
+      _baseEntregue(p);
+      p.entregas=p.entregas||[];
+      p.entregas.push(entrega);
+      if(!p.valor && it.vUnit) p.valor=it.vUnit;
+      if(!p.nf && d.nf) p.nf=d.nf;
+      _recalcEntregue(p); baixas++;
+    }
+  });
+  salvarPedidos(f.id, l);
+  fecharModal();
+  toast(baixas+" entrega(s) · "+novos+" novo(s) fora do pedido"+(ign?" · "+ign+" ignorado(s)":""));
+  render();
 }
 function modalEntregaPedido(id){
   const f=acharFazenda(App.fazendaId);
