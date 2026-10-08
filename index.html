@@ -931,7 +931,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.131.0";
+const APP_VERSION = "2.132.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -6764,6 +6764,7 @@ function salvarVisita(f, v, id){
   const dados = { talhao_id:v.talhao_id||"", talhao_nome:v.talhao_nome||"",
     data:v.data||"", estagio:v.estagio||"", clima:(v.clima||"").trim(),
     texto:(v.texto||"").trim(), fotos: Array.isArray(v.fotos)?v.fotos:[] };
+  if(v.geo!==undefined) dados.geo = v.geo;   // georreferenciamento (GPS no momento do registro)
   if(id){ const i=l.findIndex(x=>x.id===id); if(i<0) return null;
     l[i]=Object.assign({},l[i],dados); Store.set(kVisitas(f),l); return l[i]; }
   const novo=Object.assign({id:"vs_"+Date.now().toString(36)+Math.random().toString(36).slice(2,4),
@@ -6862,6 +6863,7 @@ function telaVisitas(){
       '<div class="vis-meta">'+
         (v.data?'<span><i>Data</i>'+dataBR(v.data)+'</span>':'')+
         (v.clima?'<span><i>Clima</i>'+esc(v.clima)+'</span>':'')+
+        (v.geo&&v.geo.lat!=null?'<span><i>Local</i><a href="https://www.google.com/maps?q='+v.geo.lat+','+v.geo.lon+'" target="_blank" rel="noopener" style="color:var(--green)">📍 ver no mapa</a></span>':'')+
       '</div>'+
       (v.texto?'<p class="vis-txt">'+esc(v.texto)+'</p>':'')+
       (fotos.length?'<div class="vis-fotos">'+
@@ -6910,11 +6912,21 @@ function modalVisita(id){
         '<span>Fotos ou vídeos do talhão · até 5 · foto máx. 20 MB · vídeo máx. 50 MB</span>'+
         '<input id="vs-file" type="file" accept="image/*,video/*" multiple onchange="escolherFotoVisita(this,'+jaTem+')">'+
       '</label>'+
+      '<div class="dica" id="vs-geo" onclick="_capturarGeoVisita()" style="cursor:pointer"><span id="vs-geo-lbl">📍 Localização</span></div>'+
     '</div>'+
     '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
       '<button class="btn-save" onclick="gravarVisita('+(v?"'"+v.id+"'":"null")+')">Salvar</button>'+
     '</div></div></div>';
   _somaVisita();
+  // guarda a localização já registrada (se houver) e, em visita nova, tenta marcar agora.
+  window._visitaGeo = (v && v.geo && v.geo.lat!=null) ? v.geo : null;
+  if(window._visitaGeo){
+    const el=document.getElementById("vs-geo-lbl");
+    if(el) el.innerHTML="📍 Localização marcada · "+nf(window._visitaGeo.lat,5)+", "+nf(window._visitaGeo.lon,5)+
+      (window._visitaGeo.acc?' · ±'+window._visitaGeo.acc+' m':'')+" <small>(toque para refazer)</small>";
+  } else {
+    _capturarGeoVisita();
+  }
 }
 function _somaVisita(){
   const f=acharFazenda(App.fazendaId); if(!f) return;
@@ -6924,6 +6936,28 @@ function _somaVisita(){
   if(el) el.textContent = ids.length? (ids.length+" talhão(ões) marcado(s) · "+nf(soma,2)+" ha no total") : "Nenhum talhão marcado — registro geral da fazenda.";
 }
 
+/* Georreferenciamento: pega a posição do aparelho (GPS) ao registrar a visita, para
+   marcar onde a foto foi tirada. Guarda em window._visitaGeo={lat,lon,acc,em} e grava
+   junto da visita. Toque no indicador tenta de novo (ex.: se a permissão foi negada). */
+function _capturarGeoVisita(){
+  const lbl=document.getElementById("vs-geo-lbl");
+  if(!("geolocation" in navigator)){ if(lbl) lbl.textContent="📍 GPS indisponível neste aparelho"; return; }
+  if(lbl) lbl.textContent="📍 Localizando… (permita o acesso à localização)";
+  navigator.geolocation.getCurrentPosition(
+    function(p){
+      window._visitaGeo={lat:p.coords.latitude, lon:p.coords.longitude,
+        acc:Math.round(p.coords.accuracy||0), em:new Date().toISOString()};
+      if(lbl) lbl.innerHTML="📍 Localização marcada · "+nf(window._visitaGeo.lat,5)+", "+nf(window._visitaGeo.lon,5)+
+        (window._visitaGeo.acc?' · ±'+window._visitaGeo.acc+' m':'')+" <small>(toque para refazer)</small>";
+    },
+    function(e){
+      if(lbl) lbl.textContent = e && e.code===1
+        ? "📍 Permissão de localização negada — toque para tentar de novo"
+        : "📍 Não consegui a localização — toque para tentar de novo";
+    },
+    {enableHighAccuracy:true, timeout:12000, maximumAge:60000}
+  );
+}
 function escolherFotoVisita(input, jaTem){
   const arqs=[...(input.files||[])];
   const lbl=document.getElementById("vs-lbl");
@@ -6950,7 +6984,8 @@ async function gravarVisita(id){
   const dados = { talhao_ids:ids, talhao_nomes:nomes, area:area,
     talhao_id:ids[0]||"", talhao_nome:nomes,
     data:g("vs-data"), estagio:g("vs-est"), clima:g("vs-clima"), texto:g("vs-txt"),
-    fotos: fotosAntigas.slice() };
+    fotos: fotosAntigas.slice(),
+    geo: (window._visitaGeo && window._visitaGeo.lat!=null) ? window._visitaGeo : ((antiga&&antiga.geo)||null) };
   if(!dados.data && !dados.texto && !dados.estagio && !novas.length && !fotosAntigas.length){
     toast("Preencha ao menos data ou observação"); return; }
 
