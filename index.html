@@ -301,6 +301,14 @@ svg{display:block}
 .aviso-baixo>b{display:block;color:#9a6a00;margin-bottom:8px;font-size:14px}
 .aviso-baixo .ab-row{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:5px 0;border-top:1px solid #f0e0bd;font-size:13px}
 .aviso-baixo .ab-row:first-of-type{border-top:none}
+.exp-ctrl{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
+.exp-ctrl .busca{flex:1;min-width:160px}
+.exp-lista{max-height:46vh;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:4px}
+.exp-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer}
+.exp-item:hover{background:var(--line-soft)}
+.exp-item .exp-nome{flex:1;font-size:14px}
+.exp-item small{color:var(--muted);font-variant-numeric:tabular-nums}
+.exp-item input{width:18px;height:18px;flex-shrink:0}
 .kpis-4{grid-template-columns:repeat(4,1fr)}
 .kpis-4 .kpi:nth-child(4){border-left-color:var(--gold)}
 .sel-f{padding:10px 13px;border:1px solid var(--line);border-radius:9px;background:#fff;
@@ -935,7 +943,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.136.0";
+const APP_VERSION = "2.137.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -4952,12 +4960,13 @@ function telaEstoque(){
   return h+'</div>';
 }
 /* Aba Pedidos: cadastro de compras, com entregue e faltam */
-function relPedidos(f){
+function relPedidos(f, sel){
   let peds=pedidosDe(f.id);
   if(_fCatPed==="__sem__") peds=peds.filter(p=>!p.categoria);
   else if(_fCatPed) peds=peds.filter(p=>(p.categoria||"")===_fCatPed);
   const bq=_normNome(_buscaPed||"").trim();
   if(bq) peds=peds.filter(p=> _normNome((p.produto||"")+" "+(p.responsavel||"")).includes(bq));
+  if(sel && sel.size) peds=peds.filter(p=> sel.has(_normNome(p.produto)));   // só os produtos marcados
   const larguras=[210,100,110,80,80,80,130,80], aligns=['left','left','left','right','right','right','right','left'];
   const linhas=[{t:'cab', cs:['Produto','Em nome de','Categoria','Pedido','Entregue','Faltam','Valor','NF']}];
   const grupos={};
@@ -4977,20 +4986,68 @@ function relPedidos(f){
   linhas.push({t:'total', cs:['Total geral','','', nf(gP,0), nf(gE,0), nf(gP-gE,0), moeda(gV), '']});
   return { titulo:"Pedidos · "+f.nome, sub:"Safra "+f.safra+(bq?' · filtro: "'+_buscaPed+'"':""), larguras, aligns, linhas };
 }
-function exportarPedidos(fmt){
+function exportarPedidos(fmt, sel){
   const f=acharFazenda(App.fazendaId); if(!f) return;
   if(!pedidosDe(f.id).length){ toast("Nenhum pedido para exportar"); return; }
-  const spec=relPedidos(f);
-  if(spec.linhas.length<=2){ toast("Nada visível no filtro para exportar"); return; }
+  const spec=relPedidos(f, sel);
+  if(spec.linhas.length<=2){ toast("Nada selecionado para exportar"); return; }
   const nome="pedidos-"+f.nome.toLowerCase().replace(/[^a-z0-9]+/g,"-");
   if(fmt==="csv"){ relParaCSV(spec, nome); return; }
   fmt==="pdf" ? REL.pdf(spec,nome) : REL.png(spec,nome);
+}
+/* Exportar pedidos escolhendo os produtos: janela com caixas (marcar/desmarcar,
+   busca) e os três formatos. Exporta só os produtos marcados. */
+function modalExportarPedidos(){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  let peds=pedidosDe(f.id);
+  if(_fCatPed==="__sem__") peds=peds.filter(p=>!p.categoria);
+  else if(_fCatPed) peds=peds.filter(p=>(p.categoria||"")===_fCatPed);
+  if(!peds.length){ toast("Nenhum pedido para exportar"); return; }
+  const grupos={};
+  peds.forEach(p=>{ const k=_normNome(p.produto); (grupos[k]=grupos[k]||{nome:p.produto,qtd:0,un:p.unidade||""}).qtd+=(Number(p.qtd)||0); });
+  const chaves=Object.keys(grupos).sort((a,b)=>grupos[a].nome.localeCompare(grupos[b].nome,"pt-BR"));
+  const lista=chaves.map(k=>'<label class="exp-item"><input type="checkbox" class="exp-ck" value="'+esc(k)+'" checked onchange="_expCont()"> '+
+    '<span class="exp-nome">'+esc(grupos[k].nome)+'</span><small>'+nf(grupos[k].qtd,0)+(grupos[k].un?" "+esc(grupos[k].un):"")+'</small></label>').join("");
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal modal-lg">'+
+    '<h2>Exportar pedidos</h2><p class="sub">Marque os produtos que quer exportar. Começa com todos marcados.</p>'+
+    '<div class="exp-ctrl"><input id="exp-busca" class="busca" placeholder="Buscar produto…" oninput="_expFiltro(this.value)">'+
+      '<button class="mini" onclick="_expMarcar(true)">Marcar todos</button>'+
+      '<button class="mini" onclick="_expMarcar(false)">Desmarcar</button></div>'+
+    '<div class="exp-lista">'+lista+'</div>'+
+    '<div class="modal-acts" style="align-items:center"><span class="dica" id="exp-cont" style="margin-right:auto"></span>'+
+      '<button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
+      '<button class="mini" onclick="exportarPedidosSel(\'csv\')">Planilha</button>'+
+      '<button class="mini" onclick="exportarPedidosSel(\'png\')">Imagem</button>'+
+      '<button class="btn-save" onclick="exportarPedidosSel(\'pdf\')">PDF</button></div></div></div>';
+  _expCont();
+}
+function _expFiltro(q){
+  const n=_normNome(q||"");
+  document.querySelectorAll(".exp-item").forEach(l=>{
+    const nome=_normNome((l.querySelector(".exp-nome")||{}).textContent||"");
+    l.style.display = (!n || nome.indexOf(n)>=0) ? "" : "none";
+  });
+}
+function _expMarcar(v){   // marca/desmarca só os que estão visíveis (respeita a busca)
+  document.querySelectorAll(".exp-item").forEach(l=>{ if(l.style.display!=="none"){ const c=l.querySelector(".exp-ck"); if(c) c.checked=v; } });
+  _expCont();
+}
+function _expCont(){
+  const n=document.querySelectorAll(".exp-ck:checked").length;
+  const el=document.getElementById("exp-cont"); if(el) el.textContent=n+" produto(s) selecionado(s)";
+}
+function exportarPedidosSel(fmt){
+  const sel=new Set([...document.querySelectorAll(".exp-ck:checked")].map(c=>c.value));
+  if(!sel.size){ toast("Marque ao menos um produto"); return; }
+  fecharModal();
+  exportarPedidos(fmt, sel);
 }
 function abaPedidos(f, peds){
   let h='<div class="acts"><button class="btn-act primary" onclick="modalPedido()">+ Novo pedido</button>'+
     '<button class="btn-act" onclick="modalImportarNF()">📄 Nota (XML)</button>'+
     '<button class="btn-act" onclick="modalImportarPedidos()">Importar</button>'+
-    (peds.length?botaoExportar([{rotulo:"Planilha",fn:"exportarPedidos('csv')"},{rotulo:"Imagem",fn:"exportarPedidos('png')"},{rotulo:"PDF",fn:"exportarPedidos('pdf')"}]):"")+
+    (peds.length?'<button class="btn-act" onclick="modalExportarPedidos()">Exportar ▾</button>':"")+
     (peds.length?'<select class="sel-f" onchange="_fCatPed=this.value;render()">'+
        '<option value="">Todas as categorias</option>'+
        CAT_PEDIDO.filter(Boolean).map(c=>'<option '+(_fCatPed===c?"selected":"")+'>'+esc(c)+'</option>').join("")+
