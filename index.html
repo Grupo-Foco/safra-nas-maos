@@ -943,7 +943,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.137.0";
+const APP_VERSION = "2.138.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -1028,7 +1028,7 @@ const SUPABASE = {
 /* Blocos de estado que sobem para a nuvem */
 const BLOCOS = ["talhoes","cargas","armazens","caminhoes","silocap","bases","chuva",
                 "lavoura","produtos","aplicacoes","entradas","docs","mapa","visitas","contratos","hist","pedidos","maquinas","abastec","diesel","remanescente","pontoschuva",
-                "funcionarios","rhferias","rhretiradas","consultor"];
+                "funcionarios","rhferias","rhretiradas","consultor","remocoes"];
 
 /* ── Sessão ──────────────────────────────── */
 const Auth = {
@@ -1443,7 +1443,7 @@ const Sync = {
               const nuvem = (r && r[0]) ? r[0].dados : null;
               if(_ehLog(nuvem)){
                 const lastPull = Date.parse(Store.get("sync_ultimo","")) || 0;
-                const merged = _mergeSubida(payload, nuvem, lastPull);
+                const merged = _semRemovidos(fid, bloco, _mergeSubida(payload, nuvem, lastPull));
                 if(JSON.stringify(merged)!==JSON.stringify(payload)){
                   payload = merged;
                   const apl=this._aplicando; this._aplicando=true;   // grava sem remarcar sujo
@@ -1547,7 +1547,8 @@ const Sync = {
       if(_ehLog(local) && _ehLog(r.dados)){
         // Bloco tipo LOG (lista de registros com id): mescla por id — nunca perde
         // um lançamento local, mesmo se a nuvem estiver com versão antiga.
-        Store.set(chave, _mergeLog(local, r.dados, dirty, lastPull));
+        // Depois filtra as lápides (ids apagados) para a nuvem não ressuscitar.
+        Store.set(chave, _semRemovidos(r.fazenda_id, r.chave, _mergeLog(local, r.dados, dirty, lastPull)));
       } else if(_ehObj(local) && _ehObj(r.dados)){
         // Bloco OBJETO (ex.: chuva, lavoura): une por chave — nunca apaga o que já
         // existe de um lado. Em conflito, nuvem manda; se há edição local pendente, local.
@@ -7246,8 +7247,29 @@ function removerRetirada(id){
   toast("Retirada removida"); render();
 }
 
+/* ── Lápides de exclusão (tombstones) para blocos-LISTA ──────────
+   Um id apagado fica marcado em faz_<id>_remocoes (bloco-OBJETO, união aditiva que
+   nunca perde) e é filtrado na leitura, na descida e na subida — assim a nuvem não
+   ressuscita o que foi apagado (era o bug de visita/entrega voltando ao sincronizar). */
+function kRemocoes(f){ return "faz_"+f+"_remocoes"; }
+function remocoesDe(f){ return Store.get(kRemocoes(f), {}) || {}; }
+function _marcarRemovido(fid, bloco, ids){
+  if(!ids || !ids.length) return;
+  const r = Store.get(kRemocoes(fid), {}) || {};
+  const b = r[bloco] = r[bloco] || {};
+  ids.forEach(id=>{ if(id!=null) b[id]=true; });
+  Store.set(kRemocoes(fid), r);
+}
+function _removidos(fid, bloco){ return remocoesDe(fid)[bloco] || {}; }
+function _semRemovidos(fid, bloco, lista){
+  if(!Array.isArray(lista) || !lista.length) return lista;
+  const rem = _removidos(fid, bloco);
+  for(const id in rem){ if(rem[id]) return lista.filter(x=> !(x && x.id!=null && _removidos(fid,bloco)[x.id])); }
+  return lista;
+}
+
 function kVisitas(f){ return "faz_"+f+"_visitas"; }
-function visitasDe(f){ return Store.get(kVisitas(f), []); }
+function visitasDe(f){ return _semRemovidos(f, "visitas", Store.get(kVisitas(f), [])); }
 
 function salvarVisita(f, v, id){
   const l = visitasDe(f);
@@ -7272,7 +7294,19 @@ function fotosDaVisita(v){
 function apagarVisita(f,id){
   const v=visitasDe(f).find(x=>x.id===id);
   if(v) fotosDaVisita(v).forEach(ft=>{ if(ft.path){ removerArquivo(ft.path); stApagar(ft.path); } });
+  _marcarRemovido(f, "visitas", [id]);   // lápide: não volta ao sincronizar
   Store.set(kVisitas(f), visitasDe(f).filter(x=>x.id!==id));
+}
+function apagarTodasVisitas(){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const l=visitasDe(f.id);
+  if(!l.length){ toast("Nenhuma visita para apagar"); return; }
+  if(!confirm("Apagar TODAS as "+l.length+" visitas da "+f.nome+"?\nAs fotos também saem. Não dá para desfazer.")) return;
+  l.forEach(v=>fotosDaVisita(v).forEach(ft=>{ if(ft.path){ removerArquivo(ft.path); stApagar(ft.path); } }));
+  _marcarRemovido(f.id, "visitas", l.map(v=>v.id));
+  Store.set(kVisitas(f.id), []);
+  toast("Visitas apagadas"); render();
+  if(typeof Sync!=="undefined" && Sync.rodar) Sync.rodar();   // empurra a exclusão já
 }
 
 let _fVisTal = "";
@@ -7323,6 +7357,7 @@ function telaVisitas(){
   h += '<div class="acts">'+
     '<button class="btn-act primary" onclick="modalVisita()">+ Nova visita</button>'+
     (comFoto?'<button class="btn-act" onclick="reenviarFotosVisitas()" title="Reenvia para a nuvem as fotos que ainda estão neste aparelho">Reenviar fotos</button>':'')+
+    (todas.length?'<button class="btn-act" onclick="apagarTodasVisitas()" style="color:var(--red)">Apagar todas</button>':'')+
     (tals.length?'<select class="sel-f" onchange="_fVisTal=this.value;render()">'+
       '<option value="">Todos os talhões</option>'+
       tals.slice().sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR",{numeric:true}))
