@@ -935,7 +935,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.135.0";
+const APP_VERSION = "2.136.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -9353,7 +9353,12 @@ document.addEventListener("visibilitychange", ()=>{
    sozinho quando a nova assume. */
 if("serviceWorker" in navigator && location.protocol.startsWith("http")){
   window._recarregando = false; window._recarregarPendente = false;
-  navigator.serviceWorker.addEventListener("controllerchange", ()=>_aplicarRecarregamento());
+  // Só recarrega por versão nova se JÁ havia um SW no comando quando a página abriu
+  // (atualização real). Na primeira adoção do SW o controller é nulo e o
+  // controllerchange dispara sem ser atualização — recarregar aí entra em loop
+  // (reload → página sem controller → adota de novo → reload…).
+  const _tinhaControle = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener("controllerchange", ()=>{ if(_tinhaControle) _aplicarRecarregamento(); });
   navigator.serviceWorker.register("sw.js", {updateViaCache:"none"}).then(reg=>{
     reg.update();
     setInterval(()=>reg.update(), 60000);

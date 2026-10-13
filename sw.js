@@ -2,7 +2,7 @@
    Guarda o app no aparelho para abrir sem internet.
    CACHE muda a cada publicação: é o que dispara a atualização. */
 
-const CACHE = "safra-v2.135.0";
+const CACHE = "safra-v2.136.0";
 const SHELL = ["./", "./index.html", "./manifest.json", "./icone.svg", "./icone-maskable.svg", "./mapa-santa-angelina.jpg"];
 
 self.addEventListener("install", e => {
@@ -16,7 +16,8 @@ self.addEventListener("install", e => {
 self.addEventListener("activate", e => {
   e.waitUntil(
     caches.keys()
-      .then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k))))
+      // só apaga caches ANTIGOS DO SAFRA — nunca os de outro app no mesmo domínio
+      .then(ks => Promise.all(ks.filter(k => k !== CACHE && k.indexOf("safra-") === 0).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
