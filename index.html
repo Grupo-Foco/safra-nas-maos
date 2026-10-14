@@ -943,7 +943,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.138.0";
+const APP_VERSION = "2.139.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -2302,14 +2302,14 @@ function lavouraDe(f){ return Store.get(kLavoura(f), {}); }
 
 function plantioDe(f, talId){
   const l = lavouraDe(f)[talId];
-  return l || { variedade:"", area:null, sementes:"", inicio:"", fim:"" };
+  return l || { variedade:"", area:null, sementes:"", inicio:"", fim:"", dae:"" };
 }
 function salvarPlantio(f, talId, campo, valor){
   const todo = lavouraDe(f);
-  if(!todo[talId]) todo[talId] = { variedade:"", area:null, sementes:"", inicio:"", fim:"" };
+  if(!todo[talId]) todo[talId] = { variedade:"", area:null, sementes:"", inicio:"", fim:"", dae:"" };
   todo[talId][campo] = valor;
   const p = todo[talId];
-  const vazio = !p.variedade && p.area==null && !p.sementes && !p.inicio && !p.fim;
+  const vazio = !p.variedade && p.area==null && !p.sementes && !p.inicio && !p.fim && !p.dae;
   if(vazio) delete todo[talId];
   Store.set(kLavoura(f), todo);
   Sync.push("lavoura","upsert",{fazenda_id:f, talhao_id:talId, ...todo[talId]});
@@ -2327,9 +2327,16 @@ function resumoLavoura(f){
       const d = (new Date(p.fim+"T12:00:00") - new Date(p.inicio+"T12:00:00"))/86400000;
       if(!isNaN(d) && d>=0) dias = Math.round(d)+1;
     }
+    // D.A.E = dia que começa a florescer; "dias pós D.A.E" conta dele até hoje.
+    const dae = p.dae||"";
+    let diasDae = null;
+    if(dae){
+      const d = (new Date(new Date().toISOString().slice(0,10)+"T12:00:00") - new Date(dae+"T12:00:00"))/86400000;
+      if(!isNaN(d) && d>=0) diasDae = Math.floor(d);
+    }
     return { id:t.id, nome:t.nome, hectares:t.hectares, area,
              variedade:p.variedade||"", sementes:p.sementes||"",
-             inicio:p.inicio||"", fim:p.fim||"", dias, plantado };
+             inicio:p.inicio||"", fim:p.fim||"", dias, dae, diasDae, plantado };
   });
   const plantadas = linhas.filter(l=>l.plantado);
   const vars = {};
@@ -2765,7 +2772,7 @@ function diasAte(iso){
 const MODULOS = [
   { grupo:"Fazenda e lavoura", itens:[
     { id:"talhoes",   ic:"talhoes",   nome:"Dados da fazenda", desc:"Talhões, áreas e mapa da propriedade", pronto:true, resumo:f=>f.talhoes ? f.talhoes+" talhões · "+f.hectares.toLocaleString("pt-BR",{maximumFractionDigits:1})+" ha" : "Cadastre os talhões da fazenda" },
-    { id:"lavoura",   ic:"lavoura",   nome:"Dados da lavoura", desc:"Variedade, semente e janela de plantio", pronto:true, resumo:f=>{const R=resumoLavoura(f.id); return R.plantadas.length? R.plantadas.length+" talhões · "+nf(R.areaPlantada,0)+" ha plantados" : "Lance o plantio";} },
+    { id:"lavoura",   ic:"lavoura",   nome:"Dados do Plantio", desc:"Variedade, semente e janela de plantio", pronto:true, resumo:f=>{const R=resumoLavoura(f.id); return R.plantadas.length? R.plantadas.length+" talhões · "+nf(R.areaPlantada,0)+" ha plantados" : "Lance o plantio";} },
     { id:"operacoes", ic:"operacoes", nome:"Operações no talhão", desc:"Pulverização, semeadura e adubação", pronto:true, resumo:f=>{const n=aplicacoesDe(f.id).length; return n? n+" aplicações · "+moeda(resumoOperacoes(f.id).total) : "Lance a primeira aplicação";} },
     { id:"estoque",   ic:"estoque",   nome:"Estoque", desc:"Entra pela nota, sai pela aplicação", pronto:true, resumo:f=>{const E=estoqueDe(f.id); return E.totalComprado>0 ? moeda(E.valorEstoque)+" em estoque" : "Lance o primeiro recebimento";} },
     { id:"ndvi",      ic:"ndvi",      nome:"Mapa", desc:"Talhões, vias e imagem de satélite", pronto:true },
@@ -4805,7 +4812,7 @@ function telaLavoura(){
   let h = '<div class="wrap wrap-wide">';
   h += '<div class="farm-head">'+
     '<button class="btn-back" onclick="irPara(\'fazenda\')">← '+esc(f.nome)+'</button>'+
-    '<div class="farm-head-mid"><h1>Dados da lavoura</h1>'+
+    '<div class="farm-head-mid"><h1>Dados do Plantio</h1>'+
     '<p>Variedade, semente e janela de plantio · safra '+esc(f.safra)+'</p></div></div>';
 
   if(!R.linhas.length)
@@ -4829,7 +4836,7 @@ function telaLavoura(){
   h += '<div class="tbl lav"><table><thead><tr>'+
     '<th>Área</th><th>Variedade</th><th class="num">Área-ha</th>'+
     '<th class="num">Sementes/m</th><th>Início</th><th>Fim</th>'+
-    '<th class="num hide-sm">Dias</th><th></th></tr></thead><tbody>';
+    '<th class="num hide-sm">Dias</th><th>D.A.E</th><th class="num hide-sm">Dias pós D.A.E</th><th></th></tr></thead><tbody>';
   R.linhas.forEach(l=>{
     h += '<tr'+(l.plantado?'':' class="pendente"')+'>'+
       '<td class="forte">'+esc(l.nome)+'</td>'+
@@ -4845,12 +4852,15 @@ function telaLavoura(){
       '<td><input class="lv lv-d" type="date" value="'+esc(l.fim)+'" '+
         'onchange="gravarLav(\''+l.id+'\',\'fim\',this.value)"></td>'+
       '<td class="num mono hide-sm">'+(l.dias!=null?l.dias:"—")+'</td>'+
+      '<td><input class="lv lv-d" type="date" value="'+esc(l.dae)+'" '+
+        'onchange="gravarLav(\''+l.id+'\',\'dae\',this.value)"></td>'+
+      '<td class="num mono hide-sm">'+(l.diasDae!=null?l.diasDae:"—")+'</td>'+
       '<td class="num">'+(l.plantado?'<button class="rm" onclick="apagarPlantio(\''+l.id+'\')" title="Apagar plantio deste talhão">✕</button>':'')+'</td>'+
     '</tr>';
   });
   h += '</tbody><tfoot><tr><td class="fix">Total plantado</td><td></td>'+
     '<td class="num mono tot">'+nf(R.areaPlantada,2)+'</td>'+
-    '<td></td><td></td><td></td><td class="hide-sm"></td><td></td></tr></tfoot></table></div>';
+    '<td></td><td></td><td></td><td class="hide-sm"></td><td></td><td class="hide-sm"></td><td></td></tr></tfoot></table></div>';
 
   if(R.variedades.length){
     h += '<div class="resumo"><div class="resumo-t">Área por variedade</div><div class="acum">'+
@@ -4898,9 +4908,10 @@ function exportarLavoura(fmt){
   const f=acharFazenda(App.fazendaId); if(!f) return;
   const R=resumoLavoura(f.id);
   const linhas=[["RELATÓRIO DE PLANTIO · "+f.nome.toUpperCase()+" · SAFRA "+f.safra]];
-  linhas.push(["Área","Variedade","Área-ha","Sementes/m","Início","Fim","Dias"]);
+  linhas.push(["Área","Variedade","Área-ha","Sementes/m","Início","Fim","Dias","D.A.E","Dias pós D.A.E"]);
   R.linhas.forEach(l=>linhas.push([l.nome, l.variedade, vBR(l.area.toFixed(2)),
-    l.sementes, l.inicio?dataBR(l.inicio):"", l.fim?dataBR(l.fim):"", l.dias!=null?l.dias:""]));
+    l.sementes, l.inicio?dataBR(l.inicio):"", l.fim?dataBR(l.fim):"", l.dias!=null?l.dias:"",
+    l.dae?dataBR(l.dae):"", l.diasDae!=null?l.diasDae:""]));
   linhas.push([]);
   linhas.push(["Total plantado","",vBR(R.areaPlantada.toFixed(2))]);
   R.variedades.forEach(v=>linhas.push([v.nome,"",vBR(v.area.toFixed(2))]));
@@ -6201,7 +6212,8 @@ function abaSaldo(f,E){
 /* ── Aba Estoque remanescente (saldo de abertura por produto) ── */
 function abaRemanescente(f){
   const l = remanescenteDe(f.id).slice().sort((a,b)=>String(a.produto||"").localeCompare(String(b.produto||""),"pt-BR"));
-  let h = '<div class="acts"><button class="btn-act primary" onclick="modalRemanescente()">+ Adicionar ao estoque</button></div>';
+  let h = '<div class="acts"><button class="btn-act primary" onclick="modalRemanescente()">+ Adicionar ao estoque</button>'+
+    (l.length?botaoExportar([{rotulo:"Planilha",fn:"exportarRemanescente('csv')"},{rotulo:"Imagem",fn:"exportarRemanescente('png')"},{rotulo:"PDF",fn:"exportarRemanescente('pdf')"}]):"")+'</div>';
   h += '<p class="resumo-obs">Sobra da safra anterior (estoque de abertura). Some ao saldo junto com o que for entregue nos pedidos.</p>';
   if(!l.length)
     return h+'<div class="empty"><strong>Nada no estoque remanescente</strong>'+
@@ -6220,6 +6232,21 @@ function abaRemanescente(f){
   h += '</tbody><tfoot><tr><td class="fix">Total</td><td></td><td class="hide-sm"></td>'+
     '<td class="num mono tot">'+moeda(tot)+'</td><td></td></tr></tfoot></table></div>';
   return h;
+}
+function exportarRemanescente(fmt){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const l=remanescenteDe(f.id).slice().sort((a,b)=>String(a.produto||"").localeCompare(String(b.produto||""),"pt-BR"));
+  if(!l.length){ toast("Nada no estoque remanescente para exportar"); return; }
+  const linhas=[["ESTOQUE REMANESCENTE · "+f.nome.toUpperCase()+" · SAFRA "+f.safra]];
+  linhas.push(["Produto","Categoria","Quantidade","Unidade","Preço un.","Valor"]);
+  let tot=0;
+  l.forEach(x=>{ const val=(Number(x.qtd)||0)*(Number(x.preco)||0); tot+=val;
+    linhas.push([x.produto, x.categoria||"", vBR((Number(x.qtd)||0).toFixed(2)), x.unidade||"",
+      x.preco>0?vBR((Number(x.preco)||0).toFixed(2)):"", val>0?vBR(val.toFixed(2)):""]); });
+  linhas.push([]);
+  linhas.push(["Total","","","","",vBR(tot.toFixed(2))]);
+  exportarTabela(fmt, "Estoque remanescente · "+f.nome, linhas,
+    "remanescente-"+f.nome.toLowerCase().replace(/[^a-z0-9]+/g,"-"));
 }
 function modalRemanescente(id){
   const f=acharFazenda(App.fazendaId); if(!f) return;
