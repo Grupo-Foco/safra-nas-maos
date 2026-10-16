@@ -933,6 +933,17 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
   .hero{padding:17px}
   .mod{padding:15px}
 }
+.fin-cats{margin:14px 0 6px}
+.fin-cats-h{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.fin-cat{display:block;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:7px;cursor:pointer;font:inherit;color:inherit}
+.fin-cat:hover{border-color:var(--leaf,#22392B)}
+.fin-cat.sel{border-color:var(--leaf,#22392B);box-shadow:0 0 0 1px var(--leaf,#22392B) inset}
+.fin-cat-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.fin-cat-nome{font-weight:700}
+.fin-cat-val{font-family:var(--mono);font-weight:800;white-space:nowrap}
+.fin-cat-val i{font-style:normal;font-weight:600;color:var(--muted);font-size:11px;margin-left:4px}
+.fin-cat-bar{display:block;height:6px;border-radius:4px;background:var(--line);margin-top:7px;overflow:hidden}
+.fin-cat-bar span{display:block;height:100%;border-radius:4px;background:var(--leaf,#22392B)}
 </style>
 </head>
 <body>
@@ -943,7 +954,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.149.0";
+const APP_VERSION = "2.150.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -2855,7 +2866,8 @@ const MODULOS = [
       resumo:()=>{const R=resumoDolar(dolarCache()); return R? "R$ "+nf(R.atual.venda,4)+" · "+(R.atual.var_pct>=0?"+":"")+nf(R.atual.var_pct,2)+"%" : "Toque para ver o dólar";} },
     { id:"contratos",  ic:"documentos", nome:"Contratos", desc:"Venda e arrendamento · abatidos pela colheita", pronto:true,
       resumo:f=>{const n=contratosDe(f.id).length; return n? n+" contrato(s) a cumprir" : "Cadastre os contratos";} },
-    { id:"financeiro", ic:"financeiro", nome:"Financeiro", desc:"Custos, planejamento, vendas e compras", pronto:false },
+    { id:"financeiro", ic:"financeiro", nome:"Financeiro", desc:"Gastos do Gestão Financeira · dashboard por categoria", pronto:true,
+      resumo:f=>"Gastos da fazenda, por categoria · leitura do financeiro" },
     { id:"diesel",     ic:"diesel",     nome:"Diesel e manutenção", desc:"Gastos do financeiro · diesel, peças e serviços", pronto:true },
     { id:"maquinario", ic:"diesel",     nome:"Maquinário", desc:"Máquinas, horímetro e abastecimento", pronto:true,
       resumo:f=>{const n=maquinasDe(f.id).length; return n? n+" máquina(s)" : "Cadastre as máquinas";} }
@@ -2969,7 +2981,17 @@ function modulosLiberados(fid){        // null => todos
   const m = a && a.modulos;
   return (m && m.length) ? m : null;
 }
+// Whitelist de módulos POR FAZENDA (regra de produto, por nome). null => todos.
+// Vale inclusive para dono/gestor: enxuga a grade da fazenda.
+function modulosDaFazenda(fid){
+  const f = fazendas().find(x=>x.id===fid);
+  if(!f) return null;
+  if(_normNome(f.nome||"").indexOf("bento")>=0) return ["rh","financeiro"]; // São Bento
+  return null;
+}
 function podeModulo(fid, mid){
+  const fz = modulosDaFazenda(fid);
+  if(fz && fz.indexOf(mid)<0) return false;   // restrição da fazenda
   const m = modulosLiberados(fid);
   return !m || m.indexOf(mid) >= 0;
 }
@@ -3734,7 +3756,7 @@ function render(){
   if(App.tela==="fazendas")      h += telaFazendas();
   else if(App.tela==="fazenda")  h += telaFazenda();
   else if(App.tela==="modulo" && !podeModulo(App.fazendaId, App.moduloId)){ App.tela="fazenda"; h += telaFazenda(); }
-  else if(App.tela==="modulo")   h += (App.moduloId==="talhoes" ? telaTalhoes() : App.moduloId==="colheita" ? telaColheita() : App.moduloId==="chuva" ? telaChuva() : App.moduloId==="operacoes" ? telaOperacoes() : App.moduloId==="lavoura" ? telaLavoura() : App.moduloId==="estoque" ? telaEstoque() : App.moduloId==="ndvi" ? telaMapa() : App.moduloId==="tempo" ? telaTempo() : App.moduloId==="cotacoes" ? telaCotacoes() : App.moduloId==="documentos" ? telaDocumentos() : App.moduloId==="visitas" ? telaVisitas() : App.moduloId==="rh" ? telaRH() : App.moduloId==="contratos" ? telaContratos() : App.moduloId==="safras" ? telaHistorico() : App.moduloId==="diesel" ? telaDiesel() : App.moduloId==="maquinario" ? telaMaquinario() : telaModulo());
+  else if(App.tela==="modulo")   h += (App.moduloId==="talhoes" ? telaTalhoes() : App.moduloId==="colheita" ? telaColheita() : App.moduloId==="chuva" ? telaChuva() : App.moduloId==="operacoes" ? telaOperacoes() : App.moduloId==="lavoura" ? telaLavoura() : App.moduloId==="estoque" ? telaEstoque() : App.moduloId==="ndvi" ? telaMapa() : App.moduloId==="tempo" ? telaTempo() : App.moduloId==="cotacoes" ? telaCotacoes() : App.moduloId==="documentos" ? telaDocumentos() : App.moduloId==="visitas" ? telaVisitas() : App.moduloId==="rh" ? telaRH() : App.moduloId==="contratos" ? telaContratos() : App.moduloId==="safras" ? telaHistorico() : App.moduloId==="diesel" ? telaDiesel() : App.moduloId==="maquinario" ? telaMaquinario() : App.moduloId==="financeiro" ? telaFinanceiro() : telaModulo());
   else if(App.tela==="panorama") h += telaPanorama();
   document.getElementById("root").innerHTML = h;
   Sync.render();
@@ -8548,6 +8570,137 @@ function exportarDiesel(fmt){
   fmt==="pdf"?REL.pdf(spec,nm):REL.png(spec,nm);
 }
 
+/* ═══ FINANCEIRO — dashboard de gastos (leitura da Gestão Financeira) ═══
+   Puxa TODAS as categorias da fazenda via RPC segura safra_gastos (só
+   membro da fazenda lê). Visão do todo por categoria + filtros
+   (período/status) + drill-down na lista. Precisa de internet. */
+let _fin = { fid:null, dados:null, carregando:false, erro:null, cat:"__todas", status:"__todas", safraSel:null };
+async function carregarFinanceiro(f){
+  _fin.carregando=true; _fin.erro=null;
+  try{
+    if(!SUPABASE.ligado() || !Auth.logado()) throw new Error("Entre na sua conta para ver os gastos do financeiro");
+    if(!navigator.onLine) throw new Error("Sem internet — os gastos do financeiro precisam de conexão");
+    const r = await Sync._comRetry(()=>api("rpc/safra_gastos", { method:"POST", body:{ p_fazenda_id:f.id } }), 5);
+    _fin.dados = (Array.isArray(r)?r:[]).map(x=>{
+      const dir=(x.safra||"").trim();
+      const s = dir || safraDaData(x.data||x.vencimento);
+      return s ? Object.assign({}, x, {safra:s}) : x;
+    });
+  }catch(e){ _fin.erro=explicaErro(e.message||String(e)); _fin.dados=[]; }
+  _fin.carregando=false; render();
+}
+function finBase(){                 // período + status (não a categoria)
+  let d=_fin.dados||[];
+  if(_fin.safraSel && _fin.safraSel!=="__todas") d=d.filter(x=>x.safra===_fin.safraSel);
+  if(_fin.status==="apagar") d=d.filter(x=>(x.status||"").toUpperCase()==="A PAGAR");
+  else if(_fin.status==="pago") d=d.filter(x=>(x.status||"").toUpperCase()==="PAGO");
+  return d;
+}
+function finPorCategoria(base){
+  const m={}; base.forEach(x=>{ const c=x.categoria||"(sem categoria)"; const v=Number(x.valor)||0;
+    if(!m[c]) m[c]={cat:c,total:0,n:0}; m[c].total+=v; m[c].n++; });
+  return Object.values(m).sort((a,b)=>b.total-a.total);
+}
+function finDetalhe(base){
+  if(_fin.cat==="__todas") return base;
+  return base.filter(x=>(x.categoria||"(sem categoria)")===_fin.cat);
+}
+function finStatus(s){ _fin.status=s; render(); }
+function finSafraSel(v){ _fin.safraSel=v; render(); }
+function finCat(c){ _fin.cat=(_fin.cat===c?"__todas":c); render(); }
+function telaFinanceiro(){
+  const f=acharFazenda(App.fazendaId); if(!f){ App.tela="fazendas"; return telaFazendas(); }
+  if(_fin.fid!==f.id){ _fin={fid:f.id,dados:null,carregando:false,erro:null,cat:"__todas",status:"__todas",safraSel:null}; }
+  if(_fin.dados===null && !_fin.carregando){ setTimeout(()=>carregarFinanceiro(f),0); }
+
+  const todos=_fin.dados||[];
+  const safras=[...new Set(todos.map(x=>x.safra).filter(Boolean))].sort().reverse();
+  if(_fin.safraSel===null){ const atual="SAFRA "+f.safra; _fin.safraSel=safras.includes(atual)?atual:"__todas"; }
+
+  const base=finBase();
+  const cats=finPorCategoria(base);
+  const det=finDetalhe(base);
+  const total=base.reduce((s,x)=>s+(Number(x.valor)||0),0);
+  const totalDet=det.reduce((s,x)=>s+(Number(x.valor)||0),0);
+  const apagar=base.filter(x=>(x.status||"").toUpperCase()==="A PAGAR").reduce((s,x)=>s+(Number(x.valor)||0),0);
+  const selRot=_fin.safraSel==="__todas"?"todas as safras":(_fin.safraSel||"").replace("SAFRA ","safra ");
+
+  let h='<div class="wrap wrap-wide">';
+  h+='<div class="farm-head"><button class="btn-back" onclick="irPara(\'fazenda\')">← '+esc(f.nome)+'</button>'+
+    '<div class="farm-head-mid"><h1>Financeiro</h1>'+
+    '<p>Gastos do Gestão Financeira · leitura direta, só desta fazenda</p></div></div>';
+
+  h+='<div class="kpis kpis-3">'+
+    kpi("Total no filtro", _fin.carregando?"…":moeda(total).replace("R$","").trim(), "R$")+
+    kpi("A pagar", _fin.carregando?"…":moeda(apagar).replace("R$","").trim(), "R$")+
+    kpi("Lançamentos", _fin.carregando?"…":base.length, selRot)+
+  '</div>';
+
+  h+='<div class="acts">'+
+    '<button class="btn-act'+(_fin.status==="__todas"?" primary":"")+'" onclick="finStatus(\'__todas\')">Todos</button>'+
+    '<button class="btn-act'+(_fin.status==="apagar"?" primary":"")+'" onclick="finStatus(\'apagar\')">A pagar</button>'+
+    '<button class="btn-act'+(_fin.status==="pago"?" primary":"")+'" onclick="finStatus(\'pago\')">Pago</button>'+
+    '<span style="width:10px"></span>'+
+    '<select class="sel-f" onchange="finSafraSel(this.value)">'+
+      safras.map(s=>'<option value="'+esc(s)+'" '+(_fin.safraSel===s?"selected":"")+'>'+esc(s)+'</option>').join("")+
+      '<option value="__todas" '+(_fin.safraSel==="__todas"?"selected":"")+'>Todas as safras</option>'+
+    '</select>'+
+    (det.length?botaoExportar([{rotulo:"Planilha",fn:"exportarFin('csv')"},{rotulo:"Imagem",fn:"exportarFin('png')"},{rotulo:"PDF",fn:"exportarFin('pdf')"}]):'')+
+  '</div>';
+
+  if(_fin.carregando) return h+'<div class="empty"><strong>Buscando no financeiro…</strong>Consultando os lançamentos desta fazenda.</div></div>';
+  if(_fin.erro) return h+'<div class="empty"><strong>Não consegui carregar</strong>'+esc(_fin.erro)+
+    '<p class="resumo-obs" style="margin-top:12px">Se o módulo acabou de ser instalado, confirme que o SQL <b>integracao-financeiro.sql</b> foi rodado no Supabase.</p></div></div>';
+  if(!todos.length) return h+'<div class="empty"><strong>Sem gastos</strong>Não há lançamentos desta fazenda no financeiro.</div></div>';
+  if(!base.length) return h+'<div class="empty"><strong>Nada neste filtro</strong>Troque o período ou o status acima.</div></div>';
+
+  const maxCat=cats.length?cats[0].total:1;
+  h+='<div class="fin-cats"><div class="fin-cats-h">Gastos por categoria — toque para detalhar</div>';
+  cats.forEach(c=>{
+    const pct=total>0?(c.total/total*100):0;
+    const barPct=maxCat>0?(c.total/maxCat*100):0;
+    h+='<button class="fin-cat'+(_fin.cat===c.cat?" sel":"")+'" onclick="finCat('+JSON.stringify(c.cat).replace(/"/g,"&quot;")+')">'+
+        '<span class="fin-cat-top"><span class="fin-cat-nome">'+esc(c.cat)+'</span>'+
+        '<span class="fin-cat-val">'+moeda(c.total)+' <i>'+nf(pct,1)+'%</i></span></span>'+
+        '<span class="fin-cat-bar"><span style="width:'+barPct.toFixed(1)+'%"></span></span>'+
+      '</button>';
+  });
+  h+='</div>';
+
+  h+='<div class="tbl"><table><thead><tr>'+
+    '<th>Venc.</th><th>Categoria</th><th>Histórico</th><th>Fornecedor</th><th>Status</th><th class="num">Valor</th></tr></thead><tbody>';
+  det.forEach(x=>{
+    const st=(x.status||"").toUpperCase();
+    h+='<tr><td class="mono">'+dataBR(x.vencimento||x.data)+'</td>'+
+      '<td>'+esc(x.categoria||"")+'</td>'+
+      '<td>'+esc(x.historico||"")+'</td>'+
+      '<td>'+esc(x.fornecedor||"—")+'</td>'+
+      '<td>'+(st==="PAGO"?'<span class="sit ok">Pago</span>':'<span class="sit tr">A pagar</span>')+'</td>'+
+      '<td class="num mono forte" style="white-space:nowrap">'+moeda(Number(x.valor)||0)+'</td></tr>';
+  });
+  h+='</tbody></table></div>';
+  h+='<p class="resumo-obs">'+det.length+' lançamento(s) · '+(_fin.cat==="__todas"?"todas as categorias":esc(_fin.cat))+' · total '+moeda(totalDet)+
+    '. Somente leitura — vem do Gestão Financeira, filtrado por esta fazenda.</p>';
+  return h+'</div>';
+}
+function relFin(f){
+  const det=finDetalhe(finBase());
+  const linhas=[{t:'cab',cs:['Venc.','Categoria','Histórico','Fornecedor','Status','Valor']}];
+  let tot=0;
+  det.forEach(x=>{ tot+=Number(x.valor)||0;
+    linhas.push({t:'dado',cs:[dataBR(x.vencimento||x.data), x.categoria||"", x.historico||"", x.fornecedor||"—", (x.status||""), moeda(Number(x.valor)||0)]}); });
+  linhas.push({t:'total',cs:['','','','','TOTAL', moeda(tot)]});
+  const sr=_fin.safraSel==="__todas"?"todas as safras":(_fin.safraSel||"").replace("SAFRA ","safra ");
+  const cr=_fin.cat==="__todas"?"todas as categorias":_fin.cat;
+  return {titulo:"Financeiro · "+f.nome, sub:cr+"  ·  "+sr,
+    larguras:[80,210,380,210,80,120], aligns:['center','left','left','left','center','right'], linhas};
+}
+function exportarFin(fmt){
+  const f=acharFazenda(App.fazendaId); if(!f || !finDetalhe(finBase()).length) return;
+  const spec=relFin(f), nm="financeiro-"+f.nome.toLowerCase().replace(/[^a-z0-9]+/g,"-");
+  if(fmt==="csv"){ relParaCSV(spec, nm); return; }
+  fmt==="pdf"?REL.pdf(spec,nm):REL.png(spec,nm);
+}
 function telaModulo(){
   const f=acharFazenda(App.fazendaId), m=acharModulo(App.moduloId);
   const nome = m ? m.nome
