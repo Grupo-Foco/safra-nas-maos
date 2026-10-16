@@ -943,7 +943,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.146.0";
+const APP_VERSION = "2.147.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -7476,7 +7476,8 @@ function telaConferirFolha(){
     '<div class="tbl-wrap" style="max-height:48vh;overflow:auto"><table class="arm-grid"><thead><tr><th>Funcionário</th><th>Fazenda</th><th>PIX</th><th style="text-align:right">Líquido</th></tr></thead><tbody>'+rows+
     '</tbody><tfoot><tr><td colspan="3" style="text-align:right;font-weight:700">Total</td><td style="text-align:right;font-weight:800">'+moeda(total)+'</td></tr></tfoot></table></div>'+
     '<div class="modal-acts"><button class="btn-cancel" onclick="modalImportarFolha()">Voltar</button>'+
-      '<button class="btn-act" onclick="baixarListaFolha()">Baixar lista (CSV)</button></div></div></div>';
+      '<button class="btn-act" onclick="baixarListaFolha()">Baixar lista (CSV)</button>'+
+      '<button class="btn-save" onclick="enviarFolhaFinanceiro()">Enviar ao financeiro</button></div></div></div>';
 }
 function baixarListaFolha(){
   const L=window._folhaLote; if(!L) return;
@@ -7494,6 +7495,58 @@ function baixarListaFolha(){
   a.download="folha-pagamentos.csv"; a.click();
   setTimeout(()=>URL.revokeObjectURL(a.href),2000);
   toast("Lista baixada");
+}
+/* Fase 3 — grava cada pagamento DIRETO na tabela lancamentos do financeiro (mesmo
+   Supabase). Sem PIX, envia mesmo assim (forma OUTRO/transferência). Só pula quem
+   está "sem cadastro" (sem fazenda). Checa duplicata por fornecedor+valor+vencimento. */
+function _fazendaFinanceiro(nome){
+  const n=_normNome(nome||"");
+  if(n.indexOf("angelina")>=0) return "SANTA ANGELINA";
+  if(n.indexOf("mayara")>=0) return "MAYARA";
+  if(n.indexOf("lageado")>=0||n.indexOf("edealina")>=0) return "LAGEADO";
+  if(n.indexOf("bento")>=0) return "SÃO BENTO";
+  if(n.indexOf("brasil")>=0) return "BRASIL";
+  return String(nome||"").toUpperCase();
+}
+async function enviarFolhaFinanceiro(){
+  const L=window._folhaLote; if(!L) return;
+  if(!navigator.onLine){ toast("Sem internet — conecte para enviar ao financeiro"); return; }
+  if(!SUPABASE.ligado() || !Auth.logado()){ toast("Entre na sua conta para enviar ao financeiro"); return; }
+  const todos=_todosFuncionarios();
+  const linhas=L.itens.map(it=>({it, func:_casaFuncionario(it, todos)}));
+  const enviar=linhas.filter(l=>l.func);          // só os casados (têm fazenda)
+  const semCad=linhas.length-enviar.length;
+  if(!enviar.length){ toast("Nenhum funcionário casado para enviar"); return; }
+  const total=enviar.reduce((s,l)=>s+(Number(l.it.liquido)||0),0);
+  if(!confirm("Enviar "+enviar.length+" pagamento(s) · total "+moeda(total)+" · vencimento "+dataBR(L.venc)+
+     "\n\nIsso grava no FLUXO DO FINANCEIRO (lançamentos A PAGAR)."+
+     (semCad?"\n"+semCad+" sem cadastro NÃO serão enviados.":""))) return;
+  // duplicata: o que já existe nesse vencimento (fornecedor+valor)
+  const existentes=new Set();
+  try{
+    const ja=await api("lancamentos?vencimento=eq."+encodeURIComponent(L.venc)+"&select=fornecedor,valor");
+    (ja||[]).forEach(r=> existentes.add(_normNome(r.fornecedor||"")+"|"+(Number(r.valor)||0).toFixed(2)));
+  }catch(e){ toast("Não consegui conferir duplicatas — verifique a conexão"); return; }
+  const quem=_quemLanca();
+  let ok=0, dup=0, erro=0;
+  for(const l of enviar){
+    const nome=(l.it.nome||"").toUpperCase(), val=Number(l.it.liquido)||0;
+    const chave=_normNome(nome)+"|"+val.toFixed(2);
+    if(existentes.has(chave)){ dup++; continue; }
+    const pix=(l.func.pix||"").trim();
+    const obj={
+      fornecedor:nome, documento:"FOLHA", solicitante:quem, data_doc:null,
+      vencimento:L.venc, pagamento:null, status:"A PAGAR", valor:val,
+      conta:"", correntista:"", fazenda:_fazendaFinanceiro(l.func._fazenda),
+      safra:L.safra, cultura:L.cultura, cg:L.categoria, lancador:quem,
+      historico:"Folha — "+l.it.nome+" (matrícula "+l.it.matricula+")"+(pix?"":" — transferência (sem PIX)"),
+      forma_pagamento:pix?"PIX":"OUTRO", cnpj:null, chave_pix:pix||null, codigo_barras:null
+    };
+    try{ await api("lancamentos",{method:"POST", prefer:"return=minimal", body:obj}); ok++; existentes.add(chave); }
+    catch(e){ erro++; }
+  }
+  fecharModal();
+  toast(ok+" enviado(s) ao financeiro"+(dup?" · "+dup+" já existiam":"")+(erro?" · "+erro+" com erro":"")+(semCad?" · "+semCad+" sem cadastro":""));
 }
 
 function kVisitas(f){ return "faz_"+f+"_visitas"; }
