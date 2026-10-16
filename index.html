@@ -954,7 +954,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.150.0";
+const APP_VERSION = "2.151.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -4654,7 +4654,15 @@ function limparDia(dia){
    de "sem registro" (ninguém lançou) — o gestor passa a distinguir os dois. */
 function semChuva(dia){
   const f=acharFazenda(App.fazendaId); if(!f) return;
-  pontosDe(f.id).forEach(p=>gravarChuva(f.id,dia,p.id,0));
+  const pts=pontosDe(f.id);
+  // Trava anti-acidente: se o dia JÁ tem chuva lançada (>0), confirma antes de zerar.
+  let soma=0, nLanc=0;
+  pts.forEach(p=>{ const v=lerChuva(f.id,dia,p.id); if(v!=null){ nLanc++; soma+=Number(v)||0; } });
+  if(soma>0){
+    const media=soma/(nLanc||1);
+    if(!confirm("Este dia já tem chuva lançada (média "+nf(media,1)+" mm em "+nLanc+" ponto(s)).\n\n\"Sem chuva\" vai ZERAR todos os pontos deste dia. Tem certeza?")) return;
+  }
+  pts.forEach(p=>gravarChuva(f.id,dia,p.id,0));
   toast("Dia registrado como sem chuva"); render();
 }
 
