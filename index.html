@@ -933,6 +933,12 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
   .hero{padding:17px}
   .mod{padding:15px}
 }
+.qr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-top:10px}
+.qr-card{border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:6px;background:var(--card)}
+.qr-img{background:#fff;border-radius:8px;padding:6px;display:flex;justify-content:center}
+.qr-img svg{width:100%;height:auto;max-width:150px;display:block}
+.qr-info{display:flex;flex-direction:column;gap:2px}
+.qr-info .qr-val{font-weight:800;color:var(--green,#2e7d32)}
 </style>
 </head>
 <body>
@@ -943,7 +949,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.147.0";
+const APP_VERSION = "2.148.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -7452,6 +7458,70 @@ async function processarFolhaPDF(input){
     telaConferirFolha();
   }catch(e){ setst('<span style="color:var(--red)">Erro ao ler o PDF: '+esc(String(e&&e.message||e))+'</span>'); }
 }
+/* ===== QR Code PIX (copia-e-cola EMV, offline) ===== */
+function _carregarQR(){
+  return new Promise((res,rej)=>{
+    if(window.qrcode) return res(window.qrcode);
+    const s=document.createElement("script");
+    s.src="./vendor/qrcode.js";
+    s.onload=()=>window.qrcode?res(window.qrcode):rej(new Error("qr"));
+    s.onerror=()=>rej(new Error("qr"));
+    document.head.appendChild(s);
+  });
+}
+function _crc16Pix(s){let crc=0xFFFF;for(let i=0;i<s.length;i++){crc^=s.charCodeAt(i)<<8;for(let j=0;j<8;j++)crc=(crc&0x8000)?((crc<<1)^0x1021)&0xFFFF:(crc<<1)&0xFFFF;}return crc.toString(16).toUpperCase().padStart(4,"0");}
+function _emvPix(id,v){v=String(v);return id+String(v.length).padStart(2,"0")+v;}
+function _semAcentoUp(s){return String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toUpperCase();}
+function _pixPayload(o){
+  const chave=String(o.chave||"").trim();
+  const nome=(_semAcentoUp(o.nome)||"RECEBEDOR").slice(0,25);
+  const cidade=(_semAcentoUp(o.cidade)||"GOIANIA").slice(0,15);
+  const valor=(Number(o.valor)||0).toFixed(2);
+  let txid=String(o.txid||"***").replace(/[^A-Za-z0-9]/g,"").slice(0,25)||"***";
+  const mai=_emvPix("00","br.gov.bcb.pix")+_emvPix("01",chave);
+  let base=_emvPix("00","01")+_emvPix("26",mai)+_emvPix("52","0000")+_emvPix("53","986")+
+    _emvPix("54",valor)+_emvPix("58","BR")+_emvPix("59",nome)+_emvPix("60",cidade)+
+    _emvPix("62",_emvPix("05",txid))+"6304";
+  return base+_crc16Pix(base);
+}
+async function modalQRFolha(){
+  const L=window._folhaLote; if(!L) return;
+  const todos=_todosFuncionarios();
+  const linhas=L.itens.map(it=>Object.assign({},it,{func:_casaFuncionario(it,todos)}));
+  const comPix=linhas.filter(l=>l.func && (l.func.pix||"").trim());
+  const semPix=linhas.filter(l=>l.func && !(l.func.pix||"").trim());
+  document.getElementById("modal-root").innerHTML=
+    '<div class="overlay"><div class="modal"><h2>QR Codes PIX</h2><p class="sub">Gerando QR codes…</p></div></div>';
+  let QR; try{ QR=await _carregarQR(); }catch(e){ toast("Não consegui carregar o gerador de QR"); telaConferirFolha(); return; }
+  window._pixPays={};
+  const cards=comPix.map((l,i)=>{
+    const pay=_pixPayload({chave:l.func.pix, nome:l.nome, valor:l.liquido, txid:"FOLHA"+l.matricula});
+    window._pixPays[i]=pay;
+    let svg=""; try{ const q=QR(0,"M"); q.addData(pay); q.make(); svg=q.createSvgTag({cellSize:3,margin:2,scalable:true}); }
+    catch(e){ svg='<small style="color:var(--red)">QR não gerado</small>'; }
+    return '<div class="qr-card"><div class="qr-img">'+svg+'</div>'+
+      '<div class="qr-info"><b>'+esc(l.nome)+'</b>'+
+      '<span class="qr-val">'+moeda(l.liquido)+'</span>'+
+      '<small style="color:var(--muted);word-break:break-all">'+esc(l.func.pix)+'</small>'+
+      '<button class="btn-act" style="margin-top:6px" onclick="_copiarPix('+i+')">Copiar código</button>'+
+      '</div></div>';
+  }).join("");
+  const aviso=semPix.length?'<p class="dica" style="color:#b8860b">⚠️ '+semPix.length+' sem PIX — pagar por transferência (agência/conta): '+semPix.map(l=>esc(l.nome)).join(", ")+'</p>':'';
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal modal-lg">'+
+    '<h2>QR Codes PIX</h2>'+
+    '<p class="sub">Venc. '+esc(dataBR(L.venc))+' · '+comPix.length+' com PIX'+(semPix.length?' · '+semPix.length+' sem PIX':'')+'</p>'+
+    '<p class="dica">Escaneie no app do banco, ou use "Copiar código" para o PIX copia-e-cola.</p>'+
+    aviso+
+    '<div class="qr-grid" style="max-height:60vh;overflow:auto">'+(cards||'<p style="color:var(--muted)">Nenhum funcionário com PIX cadastrado.</p>')+'</div>'+
+    '<div class="modal-acts"><button class="btn-cancel" onclick="telaConferirFolha()">Voltar</button></div>'+
+  '</div></div>';
+}
+function _copiarPix(i){
+  const p=(window._pixPays||{})[i]; if(!p) return;
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(p).then(()=>toast("Código PIX copiado")).catch(()=>toast("Não consegui copiar")); }
+  else { try{ const t=document.createElement("textarea"); t.value=p; document.body.appendChild(t); t.select(); document.execCommand("copy"); t.remove(); toast("Código PIX copiado"); }catch(e){ toast("Não consegui copiar"); } }
+}
 function telaConferirFolha(){
   const L=window._folhaLote; if(!L) return;
   const todos=_todosFuncionarios();
@@ -7477,6 +7547,7 @@ function telaConferirFolha(){
     '</tbody><tfoot><tr><td colspan="3" style="text-align:right;font-weight:700">Total</td><td style="text-align:right;font-weight:800">'+moeda(total)+'</td></tr></tfoot></table></div>'+
     '<div class="modal-acts"><button class="btn-cancel" onclick="modalImportarFolha()">Voltar</button>'+
       '<button class="btn-act" onclick="baixarListaFolha()">Baixar lista (CSV)</button>'+
+      '<button class="btn-act" onclick="modalQRFolha()">QR Codes PIX</button>'+
       '<button class="btn-save" onclick="enviarFolhaFinanceiro()">Enviar ao financeiro</button></div></div></div>';
 }
 function baixarListaFolha(){
