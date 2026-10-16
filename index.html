@@ -943,7 +943,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.141.0";
+const APP_VERSION = "2.142.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -2430,6 +2430,75 @@ function _seedRemanescente(f){
   });
   if(add) salvarRemanescente(f.id, l);
   Store.set("rem_mayara_v1", true);
+}
+/* Listas de preço unitário por fazenda (planilha Custo_produtos - Ivan). Alimentam a
+   tela Importar preços do estoque remanescente. [nome completo, R$ unitário]. */
+const PRECO_MAYARA=[["ADJUST HERB 4X5LT", 55.5547],["ADJUST SILVER NT 4X5LT", 56.0],["ALADE 1X20LT", 233.6008],["ALADE 4X5 LT", 242.0],["AMPLIGO 1X20LT", 198.2],["AMPLIGO 4X5LT", 220.2757],["ARVATICO 4X5LT", 442.02],["ARVATICO TSI MILHO", 10.0],["BIOFIX AZOS 50 DS BAG CX 200DS", 3.56],["BLUE N 5KG", 272.8283],["BRAVONIL 720 1X20LT", 27.4127],["CELLERATE 1X20LT", 121.11],["CELLERATE 5LT", 121.11],["CLAVENGO 1X20 LT", 17.8],["CLORFENAPIR KILLIGAN 240 1X20 LT", 46.32],["CLORFENAPIR NORTOX 10 LT", 53.3333],["COMO PLATINUM 1X20LT", 176.03],["CRUZARO 480 EC 1X20", 47.6667],["CURYOM 550 EC 1X20LT", 55.0],["DUAL GOLD 1X20LT", 48.7822],["ENGEO PLENO S 1X20LT", 130.8919],["EXTRAVON 4X5LT", 23.3955],["GLUFOSINATO GLUFOS-WYN 200  1X20", 15.0],["HOLD  IBC 1000 LT", 58.24],["HOLD 1X20LT", 58.24],["IMAZETAPIR ZETA 106 SL 1X20 LT", 28.0],["IMPACTUS 250 EC LAMBDA 1X20", 57.2222],["INZAK ZEON 1X20LT", 70.271],["KIT EPI VESTIMENTA DE PROTECAO TRATOR SARJA ULTRA GG", 120.0],["MEGA FAST CX 4X5LT", 20.0],["MIRAVIS DUO 1X20 LT", 182.21],["MIRAVIS PRO 1X20 LT", 168.3733],["MITRION 1X20LT", 247.2543],["MOVER 1X20LT", 20.2444],["NOVAOIL OLEO ADJUVANTE 1X20 LT", 20.0],["NUELLO AZO 4X3 30 DS BAG CX 120 DS", 3.8889],["OCHIMA 1X20 LT", 20.0],["OPIFOL MATURAÇÃO 1X25KG", 13.4778],["PIRIPROXIFEN NORTOX 200 4X5LT", 77.7778],["PIRIPROXIFEN RULER 100 4X5LT", 37.8],["POLYTRIN 4X5LT", 40.9],["PRIMOLEO 1X20LT", 11.118],["PRIORI XTRA 1X20LT", 100.4],["PROTAC NORTOX AD ADJUVANTE 36X0,5GR CX 18KG", 66.77],["PROTECT 4 (FORTENZA DUO INT)", 2.21],["PROTECT MAYS 2 (FORTENZA)", 76.46],["REGLONE 1X20LT", 25.4489],["RE-LEAF+ 1X20LT", 33.3332],["REVERB 4X5LT", 78.094],["RIZODERMA PARA TSI 4X1 LT CX 80DS", 18.55],["RIZOSPRAY EXTREMO 4X5LT", 30.0],["SEM MILHO HIB MG 593 BIG BAG PWU PONCHO", 24944.445],["SEM SOJA NEO 802 12X BAG 5 MILHOES", 27444.6667],["SEM SOJA NEO761 I2X  + CX VIGOR + INOC BAG 5 MILHOES", 10772.0],["SEM SOJA OLIMPO 80I82 RSF IPRO BAG 5 MILHOES", 7841.3333],["SILVER GLUFOSINATO SG 880 20KG", 69.9],["STARTER MN PLATINUM 1X20LT", 11.11],["STARTER MN PLATINUM IBC 1000 LT", 11.5333],["STIMULATE 1X20LT", 134.4847],["STOLLER BORO 1X20LT", 15.55],["STRIDES 4X5 LT", 15.5686],["TARBOX GLUFOSINATO SG 850 4X5KG", 57.0],["TILT 4X5 LT", 64.5],["TRINADOR KMAX 10KG", 15.4444],["VERDAVIS 1X20 LT", 430.0],["VERDAVIS 4X5 LT", 430.0],["VERTIMEC 84 EC 4X5 LT", 87.0],["WETCIT GOLD 1X20 LT", 48.0],["ZAPP QI 620 1X20 LT", 20.92],["ZAPP QI 620 4X5 LT", 22.8],["ZAPP SG 720 1X20 KG", 27.0643],["ZAPP WG 720 4X5 KG", 27.8133]];
+const PRECO_SA=[["ADJUST HERB 4X5LT", 56.21],["ADJUST PLATINUM 1X20LT", 62.65],["ADJUST PLATINUM 4X5LT", 62.65],["ADJUST SILVER NT 4X5LT", 56.9579],["ALADE 1X20LT", 272.16],["AMPLIGO 1X20LT", 207.0],["AMPLIGO 4X5LT", 210.09],["ARVATICO 4X5LT", 391.95],["ARVATICO TSI", 0.85],["ARVATICO TSI MILHO", 12.44],["BIFENTRINA INSECTRIN 400 EC 10 LT", 94.44],["BIOFIX 100 DS CX 400 DS INOCULANTE SOJA", 1.0556],["BIOFIX 40 DS CX 160 DS INOCULANTE SOJA", 1.0556],["BLUE N 5KG", 302.4737],["BRAVONIL 720 1X20LT", 26.3475],["CELLERATE 1X20LT", 121.11],["CLAVENGO 1X20 LT", 18.2311],["CLETODIM CCAB 240 EC 4X5LT", 30.0],["CLIMUR CLORIMURON 250 1KG", 59.0],["CLORFENAPIR CCAB  240 1X20 LT", 53.3333],["CLORFENAPIR KILLIGAN 240 1X20 LT", 46.39],["CLORFENAPIR NORTOX 10 LT", 30.6977],["CLORIMURON MAX NORTOX 750 12KG 60X0,200KG", 177.778],["CRUZARO 480 EC 1X20", 46.0],["CYPRESS 400 EC 1X20LT", 160.0],["CYPRESS 400 EC 4X5LT", 151.47],["DUAL GOLD 1X20LT", 46.1957],["EDDUS 4X5 LT", 40.0],["EGAN 20LT", 25.45],["ENGEO PLENO S 1X20LT", 130.0308],["EXTRAVON 4X5LT", 23.3944],["FIPRONIL TSI", 0.12],["FRENO CLETODIM 240 EC 4X5 LT", 30.0],["GLUFOSINATO GLUFOS-WYN 200  1X20", 15.4016],["HOLD 1X20LT", 58.2444],["IMAZETAPIR ZETA 106 SL 1X20 LT", 28.6],["IMPACTUS 250 EC LAMBDA 1X20", 57.2222],["INSTIVO 1X20LT", 185.5467],["INSTIVO 4X5 LT", 185.3458],["INZAK ZEON 1X20LT", 72.1778],["JOYA FLUMIOXAZINA 480 4X5LT", 127.7778],["MEGAFOL BR 1X20LT", 52.0],["MIRATO 1X20LT 2,4D", 19.2],["MIRAVIS DUO 1X20 LT", 186.0],["MIRAVIS PRO 1X20 LT", 168.3733],["MITRION 1X20LT", 198.3832],["MOVER 1X20LT", 20.2433],["MOVER IBC 1000 LT", 20.2444],["NODGROW INOCULANTE TURFOSO CX 240 DS", 2.06],["NOVAOIL OLEO ADJUVANTE 1X20 LT", 20.0],["OPIFOL MATURAÇÃO 1X25KG", 13.95],["P-51 20LT", 19.8],["P-51 5 LT", 19.8],["PIRIPROXIFEN NORTOX 200 4X5LT", 77.7778],["POQUER 1X20LT", 34.72],["PRECISO XK 1X20LT", 22.8],["PRIMOLEO 1X20LT", 18.3823],["PRIORI TOP 1X20LT", 181.5776],["PRIORI XTRA 1X20LT", 101.8444],["PROOF 1X20LT", 18.0],["PROTECT 7 COMO (FORTENZA ELITE)", 3.01],["PROTECT 7 COMO GOLD (FORTENZA ELITE + VICTRATO)", 6.885],["PROTECT CAPIM 1 (MAXIM XL)", 0.77],["PROTECT MAYS 2 (FORTENZA)", 82.4],["RADIFARM TSI", 0.19],["REGLONE 1X20LT", 25.4491],["REVERB 4X5LT", 78.4659],["RIZODERMA TSI KG", 0.35],["RIZOTEC 2KG", 260.0],["SCORE FLEXI 1X20 LT", 200.0],["SEM MILHO HIB MG 540 PWU INSIDE", 648.0],["SEM SOJA NEO790 IPRO BAG 5 MILHOES", 10570.1776],["SEM SOJA OLIMPO 80I82 RSF IPRO BAG 5 MILHOES", 10704.22],["SEM SOJA PP 8411 LENDA IPRO BAG 4 MILHOES", 11745.07],["SEM SORGO NTXS100  C / TSI (500.000 STES)", 644.44],["SILVER GLUFOSINATO SG 880 20KG", 68.0],["STARTER MN PLATINUM 1X20LT", 11.3882],["STARTER MN PLATINUM IBC 1000 LT", 11.5333],["STIMULATE 1X20LT", 129.3936],["STOLLER BORO IBC 1.000LT", 20.8889],["TARBOX GLUFOSINATO SG 850 4X5KG", 57.0],["THIOPHANATE METYHL 500 YONON 1X20LT", 27.5],["TIOFANATO METILICO 500 1X20", 30.0],["TRINADOR KMAX 10KG", 15.4444],["TRINCA CAPS 4X5LT", 57.222],["VERDAVIS 1X20 LT", 430.0],["VICTRATO TSI", 7.87],["ZAPP QI 620 1X20 LT", 22.8],["ZAPP SG 720 1X20 KG", 27.6986],["ZAPP WG 720 4X5 KG", 27.8133]];
+
+/* ── Importar preços do estoque remanescente (da planilha de custos por fazenda) ──
+   Casa cada item do remanescente com a lista de preços da fazenda; o usuário confere
+   num seletor (escolhe produto/embalagem) e confirma. Preenche o preço — que entra no
+   custo médio do estoque e, como reserva, no custo das aplicações. */
+function _listaPrecos(f){
+  const n=_normNome((f&&f.nome)||"");
+  if(n.indexOf("mayara")>=0) return (typeof PRECO_MAYARA!=="undefined")?PRECO_MAYARA:null;
+  if(n.indexOf("angelina")>=0) return (typeof PRECO_SA!=="undefined")?PRECO_SA:null;
+  return null;
+}
+/* Melhor casamento por núcleo do nome (ignora embalagem). Só pré-seleciona quando há
+   UM preço possível; se houver embalagens com preços diferentes, deixa o usuário escolher. */
+function _casaPreco(nome, lista){
+  const nc=_coreProd(nome); if(!nc) return -1;
+  const hits=[];
+  lista.forEach((e,i)=>{ const pc=_coreProd(e[0]); if(pc && (nc===pc || nc.indexOf(pc)>=0 || pc.indexOf(nc)>=0)) hits.push(i); });
+  if(!hits.length) return -1;
+  const precos=[...new Set(hits.map(i=>Math.round((Number(lista[i][1])||0)*100)))];
+  return precos.length===1 ? hits[0] : -1;
+}
+function modalImportarPrecos(){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const lista=_listaPrecos(f);
+  if(!lista){ toast("Sem lista de preços para esta fazenda (só Mayara e Sta Angelina)"); return; }
+  const itens=remanescenteDe(f.id).filter(x=>!_remEhDiesel(x)).slice()
+    .sort((a,b)=>String(a.produto||"").localeCompare(String(b.produto||""),"pt-BR"));
+  if(!itens.length){ toast("Nada no estoque remanescente para precificar"); return; }
+  window._impPrecoItens=itens;
+  const rows=itens.map((x,k)=>{
+    const temPreco=(Number(x.preco)||0)>0;
+    const m=temPreco?-1:_casaPreco(x.produto, lista);   // não mexe em quem já tem preço
+    const opts='<option value="">— manter atual —</option>'+
+      lista.map((e,i)=>'<option value="'+i+'"'+(i===m?' selected':'')+'>'+esc(e[0])+' — '+moeda(e[1])+'</option>').join("");
+    return '<tr><td><b>'+esc(x.produto)+'</b><br><small style="color:var(--muted)">'+nf(x.qtd,0)+(x.unidade?" "+esc(x.unidade):"")+
+      ' · atual '+(temPreco?moeda(x.preco):"sem preço")+'</small></td>'+
+      '<td><select id="imp-'+k+'" class="sel-f" style="max-width:100%">'+opts+'</select></td></tr>';
+  }).join("");
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal modal-lg">'+
+    '<h2>Importar preços · '+esc(f.nome)+'</h2>'+
+    '<p class="sub">Confira o preço de cada item (da planilha de custos). Produtos com embalagens diferentes vêm em branco para você escolher. Itens que já têm preço começam em "manter atual".</p>'+
+    '<div class="tbl-wrap" style="max-height:54vh;overflow:auto"><table class="arm-grid"><thead><tr><th>Item do remanescente</th><th>Preço (produto da planilha)</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+    '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
+      '<button class="btn-save" onclick="confirmarImportarPrecos()">Aplicar preços</button></div></div></div>';
+}
+function confirmarImportarPrecos(){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const lista=_listaPrecos(f); if(!lista) return;
+  const itens=window._impPrecoItens||[];
+  const l=remanescenteDe(f.id);
+  let n=0;
+  itens.forEach((x,k)=>{
+    const sel=(document.getElementById("imp-"+k)||{}).value;
+    if(sel===""||sel==null) return;
+    const idx=Number(sel); if(isNaN(idx)||!lista[idx]) return;
+    const alvo=l.find(r=>r.id===x.id); if(!alvo) return;
+    alvo.preco=Number(lista[idx][1])||0;
+    n++;
+  });
+  if(n) salvarRemanescente(f.id, l);
+  fecharModal();
+  toast(n? n+" preço(s) atualizado(s)" : "Nenhum preço alterado");
+  render();
 }
 
 /* Saldo por produto (agrupado por nome):
@@ -6213,6 +6282,7 @@ function abaSaldo(f,E){
 function abaRemanescente(f){
   const l = remanescenteDe(f.id).slice().sort((a,b)=>String(a.produto||"").localeCompare(String(b.produto||""),"pt-BR"));
   let h = '<div class="acts"><button class="btn-act primary" onclick="modalRemanescente()">+ Adicionar ao estoque</button>'+
+    (l.length&&_listaPrecos(f)?'<button class="btn-act" onclick="modalImportarPrecos()">💲 Importar preços</button>':"")+
     (l.length?botaoExportar([{rotulo:"Planilha",fn:"exportarRemanescente('csv')"},{rotulo:"Imagem",fn:"exportarRemanescente('png')"},{rotulo:"PDF",fn:"exportarRemanescente('pdf')"}]):"")+'</div>';
   h += '<p class="resumo-obs">Sobra da safra anterior (estoque de abertura). Some ao saldo junto com o que for entregue nos pedidos.</p>';
   if(!l.length)
