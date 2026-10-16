@@ -943,7 +943,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.142.0";
+const APP_VERSION = "2.143.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -5946,7 +5946,7 @@ function gravarAbastecer(id){
   const ab=abastecDe(f.id);
   ab.push({id:"ab_"+Date.now().toString(36), maquina_id:id, data:data, litros:litros,
     hor_ant:(isNaN(hAnt)?null:hAnt), horimetro:(isNaN(hor)?null:hor),
-    operador:operador, criado_em:new Date().toISOString()});
+    operador:operador, por:_quemLanca(), criado_em:new Date().toISOString()});
   salvarAbastec(f.id,ab);
   if(!isNaN(hor) && hor>(Number(m.horimetro)||0)){ m.horimetro=hor; salvarMaquinas(f.id,l); }
   fecharModal();
@@ -5966,7 +5966,8 @@ function modalHistoricoMaq(id){
     const ha=Number(a.hor_ant), hb=Number(a.horimetro), lit=Number(a.litros)||0;
     const dif=(!isNaN(ha)&&!isNaN(hb)&&hb>ha)?hb-ha:0;
     const med = dif>0&&lit>0 ? (ehKm? dif/lit : lit/dif) : 0;
-    return '<tr><td>'+esc(dataBR(a.data))+'</td><td style="text-align:right">'+nf(hb||0,0)+'</td>'+
+    const quem=((a.operador||a.por)||"").trim();
+    return '<tr><td>'+esc(dataBR(a.data))+(quem?'<br><small style="color:var(--muted)">👤 '+esc(quem)+'</small>':'')+'</td><td style="text-align:right">'+nf(hb||0,0)+'</td>'+
       '<td style="text-align:right">'+nf(lit,0)+' L</td><td style="text-align:right">'+(dif>0?nf(dif,1):"—")+'</td>'+
       '<td style="text-align:right">'+(med?nf(med,ehKm?2:2):"—")+'</td>'+
       '<td style="text-align:right"><button class="mini rm" onclick="removerAbastecimento(\''+id+'\',\''+a.id+'\')">✕</button></td></tr>';
