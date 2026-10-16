@@ -943,7 +943,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.145.0";
+const APP_VERSION = "2.146.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -7188,7 +7188,7 @@ function telaRH(){
 }
 function abaRHEquipe(f){
   const l=funcDe(f.id).slice().sort((a,b)=>String(a.nome||"").localeCompare(String(b.nome||""),"pt-BR"));
-  let h='<div class="acts" style="justify-content:flex-end"><button class="btn-save" onclick="modalFunc()">+ Funcionário</button></div>';
+  let h='<div class="acts" style="justify-content:flex-end"><button class="btn-act" onclick="modalImportarFolha()">📄 Importar folha</button><button class="btn-save" onclick="modalFunc()">+ Funcionário</button></div>';
   if(!l.length) return h+'<div class="empty"><strong>Nenhum funcionário</strong>Cadastre a equipe da fazenda.</div>';
   h+='<table class="arm-grid"><thead><tr><th>Nome</th><th>Função</th><th>Admissão</th><th>Situação</th><th></th></tr></thead><tbody>';
   l.forEach(x=>{
@@ -7367,6 +7367,133 @@ function _semRemovidos(fid, bloco, lista){
   const rem = _removidos(fid, bloco);
   for(const id in rem){ if(rem[id]) return lista.filter(x=> !(x && x.id!=null && _removidos(fid,bloco)[x.id])); }
   return lista;
+}
+
+/* ═══ Importar folha de pagamento (PDF de holerites) → conferência (Fase 1+2) ═══
+   Lê o PDF (pdf.js sob demanda), extrai matrícula+nome+líquido de cada holerite,
+   casa com o funcionário (por matrícula; cai para nome), traz fazenda e PIX e mostra
+   a conferência. NÃO grava no financeiro — é só a validação. */
+const FOLHA_CULTURAS=["SOJA","MILHO","ALGODÃO","SORGO","MILHETO","PASTAGEM","GADO","RATEIO"];
+const FOLHA_SAFRAS=["SAFRA 2026/2027","SAFRINHA 2027","SAFRA 2025/2026","SAFRINHA 2026","SAFRA 2027/2028"];
+const FOLHA_CATEGORIAS=["SALÁRIO CAMPO","SALÁRIO VARIÁVEL CAMPO","13º SALÁRIO CAMPO","ENCARGOS SOCIAIS (INSS/FGTS) CAMPO","SALÁRIO ADM","13º SALÁRIO ADM","ENCARGOS SOCIAIS (INSS/FGTS) ADM","PRO-LABORE"];
+let _pdfjsLib=null;
+async function _carregarPdfjs(){
+  if(_pdfjsLib) return _pdfjsLib;
+  const lib=await import("./pdfjs/pdf.min.mjs");
+  try{ lib.GlobalWorkerOptions.workerSrc="./pdfjs/pdf.worker.min.mjs"; }catch(e){}
+  _pdfjsLib=lib; return lib;
+}
+async function _textoPaginaPdf(pg){
+  const tc=await pg.getTextContent();
+  const linhas={};
+  tc.items.forEach(it=>{ if(!it.str) return; const y=Math.round(it.transform[5]); (linhas[y]=linhas[y]||[]).push(it.str); });
+  return Object.keys(linhas).sort((a,b)=>b-a).map(y=>linhas[y].join(" ")).join("\n");
+}
+function _parseHolerite(txt){
+  const mn=txt.match(/(?:^|\n)\s*(\d{1,6})\s+([A-ZÀ-Ü][A-ZÀ-Ü \.\-]+?)\s+\d{6}\s+\d+\s+\d+\s*(?:\n|$)/);
+  const ml=txt.match(/Valor\s+L[ií]quido\s+([\d\.]+,\d{2})/i);
+  if(!mn || !ml) return null;
+  const liq=Number(ml[1].replace(/\./g,"").replace(",","."))||0;
+  return { matricula:mn[1], nome:mn[2].replace(/\s+/g," ").trim(), liquido:liq };
+}
+function _todosFuncionarios(){
+  const out=[];
+  fazendas().forEach(f=>{ funcDe(f.id).forEach(x=>{ if(x.status!=="Desligado") out.push(Object.assign({}, x, {_fazenda:f.nome, _fazId:f.id})); }); });
+  return out;
+}
+function _casaFuncionario(item, todos){
+  const mat=String(item.matricula||"").replace(/^0+/,"");
+  let c=mat?todos.find(x=> x.matricula && String(x.matricula).replace(/^0+/,"")===mat):null;
+  if(c) return c;
+  const n=_normNome(item.nome);
+  return todos.find(x=> _normNome(x.nome)===n) || null;
+}
+function modalImportarFolha(){
+  const hoje=new Date().toISOString().slice(0,10);
+  const opc=(arr,sel)=>arr.map(v=>'<option'+(v===sel?" selected":"")+'>'+esc(v)+'</option>').join("");
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal modal-lg">'+
+    '<h2>Importar folha de pagamento</h2>'+
+    '<p class="sub">Escolha o <b>PDF da folha</b> (vários holerites juntos). O sistema lê cada um, casa com o funcionário pela matrícula e mostra a lista para você conferir. <b>Nada é enviado ao financeiro</b> — é só a conferência.</p>'+
+    '<div class="frm">'+
+      '<div class="g2"><div><label for="fl-venc">Vencimento (pagamento)</label><input id="fl-venc" type="date" value="'+hoje+'"></div>'+
+        '<div><label for="fl-cult">Cultura</label><select id="fl-cult">'+opc(FOLHA_CULTURAS,"SOJA")+'</select></div></div>'+
+      '<div class="g2"><div><label for="fl-safra">Safra</label><select id="fl-safra">'+opc(FOLHA_SAFRAS,"SAFRA 2026/2027")+'</select></div>'+
+        '<div><label for="fl-cat">Categoria (conta gerencial)</label><select id="fl-cat">'+opc(FOLHA_CATEGORIAS,"SALÁRIO CAMPO")+'</select></div></div>'+
+      '<div><label for="fl-file">Arquivo da folha (PDF)</label><input id="fl-file" type="file" accept="application/pdf,.pdf" onchange="processarFolhaPDF(this)"></div>'+
+      '<p class="dica" id="fl-status">Os campos acima valem para todos os holerites do lote.</p>'+
+    '</div>'+
+    '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button></div></div></div>';
+}
+async function processarFolhaPDF(input){
+  const a=input.files && input.files[0]; if(!a) return;
+  const st=document.getElementById("fl-status");
+  const setst=m=>{ if(st) st.innerHTML=m; };
+  setst("Carregando leitor de PDF… (só na 1ª vez)");
+  try{
+    const lib=await _carregarPdfjs();
+    setst("Lendo os holerites…");
+    const buf=new Uint8Array(await a.arrayBuffer());
+    const pdf=await lib.getDocument({data:buf}).promise;
+    const itens=[];
+    for(let i=1;i<=pdf.numPages;i++){
+      const pg=await pdf.getPage(i);
+      const r=_parseHolerite(await _textoPaginaPdf(pg));
+      if(r) itens.push(r);
+    }
+    if(!itens.length){ setst('<span style="color:var(--red)">Não reconheci holerites nesse PDF.</span>'); return; }
+    window._folhaLote={
+      venc:(document.getElementById("fl-venc")||{}).value||"",
+      cultura:(document.getElementById("fl-cult")||{}).value||"",
+      safra:(document.getElementById("fl-safra")||{}).value||"",
+      categoria:(document.getElementById("fl-cat")||{}).value||"",
+      itens:itens
+    };
+    telaConferirFolha();
+  }catch(e){ setst('<span style="color:var(--red)">Erro ao ler o PDF: '+esc(String(e&&e.message||e))+'</span>'); }
+}
+function telaConferirFolha(){
+  const L=window._folhaLote; if(!L) return;
+  const todos=_todosFuncionarios();
+  const linhas=L.itens.map(it=>Object.assign({}, it, {func:_casaFuncionario(it, todos)}));
+  const semMatch=linhas.filter(l=>!l.func);
+  const semPix=linhas.filter(l=>l.func && !(l.func.pix||"").trim());
+  const total=linhas.reduce((s,l)=>s+(l.liquido||0),0);
+  const rows=linhas.map(l=>{
+    const ok=!!l.func;
+    return '<tr'+(!ok?' style="background:#fdecea"':'')+'>'+
+      '<td><b>'+esc(l.nome)+'</b><br><small style="color:var(--muted)">matrícula '+esc(l.matricula)+'</small></td>'+
+      '<td>'+(ok?esc(l.func._fazenda||"—"):'<span style="color:var(--red)">sem cadastro</span>')+'</td>'+
+      '<td>'+(ok?((l.func.pix||"").trim()?esc(l.func.pix):'<span style="color:var(--red)">sem PIX</span>'):'—')+'</td>'+
+      '<td style="text-align:right;font-weight:700">'+moeda(l.liquido)+'</td></tr>';
+  }).join("");
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal modal-lg">'+
+    '<h2>Conferência da folha</h2>'+
+    '<p class="sub">Venc. '+esc(dataBR(L.venc))+' · '+esc(L.cultura)+' · '+esc(L.safra)+' · '+esc(L.categoria)+' · '+linhas.length+' holerite(s)</p>'+
+    (semMatch.length?'<p class="dica" style="color:var(--red)">⚠️ '+semMatch.length+' sem cadastro — cadastre a matrícula no RH para casar.</p>':'')+
+    (semPix.length?'<p class="dica" style="color:#b8860b">⚠️ '+semPix.length+' sem chave PIX no cadastro.</p>':'')+
+    '<div class="tbl-wrap" style="max-height:48vh;overflow:auto"><table class="arm-grid"><thead><tr><th>Funcionário</th><th>Fazenda</th><th>PIX</th><th style="text-align:right">Líquido</th></tr></thead><tbody>'+rows+
+    '</tbody><tfoot><tr><td colspan="3" style="text-align:right;font-weight:700">Total</td><td style="text-align:right;font-weight:800">'+moeda(total)+'</td></tr></tfoot></table></div>'+
+    '<div class="modal-acts"><button class="btn-cancel" onclick="modalImportarFolha()">Voltar</button>'+
+      '<button class="btn-act" onclick="baixarListaFolha()">Baixar lista (CSV)</button></div></div></div>';
+}
+function baixarListaFolha(){
+  const L=window._folhaLote; if(!L) return;
+  const todos=_todosFuncionarios();
+  const linhas=[["fornecedor","matricula","fazenda","chave_pix","valor","vencimento","cultura","safra","categoria","status"]];
+  L.itens.forEach(it=>{
+    const c=_casaFuncionario(it, todos);
+    linhas.push([it.nome.toUpperCase(), it.matricula, c?(c._fazenda||""):"SEM CADASTRO",
+      c?(c.pix||""):"", (it.liquido||0).toFixed(2).replace(".",","), dataBR(L.venc),
+      L.cultura, L.safra, L.categoria, "A PAGAR"]);
+  });
+  const csv="﻿"+linhas.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(";")).join("\n");
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
+  a.download="folha-pagamentos.csv"; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+  toast("Lista baixada");
 }
 
 function kVisitas(f){ return "faz_"+f+"_visitas"; }
