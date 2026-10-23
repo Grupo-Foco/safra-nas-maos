@@ -957,7 +957,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.157.0";
+const APP_VERSION = "2.158.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -7854,8 +7854,6 @@ function telaVisitas(){
 
   h += '<div class="acts">'+
     '<button class="btn-act primary" onclick="modalVisita()">+ Nova visita</button>'+
-    (comFoto?'<button class="btn-act" onclick="reenviarFotosVisitas()" title="Reenvia para a nuvem as fotos que ainda estão neste aparelho">Reenviar fotos</button>':'')+
-    (todas.length?'<button class="btn-act" onclick="apagarTodasVisitas()" style="color:var(--red)">Apagar todas</button>':'')+
     (tals.length?'<select class="sel-f" onchange="_fVisTal=this.value;render()">'+
       '<option value="">Todos os talhões</option>'+
       tals.slice().sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR",{numeric:true}))
