@@ -957,7 +957,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.156.0";
+const APP_VERSION = "2.157.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -5161,23 +5161,31 @@ function exportarLavoura(fmt){
   const f=acharFazenda(App.fazendaId); if(!f) return;
   const R=resumoLavoura(f.id);
   const linhas=[["RELATÓRIO DE PLANTIO · "+f.nome.toUpperCase()+" · SAFRA "+f.safra]];
-  linhas.push(["Talhão","Variedade","Parcela","Área-ha","Início","Fim","Emergência","DAE","Status"]);
+  linhas.push(["Talhão","Variedade","Área-ha","Início","Fim","Emergência","DAE","Status"]);
   R.linhas.forEach(l=>{
     if(!l.plantado) return;
     const st=l.finalizado?"Finalizado":"Em andamento";
-    l.parcelas.forEach((pc,i)=>{
-      const dd=_daeDias(pc.emergencia);
-      linhas.push([l.nome, l.variedade, "parcela "+(i+1), vBR((Number(pc.area)||0).toFixed(2)),
+    if(l.parcelas.length<=1){
+      // um lançamento só: uma linha com o detalhe
+      const pc=l.parcelas[0]||{}; const dd=_daeDias(pc.emergencia);
+      linhas.push([l.nome, (pc.variedade||l.variedade||""), vBR((Number(pc.area)||0).toFixed(2)),
         pc.inicio?dataBR(pc.inicio):"", pc.fim?dataBR(pc.fim):"",
-        pc.emergencia?dataBR(pc.emergencia):"", dd!=null?dd:"", i===0?st:""]);
-    });
-    if(l.parcelas.length>1)
-      linhas.push([l.nome+" — total","","",vBR(l.areaPlant.toFixed(2)),
-        l.inicio?dataBR(l.inicio):"", l.fim?dataBR(l.fim):"","","",""]);
+        pc.emergencia?dataBR(pc.emergencia):"", dd!=null?dd:"", st]);
+    } else {
+      // vários lançamentos: linha de somatório do talhão + parcelas recuadas abaixo
+      linhas.push([l.nome, "", vBR(l.areaPlant.toFixed(2)),
+        l.inicio?dataBR(l.inicio):"", l.fim?dataBR(l.fim):"", "", "", st]);
+      l.parcelas.forEach((pc,i)=>{
+        const dd=_daeDias(pc.emergencia);
+        linhas.push(["    ↳ parcela "+(i+1), (pc.variedade||l.variedade||""), vBR((Number(pc.area)||0).toFixed(2)),
+          pc.inicio?dataBR(pc.inicio):"", pc.fim?dataBR(pc.fim):"",
+          pc.emergencia?dataBR(pc.emergencia):"", dd!=null?dd:"", ""]);
+      });
+    }
   });
   linhas.push([]);
-  linhas.push(["Total plantado","","",vBR(R.areaPlantada.toFixed(2))]);
-  R.variedades.forEach(v=>linhas.push([v.nome,"","",vBR(v.area.toFixed(2))]));
+  linhas.push(["Total plantado","",vBR(R.areaPlantada.toFixed(2))]);
+  R.variedades.forEach(v=>linhas.push([v.nome,"",vBR(v.area.toFixed(2))]));
   exportarTabela(fmt, "Plantio · "+f.nome, linhas,
     "plantio-"+f.nome.toLowerCase().replace(/[^a-z0-9]+/g,"-"));
 }
