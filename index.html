@@ -957,7 +957,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.155.0";
+const APP_VERSION = "2.156.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -2347,7 +2347,8 @@ function _parcelasEfetivas(p, t){
   if(legado){
     const area = (p.area!=null && p.area!=="") ? Number(p.area) : (t?Number(t.hectares):0);
     return [{ id:"leg", area:Number(area)||0, inicio:p.inicio||"", fim:p.fim||"",
-              emergencia:p.dae||"", geo:(p.geo&&p.geo.lat!=null)?p.geo:null, _legado:true }];
+              emergencia:p.dae||"", variedade:p.variedade||"",
+              geo:(p.geo&&p.geo.lat!=null)?p.geo:null, _legado:true }];
   }
   return [];
 }
@@ -2365,7 +2366,7 @@ function garanteParcelas(f, talId){
     p.parcelas=_parcelasEfetivas(p,t).map(x=>({
       id:"pc_"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),
       area:Number(x.area)||0, inicio:x.inicio||"", fim:x.fim||"",
-      emergencia:x.emergencia||"", geo:x.geo||null }));
+      emergencia:x.emergencia||"", variedade:x.variedade||p.variedade||"", geo:x.geo||null }));
   }
   todo[talId]=p; return {todo,p};
 }
@@ -2421,7 +2422,12 @@ function resumoLavoura(f){
   });
   const plantadas = linhas.filter(l=>l.plantado);
   const vars = {};
-  plantadas.forEach(l=>{ const v=l.variedade.trim()||"—"; vars[v]=(vars[v]||0)+l.areaPlant; });
+  plantadas.forEach(l=>{
+    l.parcelas.forEach(pc=>{
+      const v=((pc.variedade||l.variedade)||"").trim()||"—";
+      vars[v]=(vars[v]||0)+(Number(pc.area)||0);
+    });
+  });
   const datas = plantadas.map(l=>l.inicio).filter(Boolean).sort();
   const fins  = plantadas.map(l=>l.fim).filter(Boolean).sort();
   return { linhas, plantadas,
@@ -5023,10 +5029,11 @@ function telaLavoura(){
       '</td></tr>';
     if(aberto && nParc) l.parcelas.forEach((pc,idx)=>{
       const dd=_daeDias(pc.emergencia);
+      const cult=(pc.variedade||l.variedade||"").trim();
       h += '<tr class="lav-parc">'+
         '<td style="padding-left:20px;color:var(--muted)">↳ parcela '+(idx+1)+'</td>'+
-        '<td style="color:var(--muted)">'+(pc.emergencia?'emerg. '+dataBR(pc.emergencia)+(dd!=null?' · DAE '+dd+'d':''):'—')+'</td>'+
-        '<td class="num hide-sm"></td>'+
+        '<td>'+(cult?esc(cult):'<span style="color:var(--red)">sem cultivar</span>')+'</td>'+
+        '<td class="num hide-sm" style="color:var(--muted)">'+(pc.emergencia?'emerg. '+dataBR(pc.emergencia)+(dd!=null?' · DAE '+dd+'d':''):'')+'</td>'+
         '<td class="num"><b>'+nf(Number(pc.area)||0,2)+'</b> ha'+((pc.geo&&pc.geo.lat!=null)?' <a href="https://www.google.com/maps?q='+pc.geo.lat+','+pc.geo.lon+'" target="_blank" rel="noopener" style="color:var(--green)">📍</a>':'')+'</td>'+
         '<td class="mono">'+(pc.inicio?dataBR(pc.inicio):"—")+'</td>'+
         '<td class="mono">'+(pc.fim?dataBR(pc.fim):"—")+'</td>'+
@@ -5080,6 +5087,8 @@ function modalParcela(talId, idx){
   '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal">'+
     '<h2>'+(ed?"Editar parcela":"Nova parcela")+'</h2>'+
     '<p class="sub">'+esc(t.nome)+' · '+nf(t.hectares,2)+' ha · já lançado '+nf(jaPlant,2)+' ha · resta ~'+nf(resta,2)+' ha</p>'+
+    '<div><label for="pc-cult">Cultivar / variedade</label>'+
+      '<input id="pc-cult" value="'+esc(ed ? (ed.variedade||p.variedade||"") : (p.variedade||""))+'" placeholder="Olimpo, Neo 790…"></div>'+
     '<div><label for="pc-area">Área plantada (ha)</label>'+
       '<input id="pc-area" type="number" step="0.01" inputmode="decimal" value="'+(ed?nf(ed.area,2).replace(/\./g,"").replace(",","."):"")+'" placeholder="ex.: 90"></div>'+
     '<div class="lv2"><div><label for="pc-ini">Início</label><input id="pc-ini" type="date" value="'+(ed?esc(ed.inicio):"")+'"></div>'+
@@ -5098,11 +5107,13 @@ function salvarParcela(talId, idx){
   const inicio=(document.getElementById("pc-ini")||{}).value||"";
   const fim=(document.getElementById("pc-fim")||{}).value||"";
   const emergencia=(document.getElementById("pc-eme")||{}).value||"";
+  const variedade=((document.getElementById("pc-cult")||{}).value||"").trim();
   if(area<=0 && !inicio){ toast("Informe ao menos a área ou o início"); return; }
-  const dados={area, inicio, fim, emergencia, geo:window._parcelaGeo||null};
+  const dados={area, inicio, fim, emergencia, variedade, geo:window._parcelaGeo||null};
   const {p}=garanteParcelas(f.id, talId);
   if(idx>=0 && p.parcelas[idx]) Object.assign(p.parcelas[idx], dados);
   else p.parcelas.push(Object.assign({id:"pc_"+Date.now().toString(36)+Math.random().toString(36).slice(2,5)}, dados));
+  if(variedade && !p.variedade) p.variedade=variedade;   // 1ª cultivar vira o padrão do talhão
   _salvarLavObj(f.id, talId, p);
   window._parcelaGeo=null; fecharModal(); render();
 }
