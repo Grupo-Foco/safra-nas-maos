@@ -954,7 +954,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.152.0";
+const APP_VERSION = "2.153.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -5086,6 +5086,11 @@ function relPedidos(f, sel){
   const linhas=[{t:'cab', cs:['Produto','Em nome de','Categoria','Pedido','Entregue','Faltam','Valor','NF']}];
   const grupos={};
   peds.forEach(p=>{ const k=_normNome(p.produto); (grupos[k]=grupos[k]||{nome:p.produto,itens:[]}).itens.push(p); });
+  const _dPeds=peds.filter(_pedEhDiesel);
+  const _dP=_dPeds.reduce((s,p)=>s+(p.qtd||0),0), _dE=_dPeds.reduce((s,p)=>s+(p.entregue||0),0),
+        _dV=_dPeds.reduce((s,p)=>s+(p.qtd*(p.valor||0)),0);
+  const _dKeys=Object.keys(grupos).filter(k=>grupos[k].itens.some(_pedEhDiesel)).sort();
+  const _dUlt=_dKeys[_dKeys.length-1];
   let gP=0,gE=0,gV=0;
   Object.keys(grupos).sort().forEach(k=>{
     const g=grupos[k]; let sP=0,sE=0,sV=0;
@@ -5096,6 +5101,8 @@ function relPedidos(f, sel){
     });
     if(g.itens.length>1)
       linhas.push({t:'total', cs:[g.nome+' — total','','', nf(sP,0), nf(sE,0), nf(sP-sE,0), moeda(sV), '']});
+    if(_dKeys.length>1 && k===_dUlt)
+      linhas.push({t:'total', cs:['Óleo Diesel — total geral (todos os nomes)','','', nf(_dP,0), nf(_dE,0), nf(_dP-_dE,0), moeda(_dV), '']});
     gP+=sP; gE+=sE; gV+=sV;
   });
   linhas.push({t:'total', cs:['Total geral','','', nf(gP,0), nf(gE,0), nf(gP-gE,0), moeda(gV), '']});
@@ -5180,6 +5187,12 @@ function abaPedidos(f, peds){
   const grupos={};
   peds.forEach(p=>{ const k=_normNome(p.produto); (grupos[k]=grupos[k]||{nome:p.produto, itens:[]}).itens.push(p); });
   h+='<div class="tbl-wrap"><table class="arm-grid"><thead><tr><th>Produto</th><th>Em nome de</th><th>Categoria</th><th>Pedido</th><th>Entregue</th><th>Faltam</th><th>Valor</th><th></th></tr></thead><tbody>';
+  // Somatório de TODO o diesel (qualquer nome), em linha própria após a última linha de diesel.
+  const _dPeds=peds.filter(_pedEhDiesel);
+  const _dP=_dPeds.reduce((s,p)=>s+(p.qtd||0),0), _dE=_dPeds.reduce((s,p)=>s+(p.entregue||0),0),
+        _dV=_dPeds.reduce((s,p)=>s+(p.qtd*(p.valor||0)),0);
+  const _dKeys=Object.keys(grupos).filter(k=>grupos[k].itens.some(_pedEhDiesel)).sort();
+  const _dUlt=_dKeys[_dKeys.length-1];
   let gP=0,gE=0,gV=0;
   Object.keys(grupos).sort().forEach(k=>{
     const g=grupos[k]; let sP=0,sE=0,sV=0;
@@ -5201,6 +5214,8 @@ function abaPedidos(f, peds){
     });
     if(g.itens.length>1)
       h+='<tr class="arm-sub"><td>'+esc(g.nome)+' — total</td><td></td><td></td><td>'+nf(sP,0)+'</td><td>'+nf(sE,0)+'</td><td>'+nf(sP-sE,0)+'</td><td style="white-space:nowrap">'+moeda(sV)+'</td><td></td></tr>';
+    if(_dKeys.length>1 && k===_dUlt)
+      h+='<tr class="arm-sub" style="font-weight:800;background:#eef3ec"><td>Óleo Diesel — total geral (todos os nomes)</td><td></td><td></td><td>'+nf(_dP,0)+'</td><td>'+nf(_dE,0)+'</td><td>'+nf(_dP-_dE,0)+'</td><td style="white-space:nowrap">'+moeda(_dV)+'</td><td></td></tr>';
     gP+=sP; gE+=sE; gV+=sV;
   });
   h+='<tr class="arm-tot"><td>Total geral</td><td></td><td></td><td>'+nf(gP,0)+'</td><td>'+nf(gE,0)+'</td><td>'+nf(gP-gE,0)+'</td><td style="white-space:nowrap">'+moeda(gV)+'</td><td></td></tr>';
