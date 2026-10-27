@@ -957,7 +957,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.158.0";
+const APP_VERSION = "2.159.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -5095,6 +5095,7 @@ function modalParcela(talId, idx){
       '<div><label for="pc-fim">Fim</label><input id="pc-fim" type="date" value="'+(ed?esc(ed.fim):"")+'"></div></div>'+
     '<div><label for="pc-eme">Emergência (opcional)</label><input id="pc-eme" type="date" value="'+(ed?esc(ed.emergencia):"")+'"></div>'+
     '<div class="dica" id="pc-geo" onclick="_capturarGeoParcela()" style="cursor:pointer;margin-top:10px"><span id="pc-geo-lbl">📍 Localização</span></div>'+
+    ((ed && ed.por)?'<p style="font-size:11px;color:var(--muted);margin:8px 0 0">Lançado por '+esc(ed.por)+(ed.em?' · '+dataBR(String(ed.em).slice(0,10)):'')+'</p>':'')+
     '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
       '<button class="btn-save" onclick="salvarParcela(\''+talId+'\','+(idx==null?-1:idx)+')">Salvar</button>'+
     '</div></div></div>';
@@ -5111,8 +5112,9 @@ function salvarParcela(talId, idx){
   if(area<=0 && !inicio){ toast("Informe ao menos a área ou o início"); return; }
   const dados={area, inicio, fim, emergencia, variedade, geo:window._parcelaGeo||null};
   const {p}=garanteParcelas(f.id, talId);
-  if(idx>=0 && p.parcelas[idx]) Object.assign(p.parcelas[idx], dados);
-  else p.parcelas.push(Object.assign({id:"pc_"+Date.now().toString(36)+Math.random().toString(36).slice(2,5)}, dados));
+  if(idx>=0 && p.parcelas[idx]) Object.assign(p.parcelas[idx], dados);  // edição não mexe em quem incluiu
+  else p.parcelas.push(Object.assign({id:"pc_"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),
+    por:_quemLanca(), em:new Date().toISOString()}, dados));            // registro discreto de quem incluiu
   if(variedade && !p.variedade) p.variedade=variedade;   // 1ª cultivar vira o padrão do talhão
   _salvarLavObj(f.id, talId, p);
   window._parcelaGeo=null; fecharModal(); render();
