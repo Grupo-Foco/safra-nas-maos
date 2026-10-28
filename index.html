@@ -957,7 +957,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.160.0";
+const APP_VERSION = "2.161.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -5007,7 +5007,7 @@ function telaLavoura(){
 
   window._lavExp = window._lavExp || {};
   h += '<div class="tbl lav"><table><thead><tr>'+
-    '<th>Talhão</th><th>Variedade</th><th class="num hide-sm">Sementes/m</th>'+
+    '<th>Talhão</th><th>Variedade</th><th class="num">Sementes/m</th>'+
     '<th class="num">Plantado</th><th>Início</th><th>Fim</th><th></th></tr></thead><tbody>';
   R.linhas.forEach(l=>{
     const fin=l.finalizado, nParc=l.parcelas.length, aberto=!!window._lavExp[l.id];
@@ -5017,7 +5017,7 @@ function telaLavoura(){
       '<td class="forte">'+esc(l.nome)+(fin?' <span class="sit ok">Finalizado</span>':'')+'</td>'+
       '<td><input class="lv lv-v" value="'+esc(l.variedade)+'" placeholder="Olimpo, Neo 790…" '+(fin?'disabled ':'')+
         'onchange="gravarLav(\''+l.id+'\',\'variedade\',this.value)"></td>'+
-      '<td class="num hide-sm"><input class="lv lv-s" value="'+esc(l.sementes)+'" placeholder="14" '+(fin?'disabled ':'')+
+      '<td class="num"><input class="lv lv-s" value="'+esc(l.sementes)+'" placeholder="14" '+(fin?'disabled ':'')+
         'onchange="gravarLav(\''+l.id+'\',\'sementes\',this.value)"></td>'+
       '<td class="num"><b>'+nf(l.areaPlant,2)+'</b> <small style="color:var(--muted)">de '+nf(l.hectares,0)+' ha · '+nf(pct,0)+'%</small></td>'+
       '<td class="mono">'+(l.inicio?dataBR(l.inicio):"—")+'</td>'+
@@ -5033,14 +5033,14 @@ function telaLavoura(){
       h += '<tr class="lav-parc">'+
         '<td style="padding-left:20px;color:var(--muted)">↳ parcela '+(idx+1)+'</td>'+
         '<td>'+(cult?esc(cult):'<span style="color:var(--red)">sem cultivar</span>')+'</td>'+
-        '<td class="num hide-sm" style="color:var(--muted)">'+(pc.emergencia?'emerg. '+dataBR(pc.emergencia)+(dd!=null?' · DAE '+dd+'d':''):'')+'</td>'+
+        '<td class="num" style="color:var(--muted)">'+(pc.emergencia?'emerg. '+dataBR(pc.emergencia)+(dd!=null?' · DAE '+dd+'d':''):'')+'</td>'+
         '<td class="num"><b>'+nf(Number(pc.area)||0,2)+'</b> ha'+((pc.geo&&pc.geo.lat!=null)?' <a href="https://www.google.com/maps?q='+pc.geo.lat+','+pc.geo.lon+'" target="_blank" rel="noopener" style="color:var(--green)">📍</a>':'')+'</td>'+
         '<td class="mono">'+(pc.inicio?dataBR(pc.inicio):"—")+'</td>'+
         '<td class="mono">'+(pc.fim?dataBR(pc.fim):"—")+'</td>'+
         '<td class="num" style="white-space:nowrap">'+(fin?'':'<button class="mini" onclick="modalParcela(\''+l.id+'\','+idx+')">Editar</button> <button class="rm" onclick="excluirParcela(\''+l.id+'\','+idx+')">✕</button>')+'</td></tr>';
     });
   });
-  h += '</tbody><tfoot><tr><td class="fix">Total plantado</td><td></td><td class="hide-sm"></td>'+
+  h += '</tbody><tfoot><tr><td class="fix">Total plantado</td><td></td><td></td>'+
     '<td class="num mono tot">'+nf(R.areaPlantada,2)+' ha</td>'+
     '<td></td><td></td><td></td></tr></tfoot></table></div>';
 
