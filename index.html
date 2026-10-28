@@ -957,7 +957,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.159.0";
+const APP_VERSION = "2.160.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -7690,7 +7690,7 @@ function telaConferirFolha(){
   '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal modal-lg">'+
     '<h2>Conferência da folha</h2>'+
     '<p class="sub">Venc. '+esc(dataBR(L.venc))+' · '+esc(L.cultura)+' · '+esc(L.safra)+' · '+esc(L.categoria)+' · '+linhas.length+' holerite(s)</p>'+
-    (semMatch.length?'<p class="dica" style="color:var(--red)">⚠️ '+semMatch.length+' sem cadastro — cadastre a matrícula no RH para casar.</p>':'')+
+    (semMatch.length?'<p class="dica" style="color:var(--red)">⚠️ '+semMatch.length+' sem cadastro. <button class="mini" onclick="modalCadastrarFolha()">Cadastrar automaticamente</button></p>':'')+
     (semPix.length?'<p class="dica" style="color:#b8860b">⚠️ '+semPix.length+' sem chave PIX no cadastro.</p>':'')+
     '<div class="tbl-wrap" style="max-height:48vh;overflow:auto"><table class="arm-grid"><thead><tr><th>Funcionário</th><th>Fazenda</th><th>PIX</th><th style="text-align:right">Líquido</th></tr></thead><tbody>'+rows+
     '</tbody><tfoot><tr><td colspan="3" style="text-align:right;font-weight:700">Total</td><td style="text-align:right;font-weight:800">'+moeda(total)+'</td></tr></tfoot></table></div>'+
@@ -7726,6 +7726,47 @@ function _fazendaFinanceiro(nome){
   if(n.indexOf("bento")>=0) return "SÃO BENTO";
   if(n.indexOf("brasil")>=0) return "BRASIL";
   return String(nome||"").toUpperCase();
+}
+/* Cadastro automático dos holerites "sem cadastro": cria o funcionário com
+   nome + matrícula do holerite, na fazenda escolhida. Depois é só completar
+   PIX/CPF no RH. Volta pra conferência, onde já passam a casar. */
+function modalCadastrarFolha(){
+  const L=window._folhaLote; if(!L) return;
+  const todos=_todosFuncionarios();
+  const semMatch=L.itens.filter(it=>!_casaFuncionario(it, todos));
+  if(!semMatch.length){ toast("Todos já estão cadastrados"); telaConferirFolha(); return; }
+  const atual=App.fazendaId;
+  const opc=fazendas().map(f=>'<option value="'+esc(f.id)+'"'+(f.id===atual?" selected":"")+'>'+esc(f.nome)+'</option>').join("");
+  document.getElementById("modal-root").innerHTML=
+  '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal modal-lg">'+
+    '<h2>Cadastrar funcionários da folha</h2>'+
+    '<p class="sub">'+semMatch.length+' holerite(s) sem cadastro. Serão criados com <b>nome e matrícula</b>; depois você completa PIX/CPF no RH.</p>'+
+    '<div class="frm">'+
+      '<div class="g2"><div><label for="cf-faz">Fazenda</label><select id="cf-faz">'+opc+'</select></div>'+
+        '<div><label for="cf-func">Função (opcional, p/ todos)</label><input id="cf-func" placeholder="ex.: Operador"></div></div>'+
+    '</div>'+
+    '<div class="tbl-wrap" style="max-height:38vh;overflow:auto;margin-top:8px"><table class="arm-grid"><thead><tr><th>Nome</th><th style="text-align:right">Matrícula</th></tr></thead><tbody>'+
+      semMatch.map(it=>'<tr><td>'+esc(it.nome)+'</td><td style="text-align:right">'+esc(it.matricula)+'</td></tr>').join("")+
+    '</tbody></table></div>'+
+    '<div class="modal-acts"><button class="btn-cancel" onclick="telaConferirFolha()">Voltar</button>'+
+      '<button class="btn-save" onclick="confirmarCadastrarFolha()">Cadastrar '+semMatch.length+'</button></div></div></div>';
+}
+function confirmarCadastrarFolha(){
+  const L=window._folhaLote; if(!L) return;
+  const fid=(document.getElementById("cf-faz")||{}).value;
+  const funcao=((document.getElementById("cf-func")||{}).value||"").trim();
+  if(!fazendas().find(x=>x.id===fid)){ toast("Escolha a fazenda"); return; }
+  const semMatch=L.itens.filter(it=>!_casaFuncionario(it, _todosFuncionarios()));
+  const l=funcDe(fid); let n=0;
+  semMatch.forEach(it=>{
+    l.push({ id:"fn_"+Date.now().toString(36)+Math.random().toString(36).slice(2,5)+n, criado_em:new Date().toISOString(),
+      nome:it.nome, matricula:String(it.matricula||""), funcao:funcao, admissao:"", cpf:"", fone:"",
+      pix:"", status:"Ativo", obs:"cadastrado pela folha" });
+    n++;
+  });
+  salvarFunc(fid, l);
+  toast(n+" funcionário(s) cadastrado(s)");
+  telaConferirFolha();
 }
 async function enviarFolhaFinanceiro(){
   const L=window._folhaLote; if(!L) return;
