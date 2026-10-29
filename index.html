@@ -957,7 +957,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.164.0";
+const APP_VERSION = "2.165.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -7722,7 +7722,7 @@ function telaConferirFolha(){
   const linhas=L.itens.map(it=>Object.assign({}, it, {func:_casaFuncionario(it, todos)}));
   const semMatch=linhas.filter(l=>!l.func);
   const semPix=linhas.filter(l=>l.func && !(l.func.pix||"").trim());
-  const semDados=linhas.filter(l=>l.func && ((l.funcao && !(l.func.funcao||"").trim()) || (l.admissao && !(l.func.admissao||"").trim())));
+  const semDados=linhas.filter(l=>l.func && ((l.matricula && !(l.func.matricula||"").trim()) || (l.funcao && !(l.func.funcao||"").trim()) || (l.admissao && !(l.func.admissao||"").trim())));
   const total=linhas.reduce((s,l)=>s+(l.liquido||0),0);
   const rows=linhas.map(l=>{
     const ok=!!l.func;
@@ -7738,7 +7738,7 @@ function telaConferirFolha(){
     '<p class="sub">Venc. '+esc(dataBR(L.venc))+' · '+esc(L.cultura)+' · '+esc(L.safra)+' · '+esc(L.categoria)+' · '+linhas.length+' holerite(s)</p>'+
     (semMatch.length?'<p class="dica" style="color:var(--red)">⚠️ '+semMatch.length+' sem cadastro. <button class="mini" onclick="modalCadastrarFolha()">Cadastrar automaticamente</button></p>':'')+
     (semPix.length?'<p class="dica" style="color:#b8860b">⚠️ '+semPix.length+' sem chave PIX no cadastro.</p>':'')+
-    (semDados.length?'<p class="dica">🏷️ '+semDados.length+' sem cargo/admissão no cadastro. <button class="mini" onclick="completarCadastroFolha()">Completar do holerite</button></p>':'')+
+    (semDados.length?'<p class="dica">🏷️ '+semDados.length+' sem matrícula/cargo/admissão no cadastro. <button class="mini" onclick="completarCadastroFolha()">Completar do holerite</button></p>':'')+
     '<div class="tbl-wrap" style="max-height:48vh;overflow:auto"><table class="arm-grid"><thead><tr><th>Funcionário</th><th>Fazenda</th><th>PIX</th><th style="text-align:right">Líquido</th></tr></thead><tbody>'+rows+
     '</tbody><tfoot><tr><td colspan="3" style="text-align:right;font-weight:700">Total</td><td style="text-align:right;font-weight:800">'+moeda(total)+'</td></tr></tfoot></table></div>'+
     '<div class="modal-acts"><button class="btn-cancel" onclick="modalImportarFolha()">Voltar</button>'+
@@ -7753,22 +7753,23 @@ function completarCadastroFolha(){
   const porFaz={};
   L.itens.forEach(it=>{
     const c=_casaFuncionario(it, todos); if(!c) return;
-    const precisa=(it.funcao && !(c.funcao||"").trim()) || (it.admissao && !(c.admissao||"").trim());
+    const precisa=(it.matricula && !(c.matricula||"").trim()) || (it.funcao && !(c.funcao||"").trim()) || (it.admissao && !(c.admissao||"").trim());
     if(!precisa) return;
-    (porFaz[c._fazId]=porFaz[c._fazId]||[]).push({id:c.id, funcao:it.funcao, admissao:it.admissao});
+    (porFaz[c._fazId]=porFaz[c._fazId]||[]).push({id:c.id, matricula:it.matricula, funcao:it.funcao, admissao:it.admissao});
   });
   let n=0;
   Object.keys(porFaz).forEach(fid=>{
     const l=funcDe(fid); let mudou=false;
     porFaz[fid].forEach(u=>{
       const x=l.find(y=>y.id===u.id); if(!x) return; let m=false;
+      if(u.matricula && !(x.matricula||"").trim()){ x.matricula=String(u.matricula); m=true; }
       if(u.funcao && !(x.funcao||"").trim()){ x.funcao=u.funcao; m=true; }
       if(u.admissao && !(x.admissao||"").trim()){ x.admissao=u.admissao; m=true; }
       if(m){ mudou=true; n++; }
     });
     if(mudou) salvarFunc(fid, l);
   });
-  toast(n?n+" cadastro(s) completado(s) com cargo/admissão":"Ninguém precisava completar");
+  toast(n?n+" cadastro(s) completado(s)":"Ninguém precisava completar");
   telaConferirFolha();
 }
 function baixarListaFolha(){
