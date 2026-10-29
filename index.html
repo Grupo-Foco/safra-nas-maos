@@ -957,7 +957,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.161.0";
+const APP_VERSION = "2.162.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -7407,18 +7407,58 @@ function telaRH(){
 }
 function abaRHEquipe(f){
   const l=funcDe(f.id).slice().sort((a,b)=>String(a.nome||"").localeCompare(String(b.nome||""),"pt-BR"));
-  let h='<div class="acts" style="justify-content:flex-end"><button class="btn-act" onclick="modalImportarFolha()">📄 Importar folha</button><button class="btn-save" onclick="modalFunc()">+ Funcionário</button></div>';
+  const faltaPix=l.filter(x=>x.status!=="Desligado" && !(x.pix||"").trim()).length;
+  let h='<div class="acts" style="justify-content:flex-end">'+
+    (faltaPix?'<button class="btn-act" onclick="buscarPixFinanceiro()" title="Preenche o PIX de quem está sem, buscando nos lançamentos da folha no financeiro">🔄 Buscar PIX no financeiro</button>':'')+
+    '<button class="btn-act" onclick="modalImportarFolha()">📄 Importar folha</button><button class="btn-save" onclick="modalFunc()">+ Funcionário</button></div>';
   if(!l.length) return h+'<div class="empty"><strong>Nenhum funcionário</strong>Cadastre a equipe da fazenda.</div>';
-  h+='<table class="arm-grid"><thead><tr><th>Nome</th><th>Função</th><th>Admissão</th><th>Situação</th><th></th></tr></thead><tbody>';
+  h+='<table class="arm-grid"><thead><tr><th>Nome</th><th>Função</th><th>PIX</th><th>Admissão</th><th>Situação</th><th></th></tr></thead><tbody>';
   l.forEach(x=>{
     const desl=x.status==="Desligado";
-    h+='<tr'+(desl?' style="opacity:.55"':'')+'><td><b>'+esc(x.nome||"—")+'</b>'+((x.matricula||x.cpf||x.fone||x.pix)?'<br><small style="color:var(--muted)">'+[x.matricula?"Mat "+esc(x.matricula):"",x.cpf?"CPF "+esc(x.cpf):"",x.fone?esc(x.fone):"",x.pix?"PIX "+esc(x.pix):""].filter(Boolean).join(" · ")+'</small>':'')+'</td>'+
-       '<td>'+esc(x.funcao||"—")+'</td><td>'+(x.admissao?dataBR(x.admissao):"—")+'</td>'+
+    h+='<tr'+(desl?' style="opacity:.55"':'')+'><td><b>'+esc(x.nome||"—")+'</b>'+((x.matricula||x.cpf||x.fone)?'<br><small style="color:var(--muted)">'+[x.matricula?"Mat "+esc(x.matricula):"",x.cpf?"CPF "+esc(x.cpf):"",x.fone?esc(x.fone):""].filter(Boolean).join(" · ")+'</small>':'')+'</td>'+
+       '<td>'+esc(x.funcao||"—")+'</td>'+
+       '<td style="font-family:var(--mono);font-size:11px;max-width:200px;word-break:break-all">'+((x.pix||"").trim()?esc(x.pix):'<span style="color:var(--red)">sem PIX</span>')+'</td>'+
+       '<td>'+(x.admissao?dataBR(x.admissao):"—")+'</td>'+
        '<td>'+(desl?'Desligado':'Ativo')+'</td>'+
        '<td style="text-align:right;white-space:nowrap"><button class="mini" onclick="modalRetirada(\'\',\''+x.id+'\')">Retirada</button> '+
        '<button class="mini" onclick="modalFunc(\''+x.id+'\')">Editar</button></td></tr>';
   });
   return h+'</tbody></table>';
+}
+/* Busca o PIX no financeiro (lançamentos da FOLHA desta fazenda) e preenche quem
+   está sem PIX. Casa por matrícula (do histórico) e, na falta, pelo nome. Usa
+   chave_pix e, se vazio, conta/correntista (transferência). Só preenche vazios. */
+async function buscarPixFinanceiro(){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  if(!SUPABASE.ligado() || !Auth.logado()){ toast("Entre na sua conta para buscar no financeiro"); return; }
+  if(!navigator.onLine){ toast("Sem internet — precisa de conexão para ler o financeiro"); return; }
+  const semPix=funcDe(f.id).filter(x=>x.status!=="Desligado" && !(x.pix||"").trim());
+  if(!semPix.length){ toast("Todos já têm PIX"); return; }
+  if(!confirm("Buscar no financeiro o PIX de "+semPix.length+" funcionário(s) sem PIX desta fazenda?\n\nVai ler os lançamentos da folha e preencher só quem está sem PIX.")) return;
+  let lanc;
+  try{
+    const finNome=_fazendaFinanceiro(f.nome);
+    lanc=await Sync._comRetry(()=>api("lancamentos?documento=eq.FOLHA&fazenda=eq."+encodeURIComponent(finNome)+
+      "&select=fornecedor,chave_pix,conta,correntista,historico&order=vencimento.desc&limit=3000"), 4);
+  }catch(e){ toast("Não consegui ler o financeiro — verifique a conexão"); return; }
+  if(!Array.isArray(lanc) || !lanc.length){ toast("Nenhum lançamento de folha encontrado no financeiro desta fazenda"); return; }
+  const porMat={}, porNome={};
+  lanc.forEach(r=>{
+    const pix=((r.chave_pix||"").trim()) || ((r.conta||"").trim()) || ((r.correntista||"").trim());
+    if(!pix) return;
+    const mm=String(r.historico||"").match(/matr[íi]cula\s+([^\s\)]+)/i);
+    if(mm){ const k=mm[1].replace(/^0+/,""); if(k && !porMat[k]) porMat[k]=pix; }
+    const nn=_normNome(r.fornecedor||""); if(nn && !porNome[nn]) porNome[nn]=pix;
+  });
+  const l=funcDe(f.id); let n=0;
+  l.forEach(x=>{
+    if(x.status==="Desligado" || (x.pix||"").trim()) return;
+    const mat=String(x.matricula||"").replace(/^0+/,"");
+    const achado=(mat && porMat[mat]) || porNome[_normNome(x.nome||"")];
+    if(achado){ x.pix=achado; n++; }
+  });
+  if(n){ salvarFunc(f.id, l); toast(n+" PIX preenchido(s) do financeiro"); render(); }
+  else toast("Não achei PIX no financeiro para os que faltam. Confira se a folha foi enviada e o PIX cadastrado lá.");
 }
 function abaRHFerias(f){
   const l=funcDe(f.id).filter(x=>x.status!=="Desligado").slice().sort((a,b)=>String(a.nome||"").localeCompare(String(b.nome||""),"pt-BR"));
