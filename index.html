@@ -957,7 +957,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.163.0";
+const APP_VERSION = "2.164.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -7415,7 +7415,7 @@ function abaRHEquipe(f){
   h+='<table class="arm-grid"><thead><tr><th>Nome</th><th>Função</th><th>PIX</th><th>Admissão</th><th>Situação</th><th></th></tr></thead><tbody>';
   l.forEach(x=>{
     const desl=x.status==="Desligado";
-    h+='<tr'+(desl?' style="opacity:.55"':'')+'><td><b>'+esc(x.nome||"—")+'</b>'+((x.matricula||x.cpf||x.fone)?'<br><small style="color:var(--muted)">'+[x.matricula?"Mat "+esc(x.matricula):"",x.cpf?"CPF "+esc(x.cpf):"",x.fone?esc(x.fone):""].filter(Boolean).join(" · ")+'</small>':'')+'</td>'+
+    h+='<tr'+(desl?' style="opacity:.55"':'')+'><td><b>'+esc(x.nome||"—")+'</b>'+(x.matricula?'<br><small style="color:var(--muted)">Mat '+esc(x.matricula)+'</small>':'')+'</td>'+
        '<td>'+esc(x.funcao||"—")+'</td>'+
        '<td style="font-family:var(--mono);font-size:11px;max-width:200px;word-break:break-all">'+((x.pix||"").trim()?esc(x.pix):'<span style="color:var(--red)">sem PIX</span>')+'</td>'+
        '<td>'+(x.admissao?dataBR(x.admissao):"—")+'</td>'+
