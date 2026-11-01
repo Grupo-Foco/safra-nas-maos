@@ -957,7 +957,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.168.0";
+const APP_VERSION = "2.169.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -1044,17 +1044,26 @@ const BLOCOS = ["talhoes","cargas","armazens","caminhoes","silocap","bases","chu
                 "lavoura","produtos","aplicacoes","entradas","docs","mapa","visitas","contratos","hist","pedidos","maquinas","abastec","diesel","remanescente","pontoschuva",
                 "funcionarios","rhferias","rhretiradas","consultor","remocoes"];
 
+/* fetch com tempo-limite: se o servidor não responde, vira erro claro em vez de
+   travar pra sempre (ex.: login preso em "Aguarde…"). */
+async function _fetchTimeout(url, opts, ms){
+  const ctrl = new AbortController();
+  const t = setTimeout(()=>ctrl.abort(), ms||15000);
+  try{ return await fetch(url, Object.assign({}, opts||{}, {signal:ctrl.signal})); }
+  catch(e){ if(ctrl.signal.aborted) throw new Error("Tempo esgotado — o servidor não respondeu. Tente de novo."); throw e; }
+  finally{ clearTimeout(t); }
+}
 /* ── Sessão ──────────────────────────────── */
 const Auth = {
   sessao(){ return Store.get("sb_sessao", null); },
   usuario(){ const s=this.sessao(); return s && s.user ? s.user : null; },
   logado(){ return !!this.sessao(); },
   async entrar(email, senha){
-    const r = await fetch(SUPABASE.url+"/auth/v1/token?grant_type=password", {
+    const r = await _fetchTimeout(SUPABASE.url+"/auth/v1/token?grant_type=password", {
       method:"POST",
       headers:{ "apikey":SUPABASE.anonKey, "Content-Type":"application/json" },
       body: JSON.stringify({ email:email.trim(), password:senha })
-    });
+    }, 15000);
     const d = await r.json();
     if(!r.ok) throw new Error(d.error_description || d.msg || d.message || "Não consegui entrar");
     try{ Acesso.limpar(); }catch(e){}   // login de outro usuário: zera cache de acesso do anterior
@@ -1063,11 +1072,11 @@ const Auth = {
     return d.user;
   },
   async criar(email, senha){
-    const r = await fetch(SUPABASE.url+"/auth/v1/signup", {
+    const r = await _fetchTimeout(SUPABASE.url+"/auth/v1/signup", {
       method:"POST",
       headers:{ "apikey":SUPABASE.anonKey, "Content-Type":"application/json" },
       body: JSON.stringify({ email:email.trim(), password:senha })
-    });
+    }, 15000);
     const d = await r.json();
     if(!r.ok) throw new Error(d.error_description || d.msg || d.message || "Não consegui criar a conta");
     if(d.access_token)
@@ -3328,7 +3337,8 @@ async function enviarLogin(){
     const u=Auth.usuario();
     const nomeMeta = u && u.user_metadata && u.user_metadata.nome;
     Store.set("perfil", { nome: nomeMeta || email.split("@")[0] });
-    try{ await Acesso.carregar(); }catch(e){}   // permissões (chamada leve) antes de mostrar
+    // permissões antes de mostrar — com teto de 12s pra nunca prender o botão em "Aguarde…"
+    try{ await Promise.race([Acesso.carregar(), new Promise((_,rej)=>setTimeout(()=>rej(new Error("to")),12000))]); }catch(e){}
     toast("Bem-vindo");
     render();                                   // mostra o app na hora — sem esperar a sincronização
     (async()=>{                                 // o resto roda em segundo plano
