@@ -957,7 +957,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.170.0";
+const APP_VERSION = "2.171.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -5109,7 +5109,7 @@ function telaLavoura(){
         (fin
            ? (baixaInfo
                 ? '<span class="sit ok" title="Semente baixada do estoque">✓ '+nf(baixaInfo.bags,2)+' bags</span> <button class="mini" onclick="baixaPlantioDesfazer(\''+l.id+'\')">Desfazer baixa</button> '
-                : '<button class="mini" onclick="baixaPlantioTestar(\''+l.id+'\')">Dar baixa</button> ')
+                : '')
              + '<button class="mini" onclick="reabrirPlantio(\''+l.id+'\')">Reabrir</button>'
            :'<button class="mini" onclick="modalParcela(\''+l.id+'\',-1)">+ parcela</button>'+(nParc?' <button class="mini" onclick="confirmFinalizar(\''+l.id+'\')">Finalizar</button>':''))+
       '</td></tr>';
