@@ -957,7 +957,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.169.0";
+const APP_VERSION = "2.170.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -2406,6 +2406,69 @@ function finalizarPlantio(f, talId, val){
   const p=todo[talId]; if(!p) return;
   p.finalizado=!!val;
   _salvarLavObj(f, talId, p);
+  if(!val) estornarBaixaPlantio(f, talId);   // reabriu → desfaz a baixa de semente
+}
+
+/* ── Baixa de semente ao finalizar o plantio ───────────────────────────
+   1 ha com 0,50 m entre linhas = 200 linhas × 100 m = 20.000 m lineares.
+   Sementes usadas = 20.000 × (sementes/m) × ha. 1 bag = 5.000.000 sementes.
+   → bags = (sementes/m × ha) / 250  ;  dose (bags/ha) = sementes/m / 250.
+   Gera uma aplicação tipo "Plantio" (origem:"plantio") que dá baixa no
+   estoque da semente da variedade. Idempotente (não duplica) e reversível
+   (estorno ao reabrir). A semente é casada pelo NOME da variedade. */
+const _SEM_LINHAS_HA = 200, _SEM_METRO_LINHA = 100, _SEM_POR_BAG = 5000000;
+function _bagsPorHa(semPorM){ const s=Number(semPorM)||0;
+  return s>0 ? (_SEM_LINHAS_HA*_SEM_METRO_LINHA*s)/_SEM_POR_BAG : 0; }  // = s/250
+function _produtoSemente(f, variedade){
+  const v=_normNome(variedade||""); if(!v) return null;
+  const disp=produtosDisponiveis(f);
+  // 1) o nome do produto contém a variedade (ex.: "SEMENTE SOJA NEO 802" ⊃ "neo 802")
+  let hit=disp.find(p=>_normNome(p.nome).indexOf(v)>=0);
+  if(hit) return hit;
+  // 2) a variedade contém o nome do produto (caso raro)
+  hit=disp.find(p=>{ const n=_normNome(p.nome); return n && v.indexOf(n)>=0; });
+  return hit||null;
+}
+function _aplicBaixaPlantio(f, talId){
+  return aplicacoesDe(f).find(a=>a.origem==="plantio" && a.talhao_plantio===talId) || null;
+}
+function _planoBaixaPlantio(f, talId){
+  const t=(talhoesDe(f)||[]).find(x=>x.id===talId);
+  const p=lavouraDe(f)[talId];
+  if(!p) return {ok:false, motivo:"talhão sem dados de plantio"};
+  const parcelas=_parcelasEfetivas(p,t);
+  const ha=parcelas.reduce((s,x)=>s+(Number(x.area)||0),0);
+  const semM=Number(p.sementes)||0;
+  if(ha<=0)   return {ok:false, motivo:"sem área plantada"};
+  if(semM<=0) return {ok:false, motivo:"sem sementes/m lançado"};
+  const variedade=((parcelas.map(x=>x.variedade).find(Boolean))||p.variedade||"").trim();
+  if(!variedade) return {ok:false, motivo:"sem variedade/cultivar"};
+  const prod=_produtoSemente(f, variedade);
+  if(!prod) return {ok:false, motivo:"semente não encontrada no estoque", variedade};
+  const dose=_bagsPorHa(semM);
+  const fins=parcelas.map(x=>x.fim).filter(Boolean).sort();
+  const data=fins[fins.length-1]||p.fim||new Date().toISOString().slice(0,10);
+  return {ok:true, ha, semM, variedade, prod, dose, bags:dose*ha, data};
+}
+function gerarBaixaPlantio(f, talId){
+  if(_aplicBaixaPlantio(f, talId)) return {ok:true, jaExistia:true};
+  const pl=_planoBaixaPlantio(f, talId);
+  if(!pl.ok) return pl;
+  const nova={ id:"ap_"+Date.now().toString(36)+Math.random().toString(36).slice(2,4),
+    fazenda_id:f, criado_em:new Date().toISOString(),
+    data:pl.data, tipo:"Plantio", talhoes:[talId], hectares:pl.ha,
+    obs:"Baixa de semente — "+pl.variedade+" ("+nf(pl.semM,0)+" sem/m)",
+    itens:[{produto_id:pl.prod.id, dose:pl.dose}],
+    origem:"plantio", talhao_plantio:talId };
+  const l=aplicacoesDe(f); l.push(nova); Store.set(kApl(f),l);
+  Sync.push("aplicacoes","upsert",nova);
+  return Object.assign({ok:true, aplic:nova}, pl);
+}
+function estornarBaixaPlantio(f, talId){
+  const a=_aplicBaixaPlantio(f, talId); if(!a) return false;
+  Store.set(kApl(f), aplicacoesDe(f).filter(x=>x.id!==a.id));
+  Sync.push("aplicacoes","delete",{id:a.id});
+  return true;
 }
 
 function resumoLavoura(f){
@@ -5026,6 +5089,10 @@ function telaLavoura(){
     '<th class="num">Plantado</th><th>Início</th><th>Fim</th><th></th></tr></thead><tbody>';
   R.linhas.forEach(l=>{
     const fin=l.finalizado, nParc=l.parcelas.length, aberto=!!window._lavExp[l.id];
+    let baixaInfo=null;
+    if(fin){ const _ab=_aplicBaixaPlantio(f.id, l.id);
+      if(_ab){ const _it=(_ab.itens||[])[0]||{}; const _pr=acharProduto(f.id,_it.produto_id);
+        baixaInfo={ bags:(Number(_it.dose)||0)*(Number(_ab.hectares)||0), prod:_pr?_pr.nome:"semente" }; } }
     const pct=l.hectares>0?Math.min(100,l.areaPlant/l.hectares*100):0;
     const cls=[l.plantado?'':'pendente', fin?'lav-fin':''].filter(Boolean).join(' ');
     h += '<tr'+(cls?' class="'+cls+'"':'')+'>'+
@@ -5039,8 +5106,12 @@ function telaLavoura(){
       '<td class="mono">'+(l.fim?dataBR(l.fim):"—")+'</td>'+
       '<td class="num" style="white-space:nowrap">'+
         (nParc?'<button class="mini" onclick="toggleLavParc(\''+l.id+'\')">'+(aberto?"▲":"▼")+' '+nParc+'</button> ':'')+
-        (fin?'<button class="mini" onclick="reabrirPlantio(\''+l.id+'\')">Reabrir</button>'
-            :'<button class="mini" onclick="modalParcela(\''+l.id+'\',-1)">+ parcela</button>'+(nParc?' <button class="mini" onclick="confirmFinalizar(\''+l.id+'\')">Finalizar</button>':''))+
+        (fin
+           ? (baixaInfo
+                ? '<span class="sit ok" title="Semente baixada do estoque">✓ '+nf(baixaInfo.bags,2)+' bags</span> <button class="mini" onclick="baixaPlantioDesfazer(\''+l.id+'\')">Desfazer baixa</button> '
+                : '<button class="mini" onclick="baixaPlantioTestar(\''+l.id+'\')">Dar baixa</button> ')
+             + '<button class="mini" onclick="reabrirPlantio(\''+l.id+'\')">Reabrir</button>'
+           :'<button class="mini" onclick="modalParcela(\''+l.id+'\',-1)">+ parcela</button>'+(nParc?' <button class="mini" onclick="confirmFinalizar(\''+l.id+'\')">Finalizar</button>':''))+
       '</td></tr>';
     if(aberto && nParc) l.parcelas.forEach((pc,idx)=>{
       const dd=_daeDias(pc.emergencia);
@@ -5081,6 +5152,28 @@ function confirmFinalizar(id){
 function reabrirPlantio(id){
   const f=acharFazenda(App.fazendaId); if(!f) return;
   finalizarPlantio(f.id, id, false); toast("Plantio reaberto"); render();
+}
+function baixaPlantioTestar(id){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  if(_aplicBaixaPlantio(f.id,id)){ toast("Baixa já lançada neste talhão"); return; }
+  const pl=_planoBaixaPlantio(f.id,id);
+  if(!pl.ok){ alert("Não deu pra dar baixa da semente:\n\n"+pl.motivo+(pl.variedade?' — variedade "'+pl.variedade+'"':'')+".\n\nAjuste o cadastro/estoque e tente de novo."); return; }
+  const msg="Dar baixa da semente no estoque?\n\n"+
+    "Variedade: "+pl.variedade+"\n"+
+    "Produto no estoque: "+pl.prod.nome+" ("+(pl.prod.unidade||"sem unidade")+")\n"+
+    "Área plantada: "+nf(pl.ha,2)+" ha\n"+
+    "Sementes/m: "+nf(pl.semM,0)+"\n"+
+    "Baixa: "+nf(pl.bags,2)+" bags   ("+nf(pl.semM,0)+" ÷ 250 × "+nf(pl.ha,2)+" ha)\n\n"+
+    "Cria a operação \"Plantio\" no talhão e desconta do estoque. Dá pra desfazer reabrindo o talhão.";
+  if(!confirm(msg)) return;
+  const r=gerarBaixaPlantio(f.id,id);
+  if(r.ok) toast("Baixa lançada: "+nf(r.bags!=null?r.bags:pl.bags,2)+" bags"); else alert("Falhou: "+(r.motivo||""));
+  render();
+}
+function baixaPlantioDesfazer(id){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  if(!confirm("Desfazer a baixa de semente deste talhão?\n\nRemove a operação de plantio e devolve a semente ao estoque.")) return;
+  estornarBaixaPlantio(f.id,id); toast("Baixa desfeita"); render();
 }
 function excluirParcela(talId, idx){
   const f=acharFazenda(App.fazendaId); if(!f) return;
