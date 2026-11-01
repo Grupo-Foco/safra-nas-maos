@@ -957,7 +957,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.167.0";
+const APP_VERSION = "2.168.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -3095,12 +3095,17 @@ function fecharModal(){ document.getElementById("modal-root").innerHTML=""; if(w
 function _modalAberto(){ const m=document.getElementById("modal-root"); return !!(m && m.innerHTML.trim()!==""); }
 function _aplicarRecarregamento(){
   if(window._recarregando) return;
-  if(_modalAberto()){ window._recarregarPendente=true; return; }
+  // Não recarrega enquanto a pessoa está usando algo: modal aberto OU dentro de
+  // uma tela (módulo/fazenda). Só recarrega no "porto seguro" (lista de fazendas),
+  // senão a página volta ao estado inicial e tira a pessoa do meio da tela.
+  if(_modalAberto() || (typeof App!=="undefined" && App.tela!=="fazendas")){ window._recarregarPendente=true; return; }
   window._recarregando=true; location.reload();
 }
 
 const App = { tela:"fazendas", fazendaId:null, moduloId:null };
-function irPara(tela, o){ Object.assign(App,{tela},o||{}); window.scrollTo(0,0); render(); }
+function irPara(tela, o){ Object.assign(App,{tela},o||{}); window.scrollTo(0,0); render();
+  // Chegou no porto seguro (lista de fazendas) com atualização pendente? aplica agora.
+  if(window._recarregarPendente && App.tela==="fazendas") _aplicarRecarregamento(); }
 
 /* ═══════════════════════════════════════════════════
    CÓPIA DE SEGURANÇA
