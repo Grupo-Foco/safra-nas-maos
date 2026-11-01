@@ -957,7 +957,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.172.0";
+const APP_VERSION = "2.173.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -2472,12 +2472,13 @@ function estornarBaixaPlantio(f, talId){
   return true;
 }
 /* Talhões "em teste" da baixa: só nestes o botão "Dar baixa" aparece, mesmo
-   depois de reabrir/estornar. Guardado só no aparelho (não sobe pro banco). */
-function kBaixaTeste(f){ return "faz_"+f+"_baixa_teste"; }
-function _temBaixaTeste(f, talId){ return (Store.get(kBaixaTeste(f),[])||[]).indexOf(talId)>=0; }
+   depois de reabrir/estornar. A marca fica na própria lavoura (campo _baixaTeste),
+   que SINCRONIZA — então todo aparelho vê o botão nos mesmos talhões. */
+function _temBaixaTeste(f, talId){ const p=lavouraDe(f)[talId]; return !!(p && p._baixaTeste); }
 function _marcarBaixaTeste(f, talId){
-  const l=Store.get(kBaixaTeste(f),[])||[]; if(l.indexOf(talId)>=0) return;
-  l.push(talId); Store.set(kBaixaTeste(f), l);
+  const todo=lavouraDe(f); const p=todo[talId]; if(!p || p._baixaTeste) return;
+  p._baixaTeste=true; Store.set(kLavoura(f), todo);
+  Sync.push("lavoura","upsert",{fazenda_id:f, talhao_id:talId, ...p});
 }
 
 function resumoLavoura(f){
