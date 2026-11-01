@@ -957,7 +957,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.173.0";
+const APP_VERSION = "2.174.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -4976,7 +4976,7 @@ function abaRelatorio(f,R){
         '<td>'+esc(l.produto)+'</td>'+
         '<td class="num mono">'+nf(l.dose,2)+'</td>'+
         '<td class="num mono">'+nf(l.hectares,Number.isInteger(l.hectares)?0:2)+'</td>'+
-        '<td class="num mono">'+nf(l.qtd,1)+' <i class="un">'+esc(l.unidade)+'</i></td>'+
+        '<td class="num mono">'+nf(l.qtd,2)+' <i class="un">'+esc(l.unidade)+'</i></td>'+
         '<td class="num mono hide-sm">'+(l.semPreco?'<i class="sp">sem preço</i>':moeda(l.preco))+'</td>'+
         '<td class="num mono forte">'+(l.semPreco?"—":moeda(l.valor))+'</td>'+
         (i===0 ? '<td class="acoes" rowspan="'+ls.length+'">'+
@@ -5032,7 +5032,7 @@ function abaResumoProd(f,R){
     const rem = p.nome==="(removido)";
     h += '<tr><td class="forte">'+esc(p.nome)+'</td>'+
       '<td class="num mono">'+p.aplic+'</td>'+
-      '<td class="num mono">'+nf(p.qtd,1)+' <i class="un">'+esc(p.unidade)+'</i></td>'+
+      '<td class="num mono">'+nf(p.qtd,2)+' <i class="un">'+esc(p.unidade)+'</i></td>'+
       '<td class="num mono forte">'+moeda(p.valor)+'</td>'+
       '<td class="num hide-sm"><div class="barra"><i style="width:'+Math.min(100,pct).toFixed(1)+'%"></i></div>'+
       '<u class="pc">'+nf(pct,1)+'%</u></td>'+
@@ -6605,9 +6605,9 @@ function abaSaldo(f,E){
       '<td class="forte">'+esc(l.nome)+
         (l.semEntrada?'<u class="ob">aplicado sem recebimento lançado</u>':'')+
         (l.negativo&&!l.semEntrada?'<u class="ob">aplicou mais do que entrou</u>':'')+'</td>'+
-      '<td class="num mono">'+nf(l.entrou,1)+' <i class="un">'+esc(l.unidade||"")+'</i></td>'+
-      '<td class="num mono">'+nf(l.saiu,1)+'</td>'+
-      '<td class="num mono forte'+cor+'">'+nf(l.saldo,1)+'</td>'+
+      '<td class="num mono">'+nf(l.entrou,2)+' <i class="un">'+esc(l.unidade||"")+'</i></td>'+
+      '<td class="num mono">'+nf(l.saiu,2)+'</td>'+
+      '<td class="num mono forte'+cor+'">'+nf(l.saldo,2)+'</td>'+
       '<td class="num mono hide-sm">'+(l.medio>0?moeda(l.medio):"—")+'</td>'+
       '<td class="num mono">'+(l.valorSaldo>0?moeda(l.valorSaldo):"—")+'</td></tr>';
   });
@@ -6782,8 +6782,8 @@ function recalcEntrada(){
   const atual=p?E.linhas.find(l=>l.id===p.id):null;
   box.innerHTML =
     '<span><i>Total da nota</i><b class="ok">'+moeda(qtd*preco)+'</b></span>'+
-    (atual?'<span><i>Saldo atual</i><b>'+nf(atual.saldo,1)+' '+esc(p.unidade)+'</b></span>':'')+
-    (atual?'<span><i>Fica com</i><b>'+nf(atual.saldo+qtd,1)+' '+esc(p.unidade)+'</b></span>':'')+
+    (atual?'<span><i>Saldo atual</i><b>'+nf(atual.saldo,2)+' '+esc(p.unidade)+'</b></span>':'')+
+    (atual?'<span><i>Fica com</i><b>'+nf(atual.saldo+qtd,2)+' '+esc(p.unidade)+'</b></span>':'')+
     (p&&p.preco>0&&preco>0&&Math.abs(preco-p.preco)/p.preco>0.15
       ? '<span class="nota">O preço cadastrado do produto é '+moeda(p.preco)+
         ' — diferença de '+nf(Math.abs(preco-p.preco)/p.preco*100,0)+'%.</span>' : '');
