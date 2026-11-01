@@ -957,7 +957,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.171.0";
+const APP_VERSION = "2.172.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -2462,6 +2462,7 @@ function gerarBaixaPlantio(f, talId){
     origem:"plantio", talhao_plantio:talId };
   const l=aplicacoesDe(f); l.push(nova); Store.set(kApl(f),l);
   Sync.push("aplicacoes","upsert",nova);
+  _marcarBaixaTeste(f, talId);
   return Object.assign({ok:true, aplic:nova}, pl);
 }
 function estornarBaixaPlantio(f, talId){
@@ -2469,6 +2470,14 @@ function estornarBaixaPlantio(f, talId){
   Store.set(kApl(f), aplicacoesDe(f).filter(x=>x.id!==a.id));
   Sync.push("aplicacoes","delete",{id:a.id});
   return true;
+}
+/* Talhões "em teste" da baixa: só nestes o botão "Dar baixa" aparece, mesmo
+   depois de reabrir/estornar. Guardado só no aparelho (não sobe pro banco). */
+function kBaixaTeste(f){ return "faz_"+f+"_baixa_teste"; }
+function _temBaixaTeste(f, talId){ return (Store.get(kBaixaTeste(f),[])||[]).indexOf(talId)>=0; }
+function _marcarBaixaTeste(f, talId){
+  const l=Store.get(kBaixaTeste(f),[])||[]; if(l.indexOf(talId)>=0) return;
+  l.push(talId); Store.set(kBaixaTeste(f), l);
 }
 
 function resumoLavoura(f){
@@ -5089,10 +5098,12 @@ function telaLavoura(){
     '<th class="num">Plantado</th><th>Início</th><th>Fim</th><th></th></tr></thead><tbody>';
   R.linhas.forEach(l=>{
     const fin=l.finalizado, nParc=l.parcelas.length, aberto=!!window._lavExp[l.id];
-    let baixaInfo=null;
+    let baixaInfo=null, baixaTeste=false;
     if(fin){ const _ab=_aplicBaixaPlantio(f.id, l.id);
       if(_ab){ const _it=(_ab.itens||[])[0]||{}; const _pr=acharProduto(f.id,_it.produto_id);
-        baixaInfo={ bags:(Number(_it.dose)||0)*(Number(_ab.hectares)||0), prod:_pr?_pr.nome:"semente" }; } }
+        baixaInfo={ bags:(Number(_it.dose)||0)*(Number(_ab.hectares)||0), prod:_pr?_pr.nome:"semente" };
+        _marcarBaixaTeste(f.id, l.id); }          // já tem baixa → fica marcado como em teste
+      baixaTeste=_temBaixaTeste(f.id, l.id); }
     const pct=l.hectares>0?Math.min(100,l.areaPlant/l.hectares*100):0;
     const cls=[l.plantado?'':'pendente', fin?'lav-fin':''].filter(Boolean).join(' ');
     h += '<tr'+(cls?' class="'+cls+'"':'')+'>'+
@@ -5109,7 +5120,7 @@ function telaLavoura(){
         (fin
            ? (baixaInfo
                 ? '<span class="sit ok" title="Semente baixada do estoque">✓ '+nf(baixaInfo.bags,2)+' bags</span> <button class="mini" onclick="baixaPlantioDesfazer(\''+l.id+'\')">Desfazer baixa</button> '
-                : '')
+                : (baixaTeste ? '<button class="mini" onclick="baixaPlantioTestar(\''+l.id+'\')">Dar baixa</button> ' : ''))
              + '<button class="mini" onclick="reabrirPlantio(\''+l.id+'\')">Reabrir</button>'
            :'<button class="mini" onclick="modalParcela(\''+l.id+'\',-1)">+ parcela</button>'+(nParc?' <button class="mini" onclick="confirmFinalizar(\''+l.id+'\')">Finalizar</button>':''))+
       '</td></tr>';
