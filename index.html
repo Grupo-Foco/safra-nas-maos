@@ -272,6 +272,13 @@ svg{display:block}
 .btn-cancel:hover{background:#E5E1D7}
 .btn-save{background:var(--gold);color:#3A3117}
 .btn-save:hover{background:var(--gold-dk)}
+.btn-rasc{background:#EAF2E6;color:var(--green)}
+.btn-rasc:hover{background:#DDEBD6}
+.rasc-box{margin:0 0 18px;padding:12px;border:1px dashed var(--gold-dk);border-radius:12px;background:#FBF7EC}
+.rasc-tit{font-weight:800;color:#6b5a1f;font-size:13px;margin-bottom:10px}
+.rasc{background:#fff;border:1px solid var(--line-soft);border-radius:10px;padding:12px;margin-bottom:10px}
+.rasc:last-child{margin-bottom:0}
+.btn-mini-ok{background:var(--green);color:#fff;border:none;border-radius:7px;padding:5px 10px;font-weight:700;font-size:12px}
 .btn-del-maq{flex:0 0 auto!important;background:transparent;color:#a23b3b;border:1px solid #e0b4b4!important;font-weight:700!important;margin-right:auto}
 .btn-del-maq:hover{background:#f6e3e3}
 
@@ -957,7 +964,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.174.0";
+const APP_VERSION = "2.175.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -8044,6 +8051,36 @@ function apagarTodasVisitas(){
   if(typeof Sync!=="undefined" && Sync.rodar) Sync.rodar();   // empurra a exclusão já
 }
 
+/* ── Rascunho de visita (Opção A: fica SÓ no aparelho até finalizar) ─────
+   O técnico pontua rápido no campo (anotação, ponto GPS e fotos) e finaliza
+   depois, com internet. Enquanto é rascunho NADA sobe e NADA fica público:
+   a chave não entra em BLOCOS (não sincroniza) e as fotos são guardadas só
+   localmente (guardarArquivo, sem upload). Ao finalizar vira visita normal
+   (pública) e aí sim as fotos sobem. */
+function kVisitasRascunho(f){ return "faz_"+f+"_visitas_rascunho"; }
+function rascunhosDe(f){ return Store.get(kVisitasRascunho(f), []); }
+function salvarRascunho(f, v, id){
+  const l=rascunhosDe(f);
+  const dados={ talhao_ids:v.talhao_ids||[], talhao_nomes:v.talhao_nomes||"", area:v.area||0,
+    talhao_id:v.talhao_id||"", talhao_nome:v.talhao_nome||"",
+    data:v.data||"", estagio:v.estagio||"", clima:(v.clima||"").trim(),
+    texto:(v.texto||"").trim(), fotos:Array.isArray(v.fotos)?v.fotos:[] };
+  if(v.geo!==undefined) dados.geo=v.geo;
+  if(id){ const i=l.findIndex(x=>x.id===id); if(i<0) return null;
+    l[i]=Object.assign({},l[i],dados); Store.set(kVisitasRascunho(f),l); return l[i]; }
+  const novo=Object.assign({id:"rs_"+Date.now().toString(36)+Math.random().toString(36).slice(2,4),
+    fazenda_id:f, criado_em:new Date().toISOString()}, dados);
+  l.push(novo); Store.set(kVisitasRascunho(f),l); return novo;
+}
+function _removerRegistroRascunho(f,id){ Store.set(kVisitasRascunho(f), rascunhosDe(f).filter(x=>x.id!==id)); }
+function descartarRascunho(id){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const d=rascunhosDe(f.id).find(x=>x.id===id); if(!d) return;
+  if(!confirm("Descartar este rascunho de visita?\n\nAs anotações e fotos do rascunho (que estão só neste aparelho) serão apagadas.")) return;
+  (d.fotos||[]).forEach(ft=>{ if(ft.path) removerArquivo(ft.path); });
+  _removerRegistroRascunho(f.id, id); toast("Rascunho descartado"); render();
+}
+
 let _fVisTal = "";
 /* Recuperação: reenvia à nuvem as fotos de visita que ainda estão NESTE aparelho.
    Resolve o caso de uma foto que não terminou de subir (o cache local tinha a foto,
@@ -8098,14 +8135,45 @@ function telaVisitas(){
         .map(t=>'<option value="'+t.id+'" '+(_fVisTal===t.id?"selected":"")+'>'+esc(t.nome)+'</option>').join("")+
       '</select>':'')+'</div>';
 
+  // Rascunhos (só neste aparelho) — aparecem no topo, com Finalizar e Descartar.
+  const rascs = (_fVisTal ? rascunhosDe(f.id).filter(r=>(r.talhao_ids||[]).indexOf(_fVisTal)>=0 || r.talhao_id===_fVisTal) : rascunhosDe(f.id)).slice().reverse();
+  if(rascs.length){
+    h += '<div class="rasc-box"><div class="rasc-tit">📝 Rascunhos — só neste aparelho, não publicados ('+rascs.length+')</div>';
+    rascs.forEach(r=>{
+      const fts=r.fotos||[];
+      fts.forEach((ft,k)=>{ if(ft.path) setTimeout(()=>pintarArquivo(ft.path,"rf-"+r.id+"-"+k),0); });
+      h += '<div class="rasc">'+
+        '<div class="vis-cab"><div><b>'+esc(r.talhao_nome||"Fazenda toda")+'</b>'+
+          (r.estagio?'<span class="pill">'+esc(r.estagio)+'</span>':'')+'</div>'+
+          '<div class="vis-acts">'+
+            '<button class="btn-mini-ok" onclick="modalVisita(\''+r.id+'\',\'rascunho\')">Finalizar</button>'+
+            '<button class="rm" onclick="descartarRascunho(\''+r.id+'\')">✕</button>'+
+          '</div></div>'+
+        '<div class="vis-meta">'+
+          (r.data?'<span><i>Data</i>'+dataBR(r.data)+'</span>':'')+
+          (r.clima?'<span><i>Clima</i>'+esc(r.clima)+'</span>':'')+
+          (r.geo&&r.geo.lat!=null?'<span><i>Local</i><a href="https://www.google.com/maps?q='+r.geo.lat+','+r.geo.lon+'" target="_blank" rel="noopener" style="color:var(--green)">📍 ver no mapa</a></span>':'')+
+        '</div>'+
+        (r.texto?'<p class="vis-txt">'+esc(r.texto)+'</p>':'')+
+        (fts.length?'<div class="vis-fotos">'+fts.map((ft,k)=> ft.path
+          ? (_ehVideo(ft.path)
+              ? '<video id="rf-'+r.id+'-'+k+'" class="vfoto" controls preload="metadata" playsinline></video>'
+              : '<img id="rf-'+r.id+'-'+k+'" class="vfoto" alt="Foto do rascunho" onclick="verFotoVisita(\''+esc(ft.path)+'\')">')
+          : '<span class="vazio">Foto no aparelho</span>').join("")+'</div>':'')+
+      '</div>';
+    });
+    h += '</div>';
+  }
+
   if(!tals.length)
     return h+'<div class="empty"><strong>Cadastre os talhões primeiro</strong>'+
       'A visita é registrada por talhão. Cadastre-os em Dados da fazenda.</div></div>';
-  if(!todas.length)
+  if(!todas.length && !rascs.length)
     return h+'<div class="empty"><strong>Diário vazio</strong>'+
       'Registre a primeira visita: talhão, estágio da cultura, clima, recomendação e fotos.</div></div>';
-  if(!l.length)
+  if(!l.length && !rascs.length)
     return h+'<div class="empty"><strong>Nada neste talhão</strong>Troque o filtro para ver as outras.</div></div>';
+  if(!l.length) return h+'</div>';
 
   h += '<div class="diario">';
   l.forEach(v=>{
@@ -8138,17 +8206,21 @@ function telaVisitas(){
   return h+'</div>';
 }
 
-function modalVisita(id){
+function modalVisita(id, modo){
   const f=acharFazenda(App.fazendaId); if(!f) return;
-  const v = id ? visitasDe(f.id).find(x=>x.id===id) : null;
+  const ehRasc = modo==='rascunho';
+  const v = id ? (ehRasc ? rascunhosDe(f.id).find(x=>x.id===id) : visitasDe(f.id).find(x=>x.id===id)) : null;
+  if(id && !v) return;
   const hoje = new Date().toISOString().slice(0,10);
   const tals = talhoesDe(f.id).slice().sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR",{numeric:true}));
   const jaTem = v ? fotosDaVisita(v).length : 0;
   window._visitaFotos = [];
   document.getElementById("modal-root").innerHTML=
   '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal modal-lg">'+
-    '<h2>'+(v?"Editar visita":"Nova visita")+'</h2>'+
-    '<p class="sub">Registro do talhão para o diário de bordo. As fotos sobem para a nuvem.</p>'+
+    '<h2>'+(ehRasc?"Finalizar visita":(v?"Editar visita":"Nova visita"))+'</h2>'+
+    '<p class="sub">'+(ehRasc
+        ? 'Complete o relatório e publique. Ao finalizar, as fotos do rascunho sobem para a nuvem.'
+        : 'Registro do talhão para o diário de bordo. As fotos sobem para a nuvem.')+'</p>'+
     '<div class="frm">'+
       '<div><label>Talhões</label><div class="tsel">'+
         tals.map(t=>{ const on = v && (v.talhao_ids? v.talhao_ids.indexOf(t.id)>=0 : v.talhao_id===t.id);
@@ -8174,7 +8246,13 @@ function modalVisita(id){
       '<div class="dica" id="vs-geo" onclick="_capturarGeoVisita()" style="cursor:pointer"><span id="vs-geo-lbl">📍 Localização</span></div>'+
     '</div>'+
     '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
-      '<button class="btn-save" onclick="gravarVisita('+(v?"'"+v.id+"'":"null")+')">Salvar</button>'+
+      ( ehRasc
+          ? '<button class="btn-rasc" onclick="salvarComoRascunho(\''+v.id+'\')">Salvar rascunho</button>'+
+            '<button class="btn-save" onclick="gravarVisita(\''+v.id+'\',true)">Finalizar</button>'
+          : (v
+              ? '<button class="btn-save" onclick="gravarVisita(\''+v.id+'\')">Salvar</button>'
+              : '<button class="btn-rasc" onclick="salvarComoRascunho(null)">Deixar em rascunho</button>'+
+                '<button class="btn-save" onclick="gravarVisita(null)">Salvar</button>') )+
     '</div></div></div>';
   _somaVisita();
   // guarda a localização já registrada (se houver) e, em visita nova, tenta marcar agora.
@@ -8230,27 +8308,41 @@ function escolherFotoVisita(input, jaTem){
   if(lbl) lbl.textContent = bons.length ? (bons.length+" novo(s) arquivo(s) selecionado(s)") : "Nenhum arquivo";
 }
 
-async function gravarVisita(id){
-  const f=acharFazenda(App.fazendaId); if(!f) return;
+/* Lê os campos do modal de visita (comum à visita publicada e ao rascunho). */
+function _coletaVisita(f){
   const g=i=>String((document.getElementById(i)||{}).value||"").trim();
   const ids=[...document.querySelectorAll('.tsel input:checked')].map(x=>x.value);
   const tals=talhoesDe(f.id).filter(t=>ids.indexOf(t.id)>=0);
   const nomes=tals.map(t=>t.nome).join(", ");
   const area=tals.reduce((s,t)=>s+(t.hectares||0),0);
-  const antiga = id ? visitasDe(f.id).find(x=>x.id===id) : null;
-  const novas = window._visitaFotos||[];
-  const fotosAntigas = antiga ? fotosDaVisita(antiga) : [];
-  const dados = { talhao_ids:ids, talhao_nomes:nomes, area:area,
-    talhao_id:ids[0]||"", talhao_nome:nomes,
+  return { talhao_ids:ids, talhao_nomes:nomes, area:area, talhao_id:ids[0]||"", talhao_nome:nomes,
     data:g("vs-data"), estagio:g("vs-est"), clima:g("vs-clima"), texto:g("vs-txt"),
-    fotos: fotosAntigas.slice(),
-    geo: (window._visitaGeo && window._visitaGeo.lat!=null) ? window._visitaGeo : ((antiga&&antiga.geo)||null) };
-  if(!dados.data && !dados.texto && !dados.estagio && !novas.length && !fotosAntigas.length){
+    geo:(window._visitaGeo && window._visitaGeo.lat!=null) ? window._visitaGeo : null };
+}
+
+async function gravarVisita(id, deRascunho){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const dados=_coletaVisita(f);
+  const antiga = (id && !deRascunho) ? visitasDe(f.id).find(x=>x.id===id) : null;
+  const draft  = (id && deRascunho)  ? rascunhosDe(f.id).find(x=>x.id===id) : null;
+  const novas = window._visitaFotos||[];
+  const fotosExist = antiga ? fotosDaVisita(antiga) : (draft ? (draft.fotos||[]) : []);
+  dados.fotos = fotosExist.slice();
+  if(!dados.geo && antiga && antiga.geo) dados.geo=antiga.geo;
+  if(!dados.geo && draft  && draft.geo)  dados.geo=draft.geo;
+  if(!dados.data && !dados.texto && !dados.estagio && !novas.length && !fotosExist.length){
     toast("Preencha ao menos data ou observação"); return; }
 
-  const salvo = salvarVisita(f.id, dados, id);
+  // rascunho → publica como visita NOVA; edição normal → atualiza a própria.
+  const salvo = salvarVisita(f.id, dados, deRascunho ? null : id);
+  // fotos do rascunho estavam só no aparelho → agora sobem para a nuvem.
+  if(deRascunho && salvo && fotosExist.length){
+    for(const ft of fotosExist){
+      try{ const b=await pegarArquivo(ft.path); if(b) await enviarArquivo(ft.path, b); }catch(e){}
+    }
+  }
   if(novas.length && salvo){
-    const fotos = fotosAntigas.slice();
+    const fotos = fotosExist.slice();
     for(let k=0;k<novas.length;k++){
       const a=novas[k]; const ext=(a.name.match(/\.[a-z0-9]+$/i)||[".jpg"])[0].toLowerCase();
       const caminho=f.id+"/visita-"+salvo.id+"-"+Date.now().toString(36)+k+ext;
@@ -8259,8 +8351,36 @@ async function gravarVisita(id){
     }
     salvarVisita(f.id, Object.assign({},dados,{fotos}), salvo.id);
   }
+  if(deRascunho && draft) _removerRegistroRascunho(f.id, draft.id);  // mantém as fotos (agora da visita)
   window._visitaFotos=[]; fecharModal();
-  toast(id?"Visita atualizada":"Visita registrada"); render();
+  toast(deRascunho ? "Visita finalizada e publicada" : (id?"Visita atualizada":"Visita registrada")); render();
+}
+
+/* Salva/atualiza como RASCUNHO: fica só neste aparelho, não sincroniza e as
+   fotos NÃO sobem (guardarArquivo local). Só o finalizar publica. */
+async function salvarComoRascunho(id){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const dados=_coletaVisita(f);
+  const draftAnt = id ? rascunhosDe(f.id).find(x=>x.id===id) : null;
+  if(!dados.geo && draftAnt && draftAnt.geo) dados.geo=draftAnt.geo;
+  const fotosExist = draftAnt ? (draftAnt.fotos||[]) : [];
+  const novas = window._visitaFotos||[];
+  dados.fotos = fotosExist.slice();
+  if(!dados.geo && !dados.texto && !dados.data && !dados.estagio && !fotosExist.length && !novas.length){
+    toast("Marque ao menos o ponto ou uma anotação"); return; }
+  const salvo = salvarRascunho(f.id, dados, id);
+  if(novas.length && salvo){
+    const fotos = fotosExist.slice();
+    for(let k=0;k<novas.length;k++){
+      const a=novas[k]; const ext=(a.name.match(/\.[a-z0-9]+$/i)||[".jpg"])[0].toLowerCase();
+      const caminho=f.id+"/rasc-"+salvo.id+"-"+Date.now().toString(36)+k+ext;
+      try{ await guardarArquivo(caminho, a); fotos.push({path:caminho, nome:a.name, tamanho:a.size}); }
+      catch(e){ /* sem cache local; segue */ }
+    }
+    salvarRascunho(f.id, Object.assign({},dados,{fotos}), salvo.id);
+  }
+  window._visitaFotos=[]; fecharModal();
+  toast("Rascunho salvo neste aparelho"); render();
 }
 
 async function verFotoVisita(caminho){ return abrirMapaCheia(caminho); }
