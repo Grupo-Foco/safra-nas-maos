@@ -812,6 +812,10 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 .vis-fotos{margin-top:12px;display:flex;flex-wrap:wrap;gap:8px}
 .vis-fotos img,.vis-fotos video{width:120px;height:120px;object-fit:cover;border-radius:9px;cursor:zoom-in;display:block;background:var(--line-soft)}
 .vis-fotos video{cursor:default}
+.foto-slot{position:relative;width:120px;height:120px}
+.foto-nota{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:6px;font-size:11px;line-height:1.3;font-weight:700;border-radius:9px;background:var(--line-soft);color:var(--muted)}
+.foto-nota.pend{color:#6b5a1f;background:#FBF3DC}
+.vis-aviso{margin:0 0 14px;padding:10px 12px;border-radius:10px;background:#FBF3DC;border:1px solid var(--gold-dk);color:#6b5a1f;font-size:13px;font-weight:600}
 @media(max-width:640px){ .kpis-3{grid-template-columns:1fr} .vis-foto img{max-width:100%} }
 
 /* ── Contratos ───────────────────────────── */
@@ -964,7 +968,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.175.0";
+const APP_VERSION = "2.176.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -4988,6 +4992,7 @@ function abaRelatorio(f,R){
         '<td class="num mono forte">'+(l.semPreco?"—":moeda(l.valor))+'</td>'+
         (i===0 ? '<td class="acoes" rowspan="'+ls.length+'">'+
                  '<button onclick="modalAplicacao(\''+a.id+'\')">Editar</button>'+
+                 '<button onclick="reaplicarAplicacao(\''+a.id+'\')">Reaplicar</button>'+
                  '<button class="rm" onclick="removerAplicacao(\''+a.id+'\')">✕</button></td>' : '')+
       '</tr>';
     });
@@ -5095,9 +5100,11 @@ function telaLavoura(){
     kpi("Janela de plantio", R.inicio?dataBR(R.inicio):"—", R.fim?"até "+dataBR(R.fim):"")+
   '</div>';
 
+  const pendBaixa = R.linhas.filter(l=>l.finalizado && !_aplicBaixaPlantio(f.id,l.id) && _planoBaixaPlantio(f.id,l.id).ok).length;
   h += '<div class="acts">'+
     botaoExportar([{rotulo:"Planilha",fn:"exportarLavoura('csv')"},{rotulo:"Imagem",fn:"exportarLavoura('png')"},{rotulo:"PDF",fn:"exportarLavoura('pdf')"}])+
     (R.variedades.length?'<button class="btn-act" onclick="modalVariedades()">Ver por variedade</button>':'')+
+    (pendBaixa?'<button class="btn-act" onclick="baixaPlantioTodos()">Dar baixa de semente ('+pendBaixa+')</button>':'')+
   '</div>';
 
   window._lavExp = window._lavExp || {};
@@ -5106,12 +5113,10 @@ function telaLavoura(){
     '<th class="num">Plantado</th><th>Início</th><th>Fim</th><th></th></tr></thead><tbody>';
   R.linhas.forEach(l=>{
     const fin=l.finalizado, nParc=l.parcelas.length, aberto=!!window._lavExp[l.id];
-    let baixaInfo=null, baixaTeste=false;
+    let baixaInfo=null;
     if(fin){ const _ab=_aplicBaixaPlantio(f.id, l.id);
       if(_ab){ const _it=(_ab.itens||[])[0]||{}; const _pr=acharProduto(f.id,_it.produto_id);
-        baixaInfo={ bags:(Number(_it.dose)||0)*(Number(_ab.hectares)||0), prod:_pr?_pr.nome:"semente" };
-        _marcarBaixaTeste(f.id, l.id); }          // já tem baixa → fica marcado como em teste
-      baixaTeste=_temBaixaTeste(f.id, l.id); }
+        baixaInfo={ bags:(Number(_it.dose)||0)*(Number(_ab.hectares)||0), prod:_pr?_pr.nome:"semente" }; } }
     const pct=l.hectares>0?Math.min(100,l.areaPlant/l.hectares*100):0;
     const cls=[l.plantado?'':'pendente', fin?'lav-fin':''].filter(Boolean).join(' ');
     h += '<tr'+(cls?' class="'+cls+'"':'')+'>'+
@@ -5128,7 +5133,7 @@ function telaLavoura(){
         (fin
            ? (baixaInfo
                 ? '<span class="sit ok" title="Semente baixada do estoque">✓ '+nf(baixaInfo.bags,2)+' bags</span> <button class="mini" onclick="baixaPlantioDesfazer(\''+l.id+'\')">Desfazer baixa</button> '
-                : (baixaTeste ? '<button class="mini" onclick="baixaPlantioTestar(\''+l.id+'\')">Dar baixa</button> ' : ''))
+                : '<button class="mini" onclick="baixaPlantioTestar(\''+l.id+'\')">Dar baixa</button> ')
              + '<button class="mini" onclick="reabrirPlantio(\''+l.id+'\')">Reabrir</button>'
            :'<button class="mini" onclick="modalParcela(\''+l.id+'\',-1)">+ parcela</button>'+(nParc?' <button class="mini" onclick="confirmFinalizar(\''+l.id+'\')">Finalizar</button>':''))+
       '</td></tr>';
@@ -5165,12 +5170,33 @@ function gravarLav(id, campo, valor){      // variedade/sementes ficam no talhã
 function toggleLavParc(id){ window._lavExp=window._lavExp||{}; window._lavExp[id]=!window._lavExp[id]; render(); }
 function confirmFinalizar(id){
   const f=acharFazenda(App.fazendaId); if(!f) return;
-  if(!confirm("Finalizar o plantio deste talhão?\n\nEle fica travado para edição (sem novas parcelas). Dá para reabrir depois.")) return;
-  finalizarPlantio(f.id, id, true); toast("Plantio finalizado"); render();
+  if(!confirm("Finalizar o plantio deste talhão?\n\nGera automaticamente a baixa da semente no estoque (operação \"Plantio\") e trava o talhão para edição. Dá para reabrir depois (estorna a baixa).")) return;
+  finalizarPlantio(f.id, id, true);
+  const r=gerarBaixaPlantio(f.id, id);
+  if(r && r.ok && !r.jaExistia) toast("Finalizado · baixa de "+nf(r.bags,2)+" bags no estoque");
+  else if(r && !r.ok) toast("Finalizado · semente não baixada ("+r.motivo+")");
+  else toast("Plantio finalizado");
+  render();
 }
 function reabrirPlantio(id){
   const f=acharFazenda(App.fazendaId); if(!f) return;
   finalizarPlantio(f.id, id, false); toast("Plantio reaberto"); render();
+}
+function baixaPlantioTodos(){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const alvos=(talhoesDe(f.id)||[]).filter(t=>{ const p=lavouraDe(f.id)[t.id]; return p && p.finalizado && !_aplicBaixaPlantio(f.id,t.id); });
+  const planos=alvos.map(t=>({t, pl:_planoBaixaPlantio(f.id,t.id)})).filter(x=>x.pl.ok);
+  const semSem=alvos.length-planos.length;
+  if(!planos.length){ alert("Nenhum talhão finalizado pendente de baixa com a semente encontrada no estoque."+(semSem?"\n\n"+semSem+" talhão(ões) sem semente casada no estoque.":"")); return; }
+  const totalBags=planos.reduce((s,x)=>s+x.pl.bags,0);
+  const msg="Dar baixa de semente em "+planos.length+" talhão(ões) finalizado(s)?\n\n"+
+    planos.map(x=>"• "+x.t.nome+": "+x.pl.variedade+" — "+nf(x.pl.bags,2)+" bags").join("\n")+
+    "\n\nTotal: "+nf(totalBags,2)+" bags"+
+    (semSem?"\n\n⚠️ "+semSem+" talhão(ões) sem semente casada no estoque ficam de fora.":"")+
+    "\n\nCria a operação \"Plantio\" em cada um e desconta do estoque. Dá pra desfazer reabrindo o talhão.";
+  if(!confirm(msg)) return;
+  let ok=0; planos.forEach(x=>{ const r=gerarBaixaPlantio(f.id,x.t.id); if(r&&r.ok&&!r.jaExistia) ok++; });
+  toast(ok+" baixa(s) lançada(s) no estoque"); render();
 }
 function baixaPlantioTestar(id){
   const f=acharFazenda(App.fazendaId); if(!f) return;
@@ -8135,6 +8161,10 @@ function telaVisitas(){
         .map(t=>'<option value="'+t.id+'" '+(_fVisTal===t.id?"selected":"")+'>'+esc(t.nome)+'</option>').join("")+
       '</select>':'')+'</div>';
 
+  // Aviso de fotos ainda não enviadas deste aparelho (ficam só aqui até ter internet).
+  const pendFotos = filaArq().filter(p=>p.indexOf(f.id+"/")===0).length;
+  if(pendFotos) h += '<div class="vis-aviso">⚠️ '+pendFotos+' foto(s)/vídeo(s) ainda não enviada(s) — estão só neste aparelho. Com internet, toque em <b>Reenviar fotos</b> (acima) para subir antes que o aparelho limpe o cache.</div>';
+
   // Rascunhos (só neste aparelho) — aparecem no topo, com Finalizar e Descartar.
   const rascs = (_fVisTal ? rascunhosDe(f.id).filter(r=>(r.talhao_ids||[]).indexOf(_fVisTal)>=0 || r.talhao_id===_fVisTal) : rascunhosDe(f.id)).slice().reverse();
   if(rascs.length){
@@ -8156,9 +8186,7 @@ function telaVisitas(){
         '</div>'+
         (r.texto?'<p class="vis-txt">'+esc(r.texto)+'</p>':'')+
         (fts.length?'<div class="vis-fotos">'+fts.map((ft,k)=> ft.path
-          ? (_ehVideo(ft.path)
-              ? '<video id="rf-'+r.id+'-'+k+'" class="vfoto" controls preload="metadata" playsinline></video>'
-              : '<img id="rf-'+r.id+'-'+k+'" class="vfoto" alt="Foto do rascunho" onclick="verFotoVisita(\''+esc(ft.path)+'\')">')
+          ? _slotFoto("rf-"+r.id+"-"+k, ft.path)
           : '<span class="vazio">Foto no aparelho</span>').join("")+'</div>':'')+
       '</div>';
     });
@@ -8194,10 +8222,7 @@ function telaVisitas(){
       '</div>'+
       (v.texto?'<p class="vis-txt">'+esc(v.texto)+'</p>':'')+
       (fotos.length?'<div class="vis-fotos">'+
-        fotos.map((ft,k)=> ft.path
-          ? (_ehVideo(ft.path)
-              ? '<video id="vf-'+v.id+'-'+k+'" class="vfoto" controls preload="metadata" playsinline></video>'
-              : '<img id="vf-'+v.id+'-'+k+'" class="vfoto" alt="Foto da visita" onclick="verFotoVisita(\''+esc(ft.path)+'\')">')
+        fotos.map((ft,k)=> ft.path ? _slotFoto("vf-"+v.id+"-"+k, ft.path)
           : '<span class="vazio">Foto no aparelho</span>').join("")+
         '</div>':'')+
     '</div>';
@@ -8383,6 +8408,18 @@ async function salvarComoRascunho(id){
   toast("Rascunho salvo neste aparelho"); render();
 }
 
+/* Slot de foto com rótulo explícito: enquanto a imagem não carrega, mostra
+   "⏳ Enviando…" (se está na fila deste aparelho) ou "⚠️ Não enviada" (não
+   está na nuvem nem neste aparelho). Ao carregar, o rótulo some. */
+function _slotFoto(elId, path){
+  const pend = filaArq().includes(path);
+  const nota = pend ? '⏳ Enviando…' : '⚠️ Não enviada';
+  const some = "var n=this.parentNode.querySelector('.foto-nota');if(n)n.remove()";
+  const mid = _ehVideo(path)
+    ? '<video id="'+elId+'" class="vfoto" controls preload="metadata" playsinline onloadeddata="'+some+'"></video>'
+    : '<img id="'+elId+'" class="vfoto" alt="Foto" onload="'+some+'" onclick="verFotoVisita(\''+esc(path)+'\')">';
+  return '<div class="foto-slot">'+mid+'<span class="foto-nota'+(pend?' pend':'')+'">'+nota+'</span></div>';
+}
 async function verFotoVisita(caminho){ return abrirMapaCheia(caminho); }
 
 function excluirVisita(id){
@@ -9889,9 +9926,11 @@ function exportarDescontos(fmt){
 }
 
 /* ── Modal: aplicação ────────────────────── */
-function modalAplicacao(id){
+function modalAplicacao(id, base){
   const f=acharFazenda(App.fazendaId); if(!f) return;
-  const a = id ? aplicacoesDe(f.id).find(x=>x.id===id) : null;
+  const edit = id ? aplicacoesDe(f.id).find(x=>x.id===id) : null;
+  const ehRea = !edit && !!base;              // reaplicar: pré-preenche mas salva NOVA
+  const a = edit || base || null;             // fonte dos VALORES
   const tals = talhoesDe(f.id).slice().sort((x,y)=>x.nome.localeCompare(y.nome,"pt-BR",{numeric:true}));
   _itensApl = a && a.itens && a.itens.length
     ? a.itens.map(i=>({produto_id:i.produto_id,
@@ -9903,11 +9942,11 @@ function modalAplicacao(id){
 
   document.getElementById("modal-root").innerHTML=
   '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal modal-lg">'+
-    '<h2>'+(a?"Editar aplicação":"Nova aplicação")+'</h2>'+
-    '<p class="sub">Informe o total gasto de cada produto. O sistema calcula a dose por hectare (total ÷ área) e o custo.</p>'+
+    '<h2>'+(edit?"Editar aplicação":(ehRea?"Reaplicar":"Nova aplicação"))+'</h2>'+
+    '<p class="sub">'+(ehRea?'Confira a data, os talhões e os valores — é uma <b>nova</b> aplicação igual à anterior. Ajuste o que precisar antes de salvar.':'Informe o total gasto de cada produto. O sistema calcula a dose por hectare (total ÷ área) e o custo.')+'</p>'+
     '<div class="frm">'+
       '<div class="g3">'+
-        '<div><label for="ap-data">Data</label><input type="date" id="ap-data" value="'+(a?a.data:hoje)+'"></div>'+
+        '<div><label for="ap-data">Data</label><input type="date" id="ap-data" value="'+(edit?a.data:hoje)+'"></div>'+
         '<div><label for="ap-tipo">Tipo</label><select id="ap-tipo">'+
           TIPOS_OP.map(t=>'<option '+(a&&a.tipo===t?"selected":"")+'>'+esc(t)+'</option>').join("")+
         '</select></div>'+
@@ -9927,9 +9966,18 @@ function modalAplicacao(id){
         '<input id="ap-obs" value="'+esc(a?a.obs:"")+'" placeholder="Borda, reaplicação, condição do tempo…"></div>'+
     '</div>'+
     '<div class="modal-acts"><button class="btn-cancel" onclick="fecharModal()">Cancelar</button>'+
-      '<button class="btn-save" onclick="gravarAplicacao('+(a?"'"+a.id+"'":"null")+')">Salvar aplicação</button>'+
+      '<button class="btn-save" onclick="gravarAplicacao('+(edit?"'"+edit.id+"'":"null")+')">'+(ehRea?"Salvar nova aplicação":"Salvar aplicação")+'</button>'+
     '</div></div></div>';
   desenharItensApl(); recalcApl();
+}
+
+/* Reaplicar: abre o modal pré-preenchido com os dados de uma aplicação
+   existente (talhões, produtos, doses) para confirmar/ajustar e salvar como
+   uma NOVA aplicação — sem redigitar tudo. */
+function reaplicarAplicacao(id){
+  const f=acharFazenda(App.fazendaId); if(!f) return;
+  const a=aplicacoesDe(f.id).find(x=>x.id===id); if(!a) return;
+  modalAplicacao(null, a);
 }
 
 function desenharItensApl(){
