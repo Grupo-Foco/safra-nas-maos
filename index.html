@@ -968,7 +968,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.177.0";
+const APP_VERSION = "2.178.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -2431,13 +2431,15 @@ const _SEM_LINHAS_HA = 200, _SEM_METRO_LINHA = 100, _SEM_POR_BAG = 5000000;
 function _bagsPorHa(semPorM){ const s=Number(semPorM)||0;
   return s>0 ? (_SEM_LINHAS_HA*_SEM_METRO_LINHA*s)/_SEM_POR_BAG : 0; }  // = s/250
 function _produtoSemente(f, variedade){
-  const v=_normNome(variedade||""); if(!v) return null;
+  // ignora espaços e pontuação: "Neo 771" (variedade) casa com "NEO771" (produto)
+  const _c = s => _normNome(s||"").replace(/[^a-z0-9]/g,"");
+  const v=_c(variedade); if(!v) return null;
   const disp=produtosDisponiveis(f);
-  // 1) o nome do produto contém a variedade (ex.: "SEMENTE SOJA NEO 802" ⊃ "neo 802")
-  let hit=disp.find(p=>_normNome(p.nome).indexOf(v)>=0);
+  // 1) o nome do produto contém a variedade (ex.: "SEM SOJA NEO771 I2X..." ⊃ "neo771")
+  let hit=disp.find(p=>_c(p.nome).indexOf(v)>=0);
   if(hit) return hit;
   // 2) a variedade contém o nome do produto (caso raro)
-  hit=disp.find(p=>{ const n=_normNome(p.nome); return n && v.indexOf(n)>=0; });
+  hit=disp.find(p=>{ const n=_c(p.nome); return n && v.indexOf(n)>=0; });
   return hit||null;
 }
 function _aplicBaixaPlantio(f, talId){
