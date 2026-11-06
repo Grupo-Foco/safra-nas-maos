@@ -968,7 +968,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.176.0";
+const APP_VERSION = "2.177.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -2447,9 +2447,10 @@ function _planoBaixaPlantio(f, talId){
   const t=(talhoesDe(f)||[]).find(x=>x.id===talId);
   const p=lavouraDe(f)[talId];
   if(!p) return {ok:false, motivo:"talhão sem dados de plantio"};
+  const _n=v=>parseFloat(String(v==null?"":v).replace(",","."))||0;   // decimal com vírgula
   const parcelas=_parcelasEfetivas(p,t);
-  const ha=parcelas.reduce((s,x)=>s+(Number(x.area)||0),0);
-  const semM=Number(p.sementes)||0;
+  const ha=parcelas.reduce((s,x)=>s+_n(x.area),0);
+  const semM=_n(p.sementes);
   if(ha<=0)   return {ok:false, motivo:"sem área plantada"};
   if(semM<=0) return {ok:false, motivo:"sem sementes/m lançado"};
   const variedade=((parcelas.map(x=>x.variedade).find(Boolean))||p.variedade||"").trim();
