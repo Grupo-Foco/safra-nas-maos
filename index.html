@@ -972,7 +972,7 @@ input.auto.estouro{background:var(--red-soft)!important;border-color:var(--red)!
 
 <script>
 "use strict";
-const APP_VERSION = "2.181.0";
+const APP_VERSION = "2.182.0";
 const DEV = "Rodolfo C Pinheiro";
 
 /* ═══════════════════════════════════════════════════
@@ -5760,16 +5760,26 @@ function _coreProd(s){
     .replace(/\b(cx|bag|kg|lt|ml|ds|un|sc|l|g)\b/g," ")
     .replace(/\s+/g," ").trim();
 }
-function _casaPedido(nfNome, abertos){
+function _casaPedido(nfNome, abertos, dest){
   const nc=_coreProd(nfNome); if(!nc) return null;
-  let best=null, bestLen=0;
+  const casa=[];
   abertos.forEach(p=>{
     const pc=_coreProd(p.produto); if(!pc) return;
-    if(nc.indexOf(pc)>=0 || pc.indexOf(nc)>=0){
-      if(pc.length>bestLen){ best=p; bestLen=pc.length; }
-    }
+    if(nc.indexOf(pc)>=0 || pc.indexOf(nc)>=0) casa.push({p, len:pc.length});
   });
-  return best;
+  if(!casa.length) return null;
+  // Havendo o mesmo produto para pessoas diferentes, prefere o pedido cujo
+  // responsável bate com o DESTINATÁRIO da nota (ex.: "Neila" ⊂ "NEILA APARECIDA DA SILVA").
+  const destN=_normNome(dest||"");
+  if(destN){
+    const comResp=casa.filter(c=>{
+      const r=_normNome(c.p.responsavel||""); if(!r) return false;
+      return destN.indexOf(r)>=0 || r.split(" ").some(w=>w.length>2 && destN.indexOf(w)>=0);
+    });
+    if(comResp.length){ comResp.sort((a,b)=>b.len-a.len); return comResp[0].p; }
+  }
+  casa.sort((a,b)=>b.len-a.len);
+  return casa[0].p;
 }
 function parseNFeXML(txt){
   const doc=new DOMParser().parseFromString(txt, "text/xml");
@@ -5831,7 +5841,7 @@ function telaConferirNF(){
   let jaImp=false;
   pedidosDe(f.id).forEach(p=>(p.entregas||[]).forEach(e=>{ if(e.chave && e.chave===d.chave) jaImp=true; }));
   const rows=d.itens.map((it,i)=>{
-    const match=_casaPedido(it.nome, abertos);
+    const match=_casaPedido(it.nome, abertos, d.dest);
     const opts='<option value="__novo__">➕ Novo pedido (fora do pedido)</option>'+
       abertos.map(p=>'<option value="'+p.id+'"'+(match&&match.id===p.id?" selected":"")+'>'+esc(p.produto)+' · falta '+nf(p.qtd-(p.entregue||0),0)+(p.unidade?" "+esc(p.unidade):"")+'</option>').join("")+
       '<option value="__ignorar__">✕ Ignorar</option>';
@@ -5841,7 +5851,7 @@ function telaConferirNF(){
   document.getElementById("modal-root").innerHTML=
   '<div class="overlay" onclick="if(event.target===this)fecharModal()"><div class="modal modal-lg">'+
     '<h2>Conferir nota '+(d.nf?"NF "+esc(d.nf):"")+'</h2>'+
-    '<p class="sub">'+esc(d.emit||"—")+' · '+(d.data?dataBR(d.data):"—")+(d.destLocal?' · destino '+esc(d.destLocal):"")+' · total '+moeda(d.total)+'</p>'+
+    '<p class="sub">'+esc(d.emit||"—")+(d.dest?' · p/ <b>'+esc(d.dest)+'</b>':"")+' · '+(d.data?dataBR(d.data):"—")+(d.destLocal?' · destino '+esc(d.destLocal):"")+' · total '+moeda(d.total)+'</p>'+
     (jaImp?'<p class="dica" style="color:var(--red)">⚠️ Esta nota (mesma chave) já foi importada antes. Importar de novo vai duplicar as entregas.</p>':"")+
     '<div class="tbl-wrap" style="max-height:52vh;overflow:auto"><table class="arm-grid"><thead><tr><th>Item da nota</th><th>Lançar em</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
     '<p class="dica">Casados dão baixa na entrega do pedido. "Novo pedido" entra já entregue, marcado <b>fora do pedido</b>. O XML fica anexado como nota.</p>'+
